@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { siteConfig } from "@/lib/site-config";
 
@@ -19,15 +20,20 @@ export function Hero() {
       </div>
 
       <div className="mx-auto flex min-h-[100svh] max-w-6xl flex-col justify-end px-5 pb-16 pt-28 md:justify-center md:px-8 md:pb-24 md:pt-32">
-        <p className="animate-rise font-[family-name:var(--font-syne)] text-4xl font-extrabold leading-[0.95] tracking-tight text-white sm:text-5xl md:text-7xl lg:text-8xl">
-          {siteConfig.brand}
-        </p>
+        <Image
+          src="/brand/logo.png"
+          alt={siteConfig.brand}
+          width={720}
+          height={200}
+          priority
+          className="animate-rise h-auto w-full max-w-xl object-contain md:max-w-2xl"
+        />
         <div className="hero-rule mt-5 h-1 w-40 rounded-full bg-signal md:mt-6 md:w-56" />
         <h1 className="animate-rise-delay-1 mt-6 max-w-xl font-[family-name:var(--font-syne)] text-2xl font-bold leading-tight text-white/95 md:text-3xl">
           Lar mais fácil. Tech que obedece.
         </h1>
         <p className="animate-rise-delay-2 mt-4 max-w-md text-base leading-relaxed text-white/75 md:text-lg">
-          {siteConfig.slogan}
+          Produtos incríveis. Soluções inteligentes.
         </p>
         <div className="animate-rise-delay-3 mt-8 flex flex-wrap items-center gap-3">
           <Link

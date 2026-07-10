@@ -23,11 +23,16 @@ export const metadata: Metadata = {
     template: `%s · ${siteConfig.brand}`,
   },
   description: siteConfig.slogan,
+  icons: {
+    icon: [{ url: "/brand/favicon-f.png", type: "image/png" }],
+    apple: [{ url: "/brand/apple-touch-icon.png" }],
+  },
   openGraph: {
     title: siteConfig.brand,
     description: siteConfig.slogan,
     locale: "pt_BR",
     type: "website",
+    images: [{ url: "/brand/logo.png" }],
   },
 };
 

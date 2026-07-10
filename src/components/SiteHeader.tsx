@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { siteConfig } from "@/lib/site-config";
@@ -18,27 +19,29 @@ export function SiteHeader({ variant = "solid" }: { variant?: "solid" | "hero" }
           : "sticky top-0 z-30 border-b border-ink/10 bg-paper/95 backdrop-blur"
       }
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 md:px-8">
-        <Link
-          href="/"
-          className={`font-[family-name:var(--font-syne)] text-lg font-extrabold tracking-tight md:text-xl ${
-            onHero ? "text-white" : "text-ink"
-          }`}
-        >
-          {siteConfig.brand}
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3 md:px-8 md:py-4">
+        <Link href="/" className="flex items-center gap-2" aria-label={siteConfig.brand}>
+          <Image
+            src="/brand/logo.png"
+            alt={siteConfig.brand}
+            width={200}
+            height={56}
+            className="h-11 w-auto object-contain md:h-12"
+            priority
+          />
         </Link>
         <nav
           className={`flex items-center gap-4 text-sm font-medium md:gap-6 ${
             onHero ? "text-white/85" : "text-ink-soft"
           }`}
         >
-          <Link href="/produtos" className="hidden transition hover:opacity-100 sm:inline opacity-90">
+          <Link href="/produtos" className="hidden opacity-90 transition hover:opacity-100 sm:inline">
             Produtos
           </Link>
-          <Link href="/#lar" className="hidden transition hover:opacity-100 md:inline opacity-90">
+          <Link href="/#lar" className="hidden opacity-90 transition hover:opacity-100 md:inline">
             Lar
           </Link>
-          <Link href="/#tech" className="hidden transition hover:opacity-100 md:inline opacity-90">
+          <Link href="/#tech" className="hidden opacity-90 transition hover:opacity-100 md:inline">
             Tech
           </Link>
           <Link

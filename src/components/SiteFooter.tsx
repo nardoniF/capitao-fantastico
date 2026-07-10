@@ -1,15 +1,20 @@
-import { siteConfig, whatsappUrl } from "@/lib/site-config";
+import Image from "next/image";
 import Link from "next/link";
+import { siteConfig, whatsappUrl } from "@/lib/site-config";
 
 export function SiteFooter() {
   return (
     <footer className="bg-ink text-white">
       <div className="mx-auto flex max-w-6xl flex-col gap-8 px-5 py-14 md:flex-row md:items-end md:justify-between md:px-8 md:py-16">
         <div>
-          <p className="font-[family-name:var(--font-syne)] text-3xl font-extrabold tracking-tight md:text-4xl">
-            {siteConfig.brand}
-          </p>
-          <p className="mt-3 max-w-sm text-sm leading-relaxed text-white/65">
+          <Image
+            src="/brand/logo.png"
+            alt={siteConfig.brand}
+            width={280}
+            height={80}
+            className="h-16 w-auto object-contain md:h-20"
+          />
+          <p className="mt-4 max-w-sm text-sm leading-relaxed text-white/65">
             {siteConfig.slogan}
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
