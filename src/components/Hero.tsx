@@ -24,10 +24,11 @@ export function Hero() {
             {siteConfig.brand}
           </p>
           <h1 className="mt-3 max-w-xl font-[family-name:var(--font-syne)] text-3xl font-bold leading-tight md:text-5xl">
-            Lar mais fácil. Tech que obedece.
+            Produtos incríveis. Soluções inteligentes.
           </h1>
           <p className="mt-4 max-w-lg text-base text-muted md:text-lg">
-            Utilidades do lar e tecnologia inteligente — sem complicação.
+            Do escritório à cozinha, do pet ao smart home — o que facilita o dia a
+            dia, em um só lugar.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
