@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { formatBRL, type Product } from "@/data/products";
+import { categoryLabels, formatBRL, type Product } from "@/data/products";
 import { useCart } from "@/components/CartProvider";
 
 export function ProductCard({ product }: { product: Product }) {
@@ -21,11 +21,18 @@ export function ProductCard({ product }: { product: Product }) {
         </div>
       </Link>
       <div className="flex flex-1 flex-col gap-2 p-4">
+        <p className="m-0 text-[0.7rem] font-semibold uppercase tracking-wider text-gold/80">
+          {categoryLabels[product.category]}
+        </p>
         <Link href={`/produtos/${product.slug}`}>
           <h3 className="m-0 text-[1.05rem] font-bold leading-snug text-gold">
             {product.name}
           </h3>
         </Link>
+        <p className="m-0 text-xs text-[#666]" aria-label={`${product.rating} de 5`}>
+          {"★".repeat(product.rating)}
+          {"☆".repeat(5 - product.rating)}
+        </p>
         <p className="m-0 flex-1 text-[0.9rem] leading-snug text-[#888]">
           {product.blurb}
         </p>

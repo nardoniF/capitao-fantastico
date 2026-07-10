@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import {
+  applySeedIfNeeded,
   createEmptyStore,
   type ClickEvent,
   type Order,
@@ -38,26 +39,42 @@ async function writeToDisk(state: StoreState) {
   }
 }
 
-async function loadState(): Promise<StoreState> {
+async function loadState(): Promise<{ state: StoreState; reseeding: boolean }> {
+  let state: StoreState | null = null;
+
   if (isRedisEnabled()) {
     const raw = await redisGetStoreJson();
     if (raw) {
       try {
-        return JSON.parse(raw) as StoreState;
+        state = JSON.parse(raw) as StoreState;
       } catch {
         /* fall through */
       }
     }
   }
 
-  if (globalThis.__cfStore) return globalThis.__cfStore;
-  const disk = await readFromDisk();
-  return disk ?? createEmptyStore();
+  if (!state && globalThis.__cfStore) state = globalThis.__cfStore;
+  if (!state) {
+    const disk = await readFromDisk();
+    state = disk ?? createEmptyStore();
+  }
+
+  const next = applySeedIfNeeded(state);
+  return { state: next, reseeding: next !== state };
 }
 
 export async function getStore(): Promise<StoreState> {
-  const state = await loadState();
+  const { state, reseeding } = await loadState();
   globalThis.__cfStore = state;
+  if (reseeding) {
+    state.updatedAt = new Date().toISOString();
+    const json = JSON.stringify(state);
+    if (isRedisEnabled()) {
+      await redisSetStoreJson(json);
+    } else {
+      await writeToDisk(state);
+    }
+  }
   return state;
 }
 

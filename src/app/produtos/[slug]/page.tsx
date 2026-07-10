@@ -1,5 +1,9 @@
 import { AddToCartButtons } from "@/components/AddToCartButtons";
-import { formatBRL, products as seedProducts } from "@/data/products";
+import {
+  categoryLabels,
+  formatBRL,
+  products as seedProducts,
+} from "@/data/products";
 import { getProductBySlug } from "@/lib/store-db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -37,11 +41,15 @@ export default async function ProductDetailPage({ params }: Props) {
         </div>
         <div className="flex flex-col justify-center">
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold">
-            {product.category === "tech" ? "Tech" : "Lar"}
+            {categoryLabels[product.category]}
           </p>
           <h1 className="mt-2 font-[family-name:var(--font-syne)] text-3xl font-bold text-white md:text-4xl">
             {product.name}
           </h1>
+          <div className="mt-3 text-sm text-[#888]" aria-label={`${product.rating} de 5`}>
+            {"★".repeat(product.rating)}
+            {"☆".repeat(5 - product.rating)}
+          </div>
           <div className="mt-4 flex items-baseline gap-3">
             <span className="text-3xl font-bold text-gold">
               {formatBRL(product.price)}

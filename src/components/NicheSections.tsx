@@ -5,14 +5,15 @@ export function NicheSections() {
         <div className="mx-auto grid max-w-[1200px] gap-6 px-5 md:grid-cols-2 md:px-6">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold">
-              Utilidades do lar
+              Casa · cozinha · pet
             </p>
             <h2 className="mt-2 font-[family-name:var(--font-syne)] text-2xl font-bold text-white md:text-3xl">
               Utilidades que resolvem
             </h2>
           </div>
           <p className="text-base leading-relaxed text-[#888] md:pt-6">
-            Organização e limpeza com peças práticas — sem firula.
+            Limpeza, organização, pet e cozinha — produtos com margem de drop e
+            demanda real.
           </p>
         </div>
       </section>
@@ -21,14 +22,15 @@ export function NicheSections() {
         <div className="mx-auto grid max-w-[1200px] gap-6 px-5 md:grid-cols-2 md:px-6">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold">
-              Tecnologia inteligente
+              Tech · smart home · escritório
             </p>
             <h2 className="mt-2 font-[family-name:var(--font-syne)] text-2xl font-bold text-white md:text-3xl">
-              Lar inteligente, no seu ritmo
+              Gadgets que vendem
             </h2>
           </div>
           <p className="text-base leading-relaxed text-[#888] md:pt-6">
-            Luz, tomadas e sensores que você controla pelo celular.
+            Sensores, limpeza de eletrônicos, Apple e setup — ticket médio alto,
+            custo baixo.
           </p>
         </div>
       </section>

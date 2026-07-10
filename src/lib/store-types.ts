@@ -1,4 +1,8 @@
-import { products as seedProducts, type Product } from "@/data/products";
+import {
+  PRODUCTS_SEED_VERSION,
+  products as seedProducts,
+  type Product,
+} from "@/data/products";
 
 export type StoreProduct = Product & {
   active: boolean;
@@ -58,17 +62,42 @@ export type StoreState = {
   orders: Order[];
   clicks: ClickEvent[];
   updatedAt: string;
+  /** Quando muda, produtos são trocados pelo seed (pedidos permanecem) */
+  seedVersion?: number;
 };
 
+/** Upsells por afinidade de categoria / uso */
 const complementaryDefaults: Record<string, string[]> = {
-  "1": ["3", "5"],
-  "2": ["6", "8"],
-  "3": ["1", "5"],
-  "4": ["8", "2"],
-  "5": ["3", "7"],
-  "6": ["2"],
-  "7": ["5", "3"],
-  "8": ["4", "2"],
+  "1": ["14", "15", "28"],
+  "2": ["10", "26"],
+  "3": ["4", "30"],
+  "4": ["3", "30"],
+  "5": ["13", "18"],
+  "6": ["16", "13"],
+  "7": ["8"],
+  "8": ["7", "18"],
+  "9": ["19", "20"],
+  "10": ["2", "26"],
+  "11": ["12", "24"],
+  "12": ["11", "25"],
+  "13": ["5", "28"],
+  "14": ["1", "15"],
+  "15": ["1", "14", "17"],
+  "16": ["6", "28"],
+  "17": ["15", "13"],
+  "18": ["22", "5"],
+  "19": ["9", "20"],
+  "20": ["9", "19"],
+  "21": ["23", "22"],
+  "22": ["18", "21"],
+  "23": ["21", "6"],
+  "24": ["11", "25"],
+  "25": ["24", "12"],
+  "26": ["10", "11"],
+  "27": ["29", "30"],
+  "28": ["1", "13", "16"],
+  "29": ["27", "20"],
+  "30": ["3", "4"],
 };
 
 export function seedStoreProducts(): StoreProduct[] {
@@ -85,6 +114,17 @@ export function createEmptyStore(): StoreState {
     products: seedStoreProducts(),
     orders: [],
     clicks: [],
+    updatedAt: new Date().toISOString(),
+    seedVersion: PRODUCTS_SEED_VERSION,
+  };
+}
+
+export function applySeedIfNeeded(state: StoreState): StoreState {
+  if (state.seedVersion === PRODUCTS_SEED_VERSION) return state;
+  return {
+    ...state,
+    products: seedStoreProducts(),
+    seedVersion: PRODUCTS_SEED_VERSION,
     updatedAt: new Date().toISOString(),
   };
 }
