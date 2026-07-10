@@ -4,7 +4,7 @@ const policies = [
   {
     id: "frete",
     title: "Frete",
-    body: "Informe o CEP no checkout. O fornecedor envia após o pagamento; prazo confirmado por WhatsApp. Correios / transportadoras.",
+    body: "Informe o CEP no checkout. Após o pagamento, enviamos e confirmamos o prazo por WhatsApp. Correios / transportadoras.",
   },
   {
     id: "troca",

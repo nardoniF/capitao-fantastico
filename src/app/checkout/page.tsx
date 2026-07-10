@@ -168,14 +168,14 @@ export default function CheckoutPage() {
               2 Pagamento MP
             </span>
             <span className="rounded-full border border-line px-3 py-1 text-muted">
-              3 Fornecedor envia
+              3 Envio
             </span>
           </div>
           <h1 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-white">
             Checkout
           </h1>
           <p className="mt-2 text-muted">
-            Endereço completo para o fornecedor enviar. Pagamento no Mercado Pago.
+            Informe o endereço de entrega. Pagamento seguro no Mercado Pago.
           </p>
           <form
             className="mt-8 space-y-4 rounded-xl border border-line bg-card p-6"

@@ -65,7 +65,7 @@ export default async function ProductDetailPage({ params }: Props) {
           </p>
           <AddToCartButtons productId={product.id} />
           <p className="mt-5 text-sm text-[#666]">
-            Frete pelo fornecedor após o pagamento · Pix / cartão
+            Frete calculado após o pedido · Pix / cartão
           </p>
         </div>
       </div>

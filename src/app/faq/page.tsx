@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Perguntas frequentes",
-  description: "Dúvidas sobre pedidos, entrega, pagamento e dropshipping.",
+  description: "Dúvidas sobre pedidos, entrega e pagamento.",
 };
 
 export default function FaqPage() {

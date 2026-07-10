@@ -18,13 +18,12 @@ export default function TermosPage() {
       <div className="mt-8 space-y-6 text-sm leading-relaxed text-[#bbb]">
         <p>
           Ao comprar na loja {siteConfig.brand}, você adquire produtos comercializados
-          pela {siteConfig.company}. Operamos em modelo de dropshipping: após o
-          pagamento, o pedido é encaminhado ao fornecedor, que realiza o envio ao
-          endereço informado no checkout.
+          pela {siteConfig.company}. Após o pagamento, o pedido é preparado e enviado
+          ao endereço informado no checkout.
         </p>
         <p>
           Preços, disponibilidade e prazos podem variar. O prazo de entrega é
-          confirmado após a compra, conforme o fornecedor e a região.
+          confirmado após a compra, conforme o produto e a sua região.
         </p>
         <p>
           Pagamentos são processados pelo Mercado Pago (Pix e cartão). Em caso de

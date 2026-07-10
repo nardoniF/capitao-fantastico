@@ -77,7 +77,7 @@ export async function POST(request: Request) {
       subtotal,
       total: subtotal,
       status: "pending_payment",
-      notes: "Dropshipping — comprar no fornecedor e colar rastreio no admin",
+      notes: "Pedido loja — processar envio e colar rastreio no admin",
     });
 
     return NextResponse.json({ order });

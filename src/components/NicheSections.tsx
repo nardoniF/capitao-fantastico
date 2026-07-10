@@ -12,8 +12,8 @@ export function NicheSections() {
             </h2>
           </div>
           <p className="text-base leading-relaxed text-[#888] md:pt-6">
-            Limpeza, organização, pet e cozinha — produtos com margem de drop e
-            demanda real.
+            Limpeza, organização, pet e cozinha — produtos práticos para o dia a
+            dia.
           </p>
         </div>
       </section>
@@ -29,8 +29,7 @@ export function NicheSections() {
             </h2>
           </div>
           <p className="text-base leading-relaxed text-[#888] md:pt-6">
-            Sensores, limpeza de eletrônicos, Apple e setup — ticket médio alto,
-            custo baixo.
+            Gadgets, sensores e setup — tecnologia útil, sem complicação.
           </p>
         </div>
       </section>

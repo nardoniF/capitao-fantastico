@@ -18,7 +18,7 @@ export default function PrivacidadePage() {
       <div className="mt-8 space-y-6 text-sm leading-relaxed text-[#bbb]">
         <p>
           Coletamos nome, e-mail, telefone/WhatsApp e endereço de entrega para
-          processar pedidos, pagamento (via Mercado Pago) e envio pelo fornecedor.
+          processar pedidos, pagamento (via Mercado Pago) e entrega.
         </p>
         <p>
           Dados de pagamento (cartão) são tratados pelo Mercado Pago — não

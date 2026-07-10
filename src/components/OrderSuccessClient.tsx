@@ -32,8 +32,8 @@ export function OrderSuccessClient() {
         {demo
           ? "Modo demo: configure MP_ACCESS_TOKEN para receber de verdade via Mercado Pago."
           : pending
-            ? "Assim que o Pix/cartão confirmar, compramos no fornecedor e enviamos o rastreio."
-            : "Obrigado! Vamos processar o envio com o fornecedor. O rastreio chega por WhatsApp/e-mail."}
+            ? "Assim que o Pix/cartão confirmar, preparamos o envio e mandamos o rastreio."
+            : "Obrigado! Estamos preparando o seu pedido. O rastreio chega por WhatsApp/e-mail."}
       </p>
       <div className="mt-10 flex flex-wrap justify-center gap-3">
         <Link
