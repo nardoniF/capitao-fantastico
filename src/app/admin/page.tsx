@@ -46,8 +46,14 @@ export default function AdminPage() {
     if (saved) setPassword(saved);
   }, []);
 
+  useEffect(() => {
+    if (!msg) return;
+    const t = window.setTimeout(() => setMsg(null), 2500);
+    return () => window.clearTimeout(t);
+  }, [msg]);
+
   async function saveProduct(product: StoreProduct) {
-    setMsg(null);
+    setError(null);
     const res = await fetch("/api/admin", {
       method: "PUT",
       headers: {
@@ -60,7 +66,7 @@ export default function AdminPage() {
       setError("Falha ao salvar produto");
       return;
     }
-    setMsg(`Produto ${product.name} salvo`);
+    setMsg(`Salvo: ${product.name}`);
     await load();
   }
 
@@ -132,7 +138,11 @@ export default function AdminPage() {
           <button
             key={t}
             type="button"
-            onClick={() => setTab(t)}
+            onClick={() => {
+              setMsg(null);
+              setError(null);
+              setTab(t);
+            }}
             className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
               tab === t ? "bg-gold text-black" : "border border-line text-muted"
             }`}
@@ -142,7 +152,19 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {msg ? <p className="mt-4 text-sm text-gold">{msg}</p> : null}
+      {msg ? (
+        <p className="mt-4 flex items-center justify-between gap-3 rounded-md border border-gold/30 bg-gold/10 px-3 py-2 text-sm text-gold">
+          <span>{msg}</span>
+          <button
+            type="button"
+            onClick={() => setMsg(null)}
+            className="shrink-0 text-xs font-semibold text-white/70 hover:text-white"
+            aria-label="Fechar"
+          >
+            ✕
+          </button>
+        </p>
+      ) : null}
 
       {tab === "orders" ? (
         <div className="mt-8 space-y-4">
