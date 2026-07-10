@@ -8,11 +8,29 @@ import { siteConfig, whatsappUrl } from "@/lib/site-config";
 
 type UpsellProduct = Product & { complementaryIds?: string[] };
 
+const UF_LIST = [
+  "AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB",
+  "PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO",
+];
+
+function maskCep(value: string) {
+  const d = value.replace(/\D/g, "").slice(0, 8);
+  if (d.length <= 5) return d;
+  return `${d.slice(0, 5)}-${d.slice(5)}`;
+}
+
 export default function CheckoutPage() {
   const { lines, subtotal, clear, add } = useCart();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [cep, setCep] = useState("");
+  const [rua, setRua] = useState("");
+  const [numero, setNumero] = useState("");
+  const [complemento, setComplemento] = useState("");
+  const [bairro, setBairro] = useState("");
+  const [cidade, setCidade] = useState("");
+  const [uf, setUf] = useState("SP");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [upsells, setUpsells] = useState<UpsellProduct[]>([]);
@@ -28,6 +46,28 @@ export default function CheckoutPage() {
       .then((d: { products?: UpsellProduct[] }) => setUpsells(d.products ?? []))
       .catch(() => setUpsells([]));
   }, [lines]);
+
+  async function lookupCep(raw: string) {
+    const digits = raw.replace(/\D/g, "");
+    if (digits.length !== 8) return;
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = (await res.json()) as {
+        erro?: boolean;
+        logradouro?: string;
+        bairro?: string;
+        localidade?: string;
+        uf?: string;
+      };
+      if (data.erro) return;
+      if (data.logradouro) setRua(data.logradouro);
+      if (data.bairro) setBairro(data.bairro);
+      if (data.localidade) setCidade(data.localidade);
+      if (data.uf) setUf(data.uf);
+    } catch {
+      /* manual fill */
+    }
+  }
 
   if (lines.length === 0) {
     return (
@@ -56,6 +96,7 @@ export default function CheckoutPage() {
           nome: name,
           email,
           telefone: phone,
+          endereco: { cep, rua, numero, complemento, bairro, cidade, uf },
           items: lines.map((l) => ({
             productId: l.product.id,
             qty: l.qty,
@@ -68,12 +109,16 @@ export default function CheckoutPage() {
       };
       if (!orderRes.ok) throw new Error(orderData.error || "Falha no pedido");
 
+      const orderId = orderData.order?.orderId;
+      if (!orderId) throw new Error("Pedido sem ID");
+
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name,
           email,
+          orderId,
           items: lines.map((l) => ({
             id: l.product.id,
             title: l.product.name,
@@ -93,12 +138,13 @@ export default function CheckoutPage() {
 
       if (data.demo) {
         clear();
-        window.location.href = `/pedido/sucesso?demo=1&pedido=${orderData.order?.orderId ?? ""}`;
+        window.location.href = `/pedido/sucesso?demo=1&pedido=${orderId}`;
         return;
       }
 
       const url = data.init_point || data.sandbox_init_point;
       if (!url) throw new Error("Link de pagamento não retornado");
+      // Carrinho limpa na página de sucesso após retorno do MP
       window.location.href = url;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro no checkout");
@@ -114,9 +160,9 @@ export default function CheckoutPage() {
     <div className="bg-bg py-12 md:py-16">
       <div className="mx-auto grid max-w-5xl gap-8 px-5 md:grid-cols-5 md:px-8">
         <div className="md:col-span-3">
-          <div className="mb-6 flex gap-2 text-sm">
+          <div className="mb-6 flex flex-wrap gap-2 text-sm">
             <span className="rounded-full bg-gold px-3 py-1 font-semibold text-black">
-              1 Dados
+              1 Dados + endereço
             </span>
             <span className="rounded-full border border-line px-3 py-1 text-muted">
               2 Pagamento MP
@@ -129,7 +175,7 @@ export default function CheckoutPage() {
             Checkout
           </h1>
           <p className="mt-2 text-muted">
-            Pagamento no Mercado Pago. Frete/envio pelo fornecedor (dropshipping).
+            Endereço completo para o fornecedor enviar. Pagamento no Mercado Pago.
           </p>
           <form
             className="mt-8 space-y-4 rounded-xl border border-line bg-card p-6"
@@ -160,12 +206,101 @@ export default function CheckoutPage() {
             <label className="block text-sm font-medium text-white">
               WhatsApp
               <input
+                required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="(11) 9xxxx-xxxx"
                 className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
               />
             </label>
+
+            <div className="border-t border-line pt-4">
+              <p className="text-sm font-semibold text-gold">Endereço de entrega</p>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <label className="block text-sm font-medium text-white sm:col-span-1">
+                CEP
+                <input
+                  required
+                  value={cep}
+                  onChange={(e) => {
+                    const v = maskCep(e.target.value);
+                    setCep(v);
+                    if (v.replace(/\D/g, "").length === 8) void lookupCep(v);
+                  }}
+                  placeholder="00000-000"
+                  className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
+                />
+              </label>
+              <label className="block text-sm font-medium text-white sm:col-span-2">
+                Rua
+                <input
+                  required
+                  value={rua}
+                  onChange={(e) => setRua(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
+                />
+              </label>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <label className="block text-sm font-medium text-white">
+                Número
+                <input
+                  required
+                  value={numero}
+                  onChange={(e) => setNumero(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
+                />
+              </label>
+              <label className="block text-sm font-medium text-white sm:col-span-2">
+                Complemento
+                <input
+                  value={complemento}
+                  onChange={(e) => setComplemento(e.target.value)}
+                  placeholder="Apto, bloco…"
+                  className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
+                />
+              </label>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-3">
+              <label className="block text-sm font-medium text-white sm:col-span-1">
+                Bairro
+                <input
+                  required
+                  value={bairro}
+                  onChange={(e) => setBairro(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
+                />
+              </label>
+              <label className="block text-sm font-medium text-white sm:col-span-1">
+                Cidade
+                <input
+                  required
+                  value={cidade}
+                  onChange={(e) => setCidade(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
+                />
+              </label>
+              <label className="block text-sm font-medium text-white">
+                UF
+                <select
+                  required
+                  value={uf}
+                  onChange={(e) => setUf(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
+                >
+                  {UF_LIST.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
             {error ? <p className="text-sm text-red-400">{error}</p> : null}
             <button
               type="submit"
@@ -177,7 +312,7 @@ export default function CheckoutPage() {
           </form>
           <a
             href={whatsappUrl(
-              `Pedido ${siteConfig.brand}\n${orderText}\nTotal: ${formatBRL(subtotal)}\nNome: ${name || "—"}`,
+              `Pedido ${siteConfig.brand}\n${orderText}\nTotal: ${formatBRL(subtotal)}\nNome: ${name || "—"}\nCEP: ${cep || "—"}`,
             )}
             target="_blank"
             rel="noopener noreferrer"

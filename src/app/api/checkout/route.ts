@@ -13,6 +13,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       name?: string;
       email?: string;
+      orderId?: string;
       items?: CheckoutItem[];
     };
 
@@ -24,13 +25,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Carrinho inválido" }, { status: 400 });
     }
 
+    if (!body.orderId) {
+      return NextResponse.json({ error: "orderId obrigatório" }, { status: 400 });
+    }
+
     const token = process.env.MP_ACCESS_TOKEN?.trim();
     const origin =
       process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
       request.headers.get("origin") ||
       "http://127.0.0.1:3001";
 
-    // Sem token: modo demo para desenvolver a loja sem travar
     if (!token) {
       return NextResponse.json({
         demo: true,
@@ -55,13 +59,18 @@ export async function POST(request: Request) {
           name: body.name,
           email: body.email,
         },
+        external_reference: body.orderId,
+        notification_url: `${origin}/api/webhooks/mercadopago`,
         back_urls: {
-          success: `${origin}/pedido/sucesso`,
+          success: `${origin}/pedido/sucesso?pedido=${encodeURIComponent(body.orderId)}`,
           failure: `${origin}/checkout?status=failure`,
-          pending: `${origin}/pedido/sucesso?pending=1`,
+          pending: `${origin}/pedido/sucesso?pending=1&pedido=${encodeURIComponent(body.orderId)}`,
         },
         auto_return: "approved",
         statement_descriptor: "CAPITAO FANTASTICO",
+        metadata: {
+          order_id: body.orderId,
+        },
       },
     });
 

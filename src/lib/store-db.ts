@@ -7,6 +7,11 @@ import {
   type StoreProduct,
   type StoreState,
 } from "@/lib/store-types";
+import {
+  isRedisEnabled,
+  redisGetStoreJson,
+  redisSetStoreJson,
+} from "@/lib/redis-store";
 
 const DATA_PATH = path.join(process.cwd(), "data", "store-runtime.json");
 
@@ -29,14 +34,29 @@ async function writeToDisk(state: StoreState) {
     await fs.mkdir(path.dirname(DATA_PATH), { recursive: true });
     await fs.writeFile(DATA_PATH, JSON.stringify(state, null, 2), "utf8");
   } catch {
-    // Vercel/serverless: filesystem may be read-only — memory still works for the instance
+    // Vercel/serverless sem Redis: disco pode ser read-only
   }
 }
 
-export async function getStore(): Promise<StoreState> {
+async function loadState(): Promise<StoreState> {
+  if (isRedisEnabled()) {
+    const raw = await redisGetStoreJson();
+    if (raw) {
+      try {
+        return JSON.parse(raw) as StoreState;
+      } catch {
+        /* fall through */
+      }
+    }
+  }
+
   if (globalThis.__cfStore) return globalThis.__cfStore;
   const disk = await readFromDisk();
-  const state = disk ?? createEmptyStore();
+  return disk ?? createEmptyStore();
+}
+
+export async function getStore(): Promise<StoreState> {
+  const state = await loadState();
   globalThis.__cfStore = state;
   return state;
 }
@@ -44,6 +64,14 @@ export async function getStore(): Promise<StoreState> {
 export async function saveStore(state: StoreState) {
   state.updatedAt = new Date().toISOString();
   globalThis.__cfStore = state;
+  const json = JSON.stringify(state);
+
+  if (isRedisEnabled()) {
+    const ok = await redisSetStoreJson(json);
+    if (!ok) console.error("Falha ao gravar store no Redis");
+    return;
+  }
+
   await writeToDisk(state);
 }
 
@@ -89,16 +117,18 @@ export async function createOrder(
   return order;
 }
 
-export async function updateOrder(
-  orderId: string,
-  patch: Partial<Order>,
-) {
+export async function updateOrder(orderId: string, patch: Partial<Order>) {
   const store = await getStore();
   const idx = store.orders.findIndex((o) => o.orderId === orderId);
   if (idx < 0) return null;
   store.orders[idx] = { ...store.orders[idx], ...patch };
   await saveStore(store);
   return store.orders[idx];
+}
+
+export async function findOrderById(orderId: string) {
+  const store = await getStore();
+  return store.orders.find((o) => o.orderId === orderId) ?? null;
 }
 
 export async function listOrders() {

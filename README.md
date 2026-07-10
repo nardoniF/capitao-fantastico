@@ -1,6 +1,6 @@
 # Capitão Fantástico — loja própria (Next.js)
 
-Utilidades do lar + tecnologia inteligente. Catálogo, carrinho e checkout no site.
+Utilidades do lar + tecnologia inteligente. Dropshipping com Mercado Pago.
 
 ## Rodar
 
@@ -10,26 +10,28 @@ npm install
 npm run dev
 ```
 
-Abra [http://127.0.0.1:3001](http://127.0.0.1:3001) (ou a porta que o Next indicar).
-
-## Mercado Pago (Pix + cartão)
-
-1. Crie um app em [developers.mercadopago.com](https://www.mercadopago.com.br/developers/panel/app)
-2. Copie o **Access Token** (teste ou produção)
-3. No `.env.local`:
+## Variáveis
 
 ```bash
+NEXT_PUBLIC_SITE_URL=https://www.capitaofantastico.com.br
 MP_ACCESS_TOKEN=APP_USR-...
-NEXT_PUBLIC_SITE_URL=https://seu-dominio.com
+ADMIN_PASSWORD=senha-forte
+# Produção na Vercel (obrigatório para pedidos não sumirem):
+UPSTASH_REDIS_REST_URL=
+UPSTASH_REDIS_REST_TOKEN=
 ```
 
-Sem token, o checkout roda em **modo demo** (pedido simulado).
+Sem `MP_ACCESS_TOKEN`, o checkout roda em **modo demo**.
 
 ## Rotas
 
-- `/` — home da marca
-- `/produtos` — catálogo
-- `/produtos/[slug]` — produto
-- `/carrinho` — carrinho
-- `/checkout` — pagamento
-- `/api/checkout` — cria preferência Mercado Pago
+- `/` — home
+- `/produtos` — catálogo (só produtos ativos)
+- `/checkout` — dados + endereço + Mercado Pago
+- `/admin` — pedidos, preços, custo, rastreio
+- `/api/webhooks/mercadopago` — marca pedido pago
+- `/termos` · `/privacidade` · `/faq` · `/sobre` · `/contato`
+
+## Operação drop
+
+Veja [docs/DROPSHIPPING.md](docs/DROPSHIPPING.md).

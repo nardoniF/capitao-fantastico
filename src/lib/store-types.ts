@@ -3,9 +3,20 @@ import { products as seedProducts, type Product } from "@/data/products";
 export type StoreProduct = Product & {
   active: boolean;
   sku?: string;
-  cost?: number;
+  /** SKU / código no fornecedor (para recompra no drop) */
+  supplierSku?: string;
   /** IDs de produtos para oferecer no checkout (upsell) */
   complementaryIds?: string[];
+};
+
+export type ShippingAddress = {
+  cep: string;
+  rua: string;
+  numero: string;
+  complemento?: string;
+  bairro: string;
+  cidade: string;
+  uf: string;
 };
 
 export type OrderItem = {
@@ -22,6 +33,7 @@ export type Order = {
   nome: string;
   email: string;
   telefone?: string;
+  endereco?: ShippingAddress;
   items: OrderItem[];
   subtotal: number;
   total: number;
@@ -49,9 +61,9 @@ export type StoreState = {
 };
 
 const complementaryDefaults: Record<string, string[]> = {
-  "1": ["3", "5"], // luminária → tomada, sensor
-  "2": ["6", "8"], // organizador → cabides, dispenser
-  "3": ["1", "5"], // tomada → luminária, sensor
+  "1": ["3", "5"],
+  "2": ["6", "8"],
+  "3": ["1", "5"],
   "4": ["8", "2"],
   "5": ["3", "7"],
   "6": ["2"],
@@ -75,4 +87,11 @@ export function createEmptyStore(): StoreState {
     clicks: [],
     updatedAt: new Date().toISOString(),
   };
+}
+
+export function formatAddress(addr?: ShippingAddress) {
+  if (!addr) return "";
+  const line1 = `${addr.rua}, ${addr.numero}${addr.complemento ? ` — ${addr.complemento}` : ""}`;
+  const line2 = `${addr.bairro} · ${addr.cidade}/${addr.uf} · CEP ${addr.cep}`;
+  return `${line1}\n${line2}`;
 }

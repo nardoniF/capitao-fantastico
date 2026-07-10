@@ -8,19 +8,40 @@ A 3N20 (CNPJ) é a marca/atendimento. Não há estoque próprio nem etiqueta Cor
 
 ---
 
-## O que o site já entrega (como a STF, adaptado)
+## Checklist go-live
+
+1. **Vercel env**
+   - `NEXT_PUBLIC_SITE_URL=https://www.capitaofantastico.com.br`
+   - `MP_ACCESS_TOKEN` (produção)
+   - `ADMIN_PASSWORD` (forte)
+   - `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` (pedidos não somem na Vercel)
+2. **Mercado Pago** — webhook aponta para `https://www.capitaofantastico.com.br/api/webhooks/mercadopago` (também enviado em `notification_url` na preferência)
+3. **Admin** `/admin` — testar login, editar preço/custo, ver pedido com endereço
+4. **Fotos reais** — trocar Unsplash pelas fotos do fornecedor (admin ou `src/data/products.ts`)
+5. **SKU fornecedor** — preencher no admin (botão Fornecedor) para recompra rápida
+6. **DNS** Valid no domínio + SSL
+
+## Fluxo operacional drop
+
+1. Cliente preenche **dados + endereço** e paga no Mercado Pago
+2. Webhook marca pedido como **paid** (ou você marca manual no admin)
+3. Você vê no `/admin`: itens, total, CEP/rua/cidade, WhatsApp
+4. Compra no fornecedor com o endereço do cliente
+5. Cola o **rastreio** no admin → status `fulfilled`
+6. Avisa o cliente (botão WhatsApp no admin)
+
+## O que o site já entrega
 
 | Área | Onde |
 |---|---|
 | SEO (meta, sitemap, robots, JSON-LD) | `app/sitemap.ts`, `robots.ts`, `JsonLd` |
-| Quem somos / FAQ / Contato | `/sobre`, `/faq`, `/contato` |
-| WhatsApp float + e-mail `contato@3n20.com.br` | `WhatsAppFloat`, `site-config` |
-| Catálogo + produto grande | `/produtos`, `/produtos/[slug]` |
-| Carrinho + checkout + upsell complementar | `/carrinho`, `/checkout` |
-| Pedidos (API + admin) | `/api/orders`, `/admin` |
-| Preços / ativar produto | Admin → Produtos |
-| Cliques (WhatsApp etc.) | `/api/analytics/click`, Admin → Cliques |
-| Pagamento | Mercado Pago Checkout Pro |
+| Quem somos / FAQ / Contato / Termos / Privacidade | `/sobre`, `/faq`, `/contato`, `/termos`, `/privacidade` |
+| WhatsApp float + e-mail | `WhatsAppFloat`, `site-config` |
+| Catálogo dinâmico (só ativos) | `/produtos`, store-db |
+| Carrinho + checkout + endereço + upsell | `/carrinho`, `/checkout` |
+| Pedidos + webhook MP | `/api/orders`, `/api/webhooks/mercadopago` |
+| Preço / custo / SKU / ativar | Admin → Produtos |
+| Cliques | Admin → Cliques |
 
 ## O que NÃO portamos da STF (não faz sentido no drop)
 
@@ -29,7 +50,6 @@ A 3N20 (CNPJ) é a marca/atendimento. Não há estoque próprio nem etiqueta Cor
 - Conta do cliente (minha-conta)
 - Afiliados/comissionados
 - Multi-gateway (Asaas/PayPal)
-- Compatibilidade smartwatch/película
 
 ## Variáveis de ambiente
 
@@ -37,26 +57,13 @@ A 3N20 (CNPJ) é a marca/atendimento. Não há estoque próprio nem etiqueta Cor
 NEXT_PUBLIC_SITE_URL=https://www.capitaofantastico.com.br
 MP_ACCESS_TOKEN=APP_USR-...
 ADMIN_PASSWORD=sua-senha-forte
+UPSTASH_REDIS_REST_URL=https://....upstash.io
+UPSTASH_REDIS_REST_TOKEN=...
 ```
-
-## Admin
-
-1. Configure `ADMIN_PASSWORD` na Vercel
-2. Abra `/admin`
-3. Pedidos → marcar pago → colar rastreio do fornecedor
-4. Produtos → preço / ativar-desativar
-5. Cliques → ver engajamento
 
 ## Persistência
 
-Pedidos/cliques/produtos ficam em memória + arquivo `data/store-runtime.json` quando o filesystem permite.
+1. **Com Upstash Redis** (recomendado na Vercel): pedidos, produtos e cliques ficam estáveis entre deploys.
+2. **Sem Redis**: memória + `data/store-runtime.json` local; na Vercel o disco é efêmero — use Redis antes de vender de verdade.
 
-Na Vercel (serverless) o disco é limitado: para produção estável, depois ligue **Upstash Redis / Vercel KV** (mesmo contrato da API). Até lá, use o admin logo após o pedido e anote rastreio.
-
-## Fluxo operacional drop
-
-1. Cliente paga no site
-2. Você vê o pedido no `/admin`
-3. Compra no fornecedor (1688 / nacional / etc.)
-4. Cola o rastreio no admin
-5. Avisa o cliente no WhatsApp/e-mail
+Crie um database gratuito em [upstash.com](https://upstash.com) → Redis → copie REST URL e TOKEN para a Vercel.

@@ -1,65 +1,63 @@
 import { AddToCartButtons } from "@/components/AddToCartButtons";
-import { formatBRL, getProductBySlug, products } from "@/data/products";
+import { formatBRL, products as seedProducts } from "@/data/products";
+import { getProductBySlug } from "@/lib/store-db";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+export const dynamic = "force-dynamic";
+
 type Props = { params: Promise<{ slug: string }> };
 
-export function generateStaticParams() {
-  return products.map((p) => ({ slug: p.slug }));
+export async function generateStaticParams() {
+  return seedProducts.map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const product = getProductBySlug(slug);
+  const product = await getProductBySlug(slug);
   if (!product) return { title: "Produto" };
   return { title: product.name, description: product.blurb };
 }
 
 export default async function ProductDetailPage({ params }: Props) {
   const { slug } = await params;
-  const product = getProductBySlug(slug);
+  const product = await getProductBySlug(slug);
   if (!product) notFound();
 
   return (
-    <div className="bg-bg py-10 md:py-16">
-      <div className="mx-auto grid max-w-6xl gap-8 px-5 md:grid-cols-12 md:gap-12 md:px-8">
-        {/* Produto grande — destaque visual */}
-        <div className="md:col-span-7">
-          <div className="overflow-hidden rounded-2xl border border-line bg-card">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={product.image}
-              alt={product.name}
-              className="aspect-[4/5] w-full object-cover md:aspect-square md:min-h-[560px]"
-            />
-          </div>
+    <div className="bg-bg py-8 md:py-12">
+      <div className="mx-auto grid max-w-[1200px] gap-8 px-5 md:grid-cols-2 md:gap-10 md:px-6">
+        <div className="overflow-hidden rounded-[14px] border border-[#333] bg-[#1a1a1a]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={product.image}
+            alt={product.name}
+            className="aspect-square w-full object-cover"
+          />
         </div>
-        <div className="flex flex-col justify-center md:col-span-5">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold">
-            {product.category === "tech"
-              ? "Tecnologia inteligente"
-              : "Utilidades do lar"}
+        <div className="flex flex-col justify-center">
+          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold">
+            {product.category === "tech" ? "Tech" : "Lar"}
           </p>
-          <h1 className="mt-3 font-[family-name:var(--font-syne)] text-3xl font-bold text-white md:text-5xl">
+          <h1 className="mt-2 font-[family-name:var(--font-syne)] text-3xl font-bold text-white md:text-4xl">
             {product.name}
           </h1>
-          <div className="mt-5 flex items-center gap-3">
+          <div className="mt-4 flex items-baseline gap-3">
             <span className="text-3xl font-bold text-gold">
               {formatBRL(product.price)}
             </span>
             {product.compareAt ? (
-              <span className="text-lg text-muted line-through">
+              <span className="text-lg text-[#666] line-through">
                 {formatBRL(product.compareAt)}
               </span>
             ) : null}
           </div>
-          <p className="mt-6 text-base leading-relaxed text-muted md:text-lg">
+          <p className="mt-5 text-base leading-relaxed text-[#888]">
             {product.description}
           </p>
           <AddToCartButtons productId={product.id} />
-          <p className="mt-6 text-sm text-muted">
-            Frete sob consulta no WhatsApp · Pix e cartão via Mercado Pago
+          <p className="mt-5 text-sm text-[#666]">
+            Frete pelo fornecedor após o pagamento · Pix / cartão
           </p>
         </div>
       </div>

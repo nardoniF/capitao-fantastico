@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { getProductById, type Product } from "@/data/products";
+import { products as seedProducts, type Product } from "@/data/products";
 
 export type CartItem = {
   productId: string;
@@ -21,6 +21,7 @@ type CartContextValue = {
   count: number;
   subtotal: number;
   lines: { product: Product; qty: number; lineTotal: number }[];
+  catalogReady: boolean;
   add: (productId: string, qty?: number) => void;
   setQty: (productId: string, qty: number) => void;
   remove: (productId: string) => void;
@@ -32,6 +33,8 @@ const STORAGE_KEY = "cf-cart-v1";
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
+  const [catalog, setCatalog] = useState<Product[]>(seedProducts);
+  const [catalogReady, setCatalogReady] = useState(false);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -42,6 +45,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
       /* ignore */
     }
     setReady(true);
+  }, []);
+
+  useEffect(() => {
+    void fetch("/api/products")
+      .then((r) => r.json())
+      .then((d: { products?: Product[] }) => {
+        if (d.products?.length) setCatalog(d.products);
+      })
+      .catch(() => {
+        /* keep seed */
+      })
+      .finally(() => setCatalogReady(true));
   }, []);
 
   useEffect(() => {
@@ -74,10 +89,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const clear = useCallback(() => setItems([]), []);
 
+  const byId = useMemo(() => {
+    const map = new Map(catalog.map((p) => [p.id, p]));
+    return map;
+  }, [catalog]);
+
   const lines = useMemo(() => {
     return items
       .map((item) => {
-        const product = getProductById(item.productId);
+        const product = byId.get(item.productId);
         if (!product) return null;
         return {
           product,
@@ -86,7 +106,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         };
       })
       .filter(Boolean) as { product: Product; qty: number; lineTotal: number }[];
-  }, [items]);
+  }, [items, byId]);
 
   const count = useMemo(
     () => items.reduce((sum, i) => sum + i.qty, 0),
@@ -98,8 +118,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 
   const value = useMemo(
-    () => ({ items, count, subtotal, lines, add, setQty, remove, clear }),
-    [items, count, subtotal, lines, add, setQty, remove, clear],
+    () => ({
+      items,
+      count,
+      subtotal,
+      lines,
+      catalogReady,
+      add,
+      setQty,
+      remove,
+      clear,
+    }),
+    [items, count, subtotal, lines, catalogReady, add, setQty, remove, clear],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

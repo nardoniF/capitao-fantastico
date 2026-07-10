@@ -5,6 +5,8 @@ import { Policies } from "@/components/Policies";
 import { ProductShowcase } from "@/components/ProductShowcase";
 import { SiteHeader } from "@/components/SiteHeader";
 
+export const dynamic = "force-dynamic";
+
 export default function HomePage() {
   return (
     <>

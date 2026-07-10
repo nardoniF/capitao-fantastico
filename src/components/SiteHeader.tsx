@@ -15,22 +15,30 @@ export function SiteHeader({ variant = "solid" }: { variant?: "solid" | "hero" }
     <header
       className={
         onHero
-          ? "absolute inset-x-0 top-0 z-30 border-b border-white/10 bg-black/70 backdrop-blur-md"
+          ? "absolute inset-x-0 top-0 z-30 border-b border-white/10 bg-black/90 backdrop-blur-md"
           : "sticky top-0 z-30 border-b border-line bg-black/95 backdrop-blur"
       }
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3 md:px-8 md:py-3.5">
-        <Link href="/" className="flex items-center gap-2" aria-label={siteConfig.brand}>
+      <div className="mx-auto flex max-w-[1200px] items-center gap-4 px-5 py-2 md:px-6">
+        <Link href="/" className="flex min-w-0 items-center gap-3" aria-label={siteConfig.brand}>
           <Image
-            src="/brand/logo.png"
-            alt={siteConfig.brand}
-            width={200}
+            src="/brand/logo-mark.png"
+            alt=""
+            width={56}
             height={56}
-            className="h-11 w-auto object-contain md:h-12"
+            className="h-12 w-12 shrink-0 rounded-full object-cover md:h-14 md:w-14"
             priority
           />
+          <span className="min-w-0 leading-tight">
+            <span className="block truncate text-[1.05rem] font-black tracking-wide text-white md:text-[1.25rem]">
+              CAPITÃO<span className="text-gold"> FANTÁSTICO</span>
+            </span>
+            <span className="hidden text-[0.72rem] italic text-[#c4c4c4] sm:block">
+              Produtos incríveis. Soluções inteligentes.
+            </span>
+          </span>
         </Link>
-        <nav className="flex items-center gap-4 text-sm font-medium text-white/80 md:gap-6">
+        <nav className="ml-auto flex shrink-0 items-center gap-3 text-sm font-medium text-white/80 md:gap-5">
           <Link href="/produtos" className="hidden transition hover:text-gold sm:inline">
             Produtos
           </Link>
@@ -45,7 +53,7 @@ export function SiteHeader({ variant = "solid" }: { variant?: "solid" | "hero" }
           </Link>
           <Link
             href="/carrinho"
-            className="relative rounded-md bg-gold px-3.5 py-2 font-semibold text-black transition hover:bg-gold-deep"
+            className="relative rounded-md bg-gold px-3 py-2 font-semibold text-black transition hover:bg-gold-deep"
           >
             Carrinho
             {count > 0 ? (

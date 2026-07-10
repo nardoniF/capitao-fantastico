@@ -1,37 +1,30 @@
-"use client";
-
 import Link from "next/link";
-import { products } from "@/data/products";
 import { ProductCard } from "@/components/ProductCard";
+import { listActiveProducts } from "@/lib/store-db";
 
-export function ProductShowcase() {
+export async function ProductShowcase() {
+  const products = await listActiveProducts();
+
   return (
-    <section id="vitrine" className="bg-bg py-20 md:py-28">
-      <div className="mx-auto max-w-6xl px-5 md:px-8">
-        <div className="max-w-2xl">
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold">
-            Vitrine
-          </p>
-          <h2 className="mt-3 font-[family-name:var(--font-syne)] text-3xl font-bold leading-tight text-white md:text-4xl">
-            Seleção Capitão Fantástico
-          </h2>
-          <p className="mt-4 text-base leading-relaxed text-muted md:text-lg">
-            Utilidades do lar e tecnologia inteligente — compre direto aqui.
-          </p>
-        </div>
-
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {products.slice(0, 8).map((product) => (
+    <section id="vitrine" className="bg-bg py-14 md:py-20">
+      <div className="mx-auto max-w-[1200px] px-5 md:px-6">
+        <h2 className="font-[family-name:var(--font-syne)] text-2xl font-bold text-white md:text-3xl">
+          Loja
+        </h2>
+        <p className="mt-2 text-[#888]">
+          Utilidades do lar e tech · preços de venda drop
+        </p>
+        <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {products.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
-
-        <div className="mt-14 text-center">
+        <div className="mt-10 text-center">
           <Link
             href="/produtos"
-            className="inline-flex items-center justify-center rounded-md border border-gold px-7 py-3.5 text-sm font-bold text-gold transition hover:bg-gold hover:text-black"
+            className="inline-flex rounded-md border border-gold px-6 py-3 text-sm font-bold text-gold hover:bg-gold hover:text-black"
           >
-            Ver todos os produtos
+            Ver catálogo completo
           </Link>
         </div>
       </div>
