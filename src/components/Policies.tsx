@@ -20,29 +20,31 @@ const policies = [
 
 export function Policies() {
   return (
-    <section id="politicas" className="border-t border-ink/10 bg-paper py-20 md:py-24">
+    <section id="politicas" className="border-t border-line bg-card py-20 md:py-24">
       <div className="mx-auto max-w-6xl px-5 md:px-8">
-        <h2 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-ink md:text-4xl">
+        <h2 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-white md:text-4xl">
           Frete, troca e contato
         </h2>
-        <p className="mt-3 max-w-xl text-ink-soft/85">
+        <p className="mt-3 max-w-xl text-muted">
           Pagamento seguro com Mercado Pago (Pix e cartão).
         </p>
-        <div className="mt-12 grid gap-10 md:grid-cols-3">
+        <div className="mt-12 grid gap-8 md:grid-cols-3">
           {policies.map((item) => (
-            <div key={item.id} id={item.id}>
-              <h3 className="font-[family-name:var(--font-syne)] text-xl font-bold text-ink">
+            <div
+              key={item.id}
+              id={item.id}
+              className="rounded-xl border border-line bg-card-2 p-6"
+            >
+              <h3 className="font-[family-name:var(--font-syne)] text-xl font-bold text-gold">
                 {item.title}
               </h3>
-              <p className="mt-3 text-sm leading-relaxed text-ink-soft/90">
-                {item.body}
-              </p>
+              <p className="mt-3 text-sm leading-relaxed text-muted">{item.body}</p>
               {item.id === "contato" ? (
                 <a
                   href={whatsappUrl()}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="mt-4 inline-block text-sm font-semibold text-signal-deep underline-offset-2 hover:underline"
+                  className="mt-4 inline-block text-sm font-semibold text-gold underline-offset-2 hover:underline"
                 >
                   Abrir WhatsApp
                 </a>

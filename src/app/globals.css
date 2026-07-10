@@ -1,19 +1,36 @@
 @import "tailwindcss";
 
 :root {
-  --ink: #0c1a2e;
-  --ink-soft: #1a2f4a;
-  --mist: #d9e4ef;
-  --paper: #eef3f8;
-  --signal: #e85d04;
-  --signal-deep: #c2410c;
-  --aqua: #1fa7a0;
-  --aqua-deep: #0f766e;
-  --foreground: var(--ink);
-  --background: var(--paper);
+  /* Capitão Fantástico — preto, ouro, branco (estilo loja moderna STF) */
+  --bg: #0a0a0a;
+  --card: #141414;
+  --card-2: #1a1a1a;
+  --line: #2a2a2a;
+  --text: #ffffff;
+  --muted: #a3a3a3;
+  --gold: #ffc107;
+  --gold-deep: #e6ac00;
+  --ink: #0a0a0a;
+  --ink-soft: #1a1a1a;
+  --mist: #1a1a1a;
+  --paper: #0a0a0a;
+  --signal: #ffc107;
+  --signal-deep: #e6ac00;
+  --aqua: #ffc107;
+  --aqua-deep: #e6ac00;
+  --foreground: var(--text);
+  --background: var(--bg);
 }
 
 @theme inline {
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-card-2: var(--card-2);
+  --color-line: var(--line);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-gold: var(--gold);
+  --color-gold-deep: var(--gold-deep);
   --color-ink: var(--ink);
   --color-ink-soft: var(--ink-soft);
   --color-mist: var(--mist);
@@ -39,8 +56,8 @@ body {
 }
 
 ::selection {
-  background: color-mix(in oklab, var(--signal) 35%, white);
-  color: var(--ink);
+  background: color-mix(in oklab, var(--gold) 45%, black);
+  color: #fff;
 }
 
 @keyframes rise {

@@ -16,12 +16,12 @@ export default function CheckoutPage() {
   if (lines.length === 0) {
     return (
       <div className="mx-auto max-w-3xl px-5 py-20 text-center md:px-8">
-        <h1 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-ink">
+        <h1 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-white">
           Nada para pagar
         </h1>
         <Link
           href="/produtos"
-          className="mt-8 inline-flex rounded-md bg-ink px-6 py-3.5 text-sm font-bold text-white"
+          className="mt-8 inline-flex rounded-md bg-gold px-6 py-3.5 text-sm font-bold text-black"
         >
           Ver produtos
         </Link>
@@ -54,9 +54,7 @@ export default function CheckoutPage() {
         error?: string;
       };
 
-      if (!res.ok) {
-        throw new Error(data.error || "Falha ao criar pagamento");
-      }
+      if (!res.ok) throw new Error(data.error || "Falha ao criar pagamento");
 
       if (data.demo) {
         clear();
@@ -78,46 +76,57 @@ export default function CheckoutPage() {
     .join("\n");
 
   return (
-    <div className="bg-paper py-12 md:py-16">
-      <div className="mx-auto grid max-w-5xl gap-10 px-5 md:grid-cols-5 md:px-8">
+    <div className="bg-bg py-12 md:py-16">
+      <div className="mx-auto grid max-w-5xl gap-8 px-5 md:grid-cols-5 md:px-8">
         <div className="md:col-span-3">
-          <h1 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-ink">
+          <div className="mb-6 flex gap-2 text-sm">
+            <span className="rounded-full bg-gold px-3 py-1 font-semibold text-black">
+              1 Dados
+            </span>
+            <span className="rounded-full border border-line px-3 py-1 text-muted">
+              2 Pagamento
+            </span>
+            <span className="rounded-full border border-line px-3 py-1 text-muted">
+              3 Confirmação
+            </span>
+          </div>
+          <h1 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-white">
             Checkout
           </h1>
-          <p className="mt-2 text-ink-soft/90">
-            Pix e cartão via Mercado Pago. Sem token configurado, usamos modo demo.
+          <p className="mt-2 text-muted">
+            Pix e cartão via Mercado Pago. Sem token: modo demo.
           </p>
           <form
-            className="mt-8 space-y-4"
+            className="mt-8 space-y-4 rounded-xl border border-line bg-card p-6"
             onSubmit={(e) => {
               e.preventDefault();
               void payWithMercadoPago();
             }}
           >
-            <label className="block text-sm font-medium text-ink">
+            <label className="block text-sm font-medium text-white">
               Nome
               <input
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="mt-1 w-full rounded-md border border-ink/20 bg-white px-3 py-2.5"
+                className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
               />
             </label>
-            <label className="block text-sm font-medium text-ink">
+            <label className="block text-sm font-medium text-white">
               E-mail
               <input
                 required
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-md border border-ink/20 bg-white px-3 py-2.5"
+                className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
               />
             </label>
-            {error ? <p className="text-sm text-signal-deep">{error}</p> : null}
+            {error ? <p className="text-sm text-red-400">{error}</p> : null}
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-md bg-signal px-6 py-3.5 text-sm font-bold text-ink transition hover:bg-signal-deep disabled:opacity-60"
+              className="w-full rounded-md bg-gold px-6 py-3.5 text-sm font-bold text-black transition hover:bg-gold-deep disabled:opacity-60"
             >
               {loading ? "Abrindo pagamento…" : "Pagar com Mercado Pago"}
             </button>
@@ -128,30 +137,43 @@ export default function CheckoutPage() {
             )}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-4 inline-flex w-full justify-center rounded-md border border-ink/20 px-6 py-3.5 text-sm font-semibold text-ink hover:bg-mist/50"
+            className="mt-4 inline-flex w-full justify-center rounded-md border border-line px-6 py-3.5 text-sm font-semibold text-white hover:border-gold hover:text-gold"
           >
             Ou finalizar no WhatsApp
           </a>
         </div>
         <aside className="md:col-span-2">
-          <div className="rounded-sm bg-mist/70 p-6">
-            <h2 className="font-[family-name:var(--font-syne)] text-xl font-bold text-ink">
-              Resumo
+          <div className="rounded-xl border border-line bg-card p-6">
+            <h2 className="font-[family-name:var(--font-syne)] text-xl font-bold text-white">
+              Seu carrinho
             </h2>
-            <ul className="mt-4 space-y-3 text-sm text-ink-soft">
+            <ul className="mt-4 space-y-3 text-sm text-muted">
               {lines.map((l) => (
                 <li key={l.product.id} className="flex justify-between gap-3">
                   <span>
                     {l.qty}× {l.product.name}
                   </span>
-                  <span className="font-medium text-ink">{formatBRL(l.lineTotal)}</span>
+                  <span className="font-medium text-white">
+                    {formatBRL(l.lineTotal)}
+                  </span>
                 </li>
               ))}
             </ul>
-            <p className="mt-6 flex justify-between border-t border-ink/10 pt-4 text-base font-bold text-ink">
+            <p className="mt-6 flex justify-between border-t border-line pt-4 text-base font-bold text-white">
               <span>Total</span>
-              <span>{formatBRL(subtotal)}</span>
+              <span className="text-gold">{formatBRL(subtotal)}</span>
             </p>
+            <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted">
+              <span className="rounded border border-line px-2 py-1">PIX</span>
+              <span className="rounded border border-line px-2 py-1">Cartão</span>
+              <span className="rounded border border-line px-2 py-1">Mercado Pago</span>
+            </div>
+            <Link
+              href="/produtos"
+              className="mt-5 inline-block text-sm text-gold hover:underline"
+            >
+              + Adicionar mais produtos
+            </Link>
           </div>
         </aside>
       </div>

@@ -11,14 +11,14 @@ export function AddToCartButtons({ productId }: { productId: string }) {
       <button
         type="button"
         onClick={() => add(productId)}
-        className="rounded-md bg-signal px-6 py-3.5 text-sm font-bold text-ink transition hover:bg-signal-deep"
+        className="rounded-md bg-gold px-6 py-3.5 text-sm font-bold text-black transition hover:bg-gold-deep"
       >
         Adicionar ao carrinho
       </button>
       <Link
         href="/carrinho"
         onClick={() => add(productId)}
-        className="rounded-md bg-ink px-6 py-3.5 text-sm font-bold text-white transition hover:bg-ink-soft"
+        className="rounded-md border border-white/25 px-6 py-3.5 text-sm font-bold text-white transition hover:border-gold hover:text-gold"
       >
         Comprar agora
       </Link>
