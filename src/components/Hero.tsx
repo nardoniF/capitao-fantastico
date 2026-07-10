@@ -24,24 +24,23 @@ export function Hero() {
             {siteConfig.brand}
           </p>
           <h1 className="mt-3 max-w-xl font-[family-name:var(--font-syne)] text-3xl font-bold leading-tight md:text-5xl">
-            Produtos incríveis. Soluções inteligentes.
+            {siteConfig.slogan}
           </h1>
           <p className="mt-4 max-w-lg text-base text-muted md:text-lg">
-            Do escritório à cozinha, do pet ao smart home — o que facilita o dia a
-            dia, em um só lugar.
+            {siteConfig.positioning}
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
               href="/produtos"
               className="inline-flex rounded-md bg-gold px-6 py-3 text-sm font-bold text-black hover:bg-gold-deep"
             >
-              Ver produtos
+              Ver aprovados
             </Link>
             <Link
-              href="/#vitrine"
+              href="/#novidades"
               className="inline-flex rounded-md border border-white/25 px-6 py-3 text-sm font-semibold text-white hover:border-gold hover:text-gold"
             >
-              Ver vitrine
+              Novidades
             </Link>
           </div>
         </div>

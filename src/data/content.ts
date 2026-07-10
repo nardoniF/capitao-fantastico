@@ -1,17 +1,21 @@
 export const aboutContent = {
   title: "Quem somos",
-  lead: "Capitão Fantástico é a loja de utilidades do lar e tecnologia inteligente da 3N20 Soluções Tecnológicas.",
+  lead: "O Capitão Fantástico testa e seleciona os produtos mais incríveis. Só entra na loja aquilo que realmente resolve um problema.",
   paragraphs: [
-    "Selecionamos produtos práticos — organização, limpeza e smart home — para o dia a dia sem complicação.",
-    "Você compra na nossa loja; a 3N20 cuida da curadoria, do atendimento e do envio até você.",
+    "Não somos uma loja de um nicho só. Somos uma curadoria: gadgets, casa, pet, kids, auto, beauty e fit — desde que o Capitão aprove.",
+    "Cada item passa pelo filtro: resolve de verdade? Vale o preço? Se sim, ganha o selo Aprovado pelo Capitão. Se não, fica de fora.",
     "Empresa: 3N20 Soluções Tecnológicas Ltda · CNPJ 29.321.223/0001-32 · São Paulo/SP.",
   ],
 };
 
 export const faqItems = [
   {
+    q: "O que significa Aprovado pelo Capitão?",
+    a: "É o nosso selo de curadoria. Só listamos produtos que, na nossa avaliação, realmente facilitam o dia a dia e valem o investimento.",
+  },
+  {
     q: "Como funciona a compra?",
-    a: "Você escolhe os produtos no site Capitão Fantástico, informa o endereço e paga com Pix ou cartão. Depois disso, preparamos o envio até você.",
+    a: "Escolha os produtos, informe o endereço e pague com Pix ou cartão. Em seguida preparamos o envio até você.",
   },
   {
     q: "Qual o prazo de entrega?",
@@ -19,7 +23,7 @@ export const faqItems = [
   },
   {
     q: "Como acompanho o pedido?",
-    a: "Enviamos o código de rastreio por e-mail/WhatsApp assim que o pedido for despachado. Você também pode falar conosco em contato@3n20.com.br.",
+    a: "Enviamos o código de rastreio por e-mail/WhatsApp assim que o pedido for despachado. Dúvidas: contato@3n20.com.br.",
   },
   {
     q: "Posso trocar ou devolver?",

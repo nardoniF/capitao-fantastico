@@ -34,7 +34,7 @@ export function SiteHeader({ variant = "solid" }: { variant?: "solid" | "hero" }
               CAPITÃO<span className="text-gold"> FANTÁSTICO</span>
             </span>
             <span className="hidden text-[0.72rem] italic text-[#c4c4c4] sm:block">
-              Produtos incríveis. Soluções inteligentes.
+              Só entra o que o Capitão aprova.
             </span>
           </span>
         </Link>

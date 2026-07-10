@@ -10,6 +10,8 @@
   --muted: #a3a3a3;
   --gold: #ffc107;
   --gold-deep: #e6ac00;
+  --cap-blue: #1e6fff;
+  --cap-blue-deep: #1557d0;
   --ink: #0a0a0a;
   --ink-soft: #1a1a1a;
   --mist: #1a1a1a;
@@ -31,6 +33,8 @@
   --color-muted: var(--muted);
   --color-gold: var(--gold);
   --color-gold-deep: var(--gold-deep);
+  --color-cap-blue: var(--cap-blue);
+  --color-cap-blue-deep: var(--cap-blue-deep);
   --color-ink: var(--ink);
   --color-ink-soft: var(--ink-soft);
   --color-mist: var(--mist);

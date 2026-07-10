@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { categoryLabels, formatBRL, type Product } from "@/data/products";
 import { useCart } from "@/components/CartProvider";
+import { ApprovedSeal } from "@/components/ApprovedSeal";
 
 export function ProductCard({ product }: { product: Product }) {
   const { add } = useCart();
 
   return (
     <article className="loja-card flex h-full flex-col overflow-hidden rounded-[14px] border border-[#333] bg-[#1a1a1a] transition hover:border-gold">
-      <Link href={`/produtos/${product.slug}`} className="block">
+      <Link href={`/produtos/${product.slug}`} className="relative block">
         <div className="aspect-square w-full overflow-hidden bg-[#111]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -19,6 +20,16 @@ export function ProductCard({ product }: { product: Product }) {
             loading="lazy"
           />
         </div>
+        {product.approved ? (
+          <div className="absolute left-2 top-2">
+            <ApprovedSeal compact />
+          </div>
+        ) : null}
+        {product.isNew ? (
+          <span className="absolute right-2 top-2 rounded bg-cap-blue px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+            Novo
+          </span>
+        ) : null}
       </Link>
       <div className="flex flex-1 flex-col gap-2 p-4">
         <p className="m-0 text-[0.7rem] font-semibold uppercase tracking-wider text-gold/80">

@@ -4,7 +4,10 @@
  */
 export const siteConfig = {
   brand: "Capitão Fantástico",
-  slogan: "Utilidades do lar e tecnologia inteligente, sem complicação.",
+  slogan: "Só entra aqui o que o Capitão aprova.",
+  tagline: "Produtos incríveis. Soluções inteligentes.",
+  positioning:
+    "O Capitão Fantástico testa e seleciona os produtos mais incríveis. Só entra na loja aquilo que realmente resolve um problema.",
   company: "3N20 Soluções Tecnológicas Ltda",
   cnpj: "29.321.223/0001-32",
   email: "contato@3n20.com.br",

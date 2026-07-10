@@ -1,33 +1,31 @@
 export type ProductCategory =
-  | "tecnologia"
-  | "casa"
-  | "smart-home"
-  | "seguranca"
-  | "escritorio"
-  | "automotivo"
-  | "camping"
-  | "cozinha"
+  | "gadgets"
+  | "auto"
   | "pet"
-  | "apple"
-  | "viagem"
-  | "saude"
-  | "organizacao";
+  | "kids"
+  | "beauty"
+  | "casa"
+  | "fit";
 
 export const categoryLabels: Record<ProductCategory, string> = {
-  tecnologia: "Tecnologia",
-  casa: "Casa",
-  "smart-home": "Smart Home",
-  seguranca: "Segurança",
-  escritorio: "Escritório",
-  automotivo: "Automotivo",
-  camping: "Camping",
-  cozinha: "Cozinha",
-  pet: "Pet",
-  apple: "Apple",
-  viagem: "Viagem",
-  saude: "Saúde",
-  organizacao: "Organização",
+  gadgets: "Gadgets Inteligentes",
+  auto: "Capitão Auto",
+  pet: "Capitão Pet",
+  kids: "Capitão Kids",
+  beauty: "Capitão Beauty",
+  casa: "Capitão Casa",
+  fit: "Capitão Fit",
 };
+
+export const categoryOrder: ProductCategory[] = [
+  "gadgets",
+  "auto",
+  "pet",
+  "kids",
+  "beauty",
+  "casa",
+  "fit",
+];
 
 export type Product = {
   id: string;
@@ -43,26 +41,30 @@ export type Product = {
   compareAt?: number;
   /** Avaliação média (1–5) */
   rating: number;
+  /** Selo público: Aprovado pelo Capitão */
+  approved: boolean;
+  /** Aparece em Novidades do Capitão */
+  isNew: boolean;
   image: string;
   accent: string;
 };
 
 /** Versão do catálogo seed — ao subir, o store troca os produtos mantendo pedidos. */
-export const PRODUCTS_SEED_VERSION = 3;
+export const PRODUCTS_SEED_VERSION = 4;
 
 const img = (id: string) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&q=80`;
 
 /**
- * Catálogo drop — custo → venda (sua tabela).
- * Fotos são placeholder; troque pelas do fornecedor no admin / neste arquivo.
+ * Catálogo curado — só entra o que o Capitão aprova.
+ * Fotos placeholder; troque pelas reais no admin / neste arquivo.
  */
 export const products: Product[] = [
   {
     id: "1",
     slug: "kit-limpeza-7em1-eletronicos",
     name: "Kit limpeza 7 em 1 para eletrônicos",
-    category: "tecnologia",
+    category: "gadgets",
     blurb: "Limpa tela, fone e teclado sem risco.",
     description:
       "Kit completo com escovas, hastes e flanela para celulares, notebooks e fones. Ideal para quem quer higiene sem danificar componentes.",
@@ -70,6 +72,8 @@ export const products: Product[] = [
     price: 99,
     compareAt: 149,
     rating: 5,
+    approved: true,
+    isNew: true,
     image: img("photo-1511707171634-5f897ff02aa9"),
     accent: "#ffc107",
   },
@@ -85,6 +89,8 @@ export const products: Product[] = [
     price: 179,
     compareAt: 249,
     rating: 5,
+    approved: true,
+    isNew: false,
     image: img("photo-1581578731548-c64695cc6952"),
     accent: "#ffc107",
   },
@@ -92,7 +98,7 @@ export const products: Product[] = [
     id: "3",
     slug: "detector-vazamento-wifi",
     name: "Detector de vazamento Wi-Fi",
-    category: "smart-home",
+    category: "casa",
     blurb: "Alerta no celular se detectar água.",
     description:
       "Sensor Wi-Fi que avisa no app ao detectar umidade/vazamento. Protege piso, móveis e evita surpresa na conta de água.",
@@ -100,6 +106,8 @@ export const products: Product[] = [
     price: 149,
     compareAt: 199,
     rating: 5,
+    approved: true,
+    isNew: true,
     image: img("photo-1558002038-1055907df827"),
     accent: "#ffc107",
   },
@@ -107,7 +115,7 @@ export const products: Product[] = [
     id: "4",
     slug: "sensor-porta-inteligente",
     name: "Sensor de porta inteligente",
-    category: "seguranca",
+    category: "casa",
     blurb: "Notificação quando a porta abre.",
     description:
       "Sensor magnético com alerta no celular. Instalação simples em portas e janelas — mais tranquilidade em casa.",
@@ -115,6 +123,8 @@ export const products: Product[] = [
     price: 139,
     compareAt: 189,
     rating: 5,
+    approved: true,
+    isNew: false,
     image: img("photo-1557597774-9d273605dfa9"),
     accent: "#ffc107",
   },
@@ -122,7 +132,7 @@ export const products: Product[] = [
     id: "5",
     slug: "rastreador-bluetooth",
     name: "Rastreador Bluetooth",
-    category: "tecnologia",
+    category: "gadgets",
     blurb: "Ache chave, bolsa ou mala pelo app.",
     description:
       "Tag Bluetooth compacta para localizar itens pelo celular. Bateria durável e alerta de proximidade.",
@@ -130,6 +140,8 @@ export const products: Product[] = [
     price: 129,
     compareAt: 179,
     rating: 5,
+    approved: true,
+    isNew: true,
     image: img("photo-1523275335684-37898b6baf30"),
     accent: "#ffc107",
   },
@@ -137,7 +149,7 @@ export const products: Product[] = [
     id: "6",
     slug: "suporte-ergonomico-notebook",
     name: "Suporte ergonômico premium notebook",
-    category: "escritorio",
+    category: "gadgets",
     blurb: "Altura e ângulo certos no home office.",
     description:
       "Suporte premium que eleva o notebook, melhora a postura e libera espaço na mesa. Alumínio/estrutura reforçada.",
@@ -145,6 +157,8 @@ export const products: Product[] = [
     price: 169,
     compareAt: 229,
     rating: 5,
+    approved: true,
+    isNew: false,
     image: img("photo-1496181133206-80ce9b88a853"),
     accent: "#ffc107",
   },
@@ -152,7 +166,7 @@ export const products: Product[] = [
     id: "7",
     slug: "mini-compressor-portatil",
     name: "Mini compressor portátil",
-    category: "automotivo",
+    category: "auto",
     blurb: "Enche pneu no carro ou na garagem.",
     description:
       "Compressor compacto com display de pressão. Ideal para carro, moto e bicicleta — leva no porta-malas.",
@@ -160,6 +174,8 @@ export const products: Product[] = [
     price: 249,
     compareAt: 329,
     rating: 5,
+    approved: true,
+    isNew: true,
     image: img("photo-1486262715619-67b85e0b08d3"),
     accent: "#ffc107",
   },
@@ -167,7 +183,7 @@ export const products: Product[] = [
     id: "8",
     slug: "bomba-eletrica-portatil",
     name: "Bomba elétrica portátil",
-    category: "camping",
+    category: "auto",
     blurb: "Enche colchão e boia sem esforço.",
     description:
       "Bomba elétrica portátil para colchões infláveis, boias e artigos de camping. Rápida e fácil de guardar.",
@@ -175,6 +191,8 @@ export const products: Product[] = [
     price: 149,
     compareAt: 199,
     rating: 4,
+    approved: true,
+    isNew: false,
     image: img("photo-1504280390367-361c6d9f38f4"),
     accent: "#ffc107",
   },
@@ -182,7 +200,7 @@ export const products: Product[] = [
     id: "9",
     slug: "seladora-portatil-usb",
     name: "Seladora portátil USB",
-    category: "cozinha",
+    category: "casa",
     blurb: "Fecha embalagens e evita desperdício.",
     description:
       "Seladora USB compacta para fechar pacotes de alimentos. Recarregável e prática na cozinha ou viagem.",
@@ -190,6 +208,8 @@ export const products: Product[] = [
     price: 89,
     compareAt: 129,
     rating: 4,
+    approved: true,
+    isNew: false,
     image: img("photo-1556910103-1c02745aae4d"),
     accent: "#ffc107",
   },
@@ -205,6 +225,8 @@ export const products: Product[] = [
     price: 179,
     compareAt: 249,
     rating: 5,
+    approved: true,
+    isNew: false,
     image: img("photo-1563453397536-e570addbe2be"),
     accent: "#ffc107",
   },
@@ -220,6 +242,8 @@ export const products: Product[] = [
     price: 79,
     compareAt: 119,
     rating: 5,
+    approved: true,
+    isNew: true,
     image: img("photo-1587300003388-59208cc962cb"),
     accent: "#ffc107",
   },
@@ -235,6 +259,8 @@ export const products: Product[] = [
     price: 99,
     compareAt: 139,
     rating: 5,
+    approved: true,
+    isNew: false,
     image: img("photo-1548199973-03cce0bbc87b"),
     accent: "#ffc107",
   },
@@ -242,7 +268,7 @@ export const products: Product[] = [
     id: "13",
     slug: "organizador-magnetico-cabos",
     name: "Organizador magnético de cabos",
-    category: "tecnologia",
+    category: "gadgets",
     blurb: "Cabos alinhados na mesa e na parede.",
     description:
       "Clips magnéticos para organizar cabos USB, fones e carregadores. Mesa limpa em segundos.",
@@ -250,6 +276,8 @@ export const products: Product[] = [
     price: 49,
     compareAt: 79,
     rating: 4,
+    approved: true,
+    isNew: false,
     image: img("photo-1558618666-fcd25c85cd64"),
     accent: "#ffc107",
   },
@@ -257,7 +285,7 @@ export const products: Product[] = [
     id: "14",
     slug: "limpador-spray-telas",
     name: "Limpador spray de telas",
-    category: "tecnologia",
+    category: "gadgets",
     blurb: "Spray + flanela para TV e celular.",
     description:
       "Kit spray antisséptico/limpo para telas sensíveis: celular, notebook, TV e tablet.",
@@ -265,6 +293,8 @@ export const products: Product[] = [
     price: 69,
     compareAt: 99,
     rating: 4,
+    approved: true,
+    isNew: false,
     image: img("photo-1527443224154-c4a3942d3acf"),
     accent: "#ffc107",
   },
@@ -272,7 +302,7 @@ export const products: Product[] = [
     id: "15",
     slug: "kit-limpeza-airpods",
     name: "Kit limpeza AirPods",
-    category: "tecnologia",
+    category: "gadgets",
     blurb: "Limpa case e grade do fone.",
     description:
       "Kit específico para limpeza de AirPods e fones true wireless — haste, escova e flanela.",
@@ -280,6 +310,8 @@ export const products: Product[] = [
     price: 59,
     compareAt: 89,
     rating: 4,
+    approved: true,
+    isNew: false,
     image: img("photo-1606220945770-b5b6c2c55bf1"),
     accent: "#ffc107",
   },
@@ -287,7 +319,7 @@ export const products: Product[] = [
     id: "16",
     slug: "luminaria-monitor-usb",
     name: "Luminária monitor USB",
-    category: "escritorio",
+    category: "gadgets",
     blurb: "Luz de leitura sem ofuscar a tela.",
     description:
       "Barra de LED USB que encaixa no monitor. Ilumina o teclado sem reflexo na tela.",
@@ -295,6 +327,8 @@ export const products: Product[] = [
     price: 129,
     compareAt: 179,
     rating: 4,
+    approved: true,
+    isNew: false,
     image: img("photo-1507473885765-e6ed057f782c"),
     accent: "#ffc107",
   },
@@ -302,7 +336,7 @@ export const products: Product[] = [
     id: "17",
     slug: "carregador-magnetico-3em1",
     name: "Carregador magnético 3 em 1",
-    category: "apple",
+    category: "gadgets",
     blurb: "iPhone, Watch e AirPods juntos.",
     description:
       "Base magnética 3 em 1 para carregar iPhone, Apple Watch e AirPods ao mesmo tempo.",
@@ -310,6 +344,8 @@ export const products: Product[] = [
     price: 199,
     compareAt: 279,
     rating: 5,
+    approved: true,
+    isNew: true,
     image: img("photo-1591290619762-c588f7e5ba6c"),
     accent: "#ffc107",
   },
@@ -317,7 +353,7 @@ export const products: Product[] = [
     id: "18",
     slug: "organizador-de-malas",
     name: "Organizador de malas",
-    category: "viagem",
+    category: "casa",
     blurb: "Mala organizada em cubos/bolsas.",
     description:
       "Kit organizador para separar roupas e acessórios na mala. Embarque e desembarque sem bagunça.",
@@ -325,6 +361,8 @@ export const products: Product[] = [
     price: 139,
     compareAt: 189,
     rating: 4,
+    approved: true,
+    isNew: false,
     image: img("photo-1565026057447-bc90a3dceb87"),
     accent: "#ffc107",
   },
@@ -332,7 +370,7 @@ export const products: Product[] = [
     id: "19",
     slug: "seladora-vacuo-portatil",
     name: "Seladora a vácuo portátil",
-    category: "cozinha",
+    category: "casa",
     blurb: "Conserva comida por mais tempo.",
     description:
       "Seladora a vácuo portátil com sacos reutilizáveis. Menos desperdício na geladeira e freezer.",
@@ -340,6 +378,8 @@ export const products: Product[] = [
     price: 219,
     compareAt: 299,
     rating: 5,
+    approved: true,
+    isNew: false,
     image: img("photo-1556911220-bff31c875dba"),
     accent: "#ffc107",
   },
@@ -347,7 +387,7 @@ export const products: Product[] = [
     id: "20",
     slug: "escorredor-retratil",
     name: "Escorredor retrátil",
-    category: "cozinha",
+    category: "casa",
     blurb: "Escorre e some da pia.",
     description:
       "Escorredor retrátil/dobrável para louças e legumes. Economiza espaço na pia.",
@@ -355,6 +395,8 @@ export const products: Product[] = [
     price: 89,
     compareAt: 129,
     rating: 4,
+    approved: true,
+    isNew: false,
     image: img("photo-1556912173-46c336c7fd55"),
     accent: "#ffc107",
   },
@@ -362,7 +404,7 @@ export const products: Product[] = [
     id: "21",
     slug: "massageador-cervical",
     name: "Massageador cervical",
-    category: "saude",
+    category: "fit",
     blurb: "Alívio no pescoço e ombros.",
     description:
       "Massageador cervical elétrico para aliviar tensão do home office e do dia a dia.",
@@ -370,6 +412,8 @@ export const products: Product[] = [
     price: 249,
     compareAt: 329,
     rating: 5,
+    approved: true,
+    isNew: false,
     image: img("photo-1544367567-0f2fcb009e0b"),
     accent: "#ffc107",
   },
@@ -377,7 +421,7 @@ export const products: Product[] = [
     id: "22",
     slug: "travesseiro-ergonomico-viagem",
     name: "Travesseiro ergonômico viagem",
-    category: "viagem",
+    category: "fit",
     blurb: "Conforto no avião, carro e ônibus.",
     description:
       "Travesseiro de viagem ergonômico com apoio cervical. Compacto e fácil de levar.",
@@ -385,6 +429,8 @@ export const products: Product[] = [
     price: 129,
     compareAt: 179,
     rating: 4,
+    approved: true,
+    isNew: false,
     image: img("photo-1520256862855-398228c41684"),
     accent: "#ffc107",
   },
@@ -392,7 +438,7 @@ export const products: Product[] = [
     id: "23",
     slug: "cinto-postura-inteligente",
     name: "Cinto postura inteligente",
-    category: "saude",
+    category: "fit",
     blurb: "Lembra de manter a coluna reta.",
     description:
       "Cinto/sensor de postura que vibra quando você se curva. Treino discreto no trabalho.",
@@ -400,6 +446,8 @@ export const products: Product[] = [
     price: 149,
     compareAt: 199,
     rating: 4,
+    approved: true,
+    isNew: false,
     image: img("photo-1571019614242-c5c5dee9f50b"),
     accent: "#ffc107",
   },
@@ -415,6 +463,8 @@ export const products: Product[] = [
     price: 139,
     compareAt: 189,
     rating: 5,
+    approved: true,
+    isNew: false,
     image: img("photo-1516734212186-a967f81a0b27"),
     accent: "#ffc107",
   },
@@ -430,6 +480,8 @@ export const products: Product[] = [
     price: 99,
     compareAt: 139,
     rating: 4,
+    approved: true,
+    isNew: false,
     image: img("photo-1601758228041-f3b2795255f1"),
     accent: "#ffc107",
   },
@@ -445,6 +497,8 @@ export const products: Product[] = [
     price: 129,
     compareAt: 179,
     rating: 4,
+    approved: true,
+    isNew: false,
     image: img("photo-1489987707025-afc232f7ea62"),
     accent: "#ffc107",
   },
@@ -452,7 +506,7 @@ export const products: Product[] = [
     id: "27",
     slug: "trava-magnetica-infantil",
     name: "Trava magnética infantil",
-    category: "casa",
+    category: "kids",
     blurb: "Trava gaveta e armário sem furo.",
     description:
       "Travas magnéticas invisíveis para gavetas e armários — segurança infantil sem estragar o móvel.",
@@ -460,6 +514,8 @@ export const products: Product[] = [
     price: 69,
     compareAt: 99,
     rating: 4,
+    approved: true,
+    isNew: true,
     image: img("photo-1503454537195-1dcabb73ffb9"),
     accent: "#ffc107",
   },
@@ -467,7 +523,7 @@ export const products: Product[] = [
     id: "28",
     slug: "mini-aspirador-teclado",
     name: "Mini aspirador teclado",
-    category: "tecnologia",
+    category: "gadgets",
     blurb: "Aspira pó do teclado e mesa.",
     description:
       "Mini aspirador USB/portátil para teclado, mesa e cantos do setup gamer ou escritório.",
@@ -475,6 +531,8 @@ export const products: Product[] = [
     price: 159,
     compareAt: 219,
     rating: 5,
+    approved: true,
+    isNew: false,
     image: img("photo-1587829741301-dc798b83add3"),
     accent: "#ffc107",
   },
@@ -482,7 +540,7 @@ export const products: Product[] = [
     id: "29",
     slug: "organizador-gavetas-modular",
     name: "Organizador de gavetas modular",
-    category: "organizacao",
+    category: "casa",
     blurb: "Gaveta em ordem, módulos ajustáveis.",
     description:
       "Organizadores modulares para gavetas de cozinha, banheiro ou escritório.",
@@ -490,6 +548,8 @@ export const products: Product[] = [
     price: 89,
     compareAt: 129,
     rating: 4,
+    approved: true,
+    isNew: false,
     image: img("photo-1595428774223-ef52624120d2"),
     accent: "#ffc107",
   },
@@ -505,6 +565,8 @@ export const products: Product[] = [
     price: 99,
     compareAt: 139,
     rating: 5,
+    approved: true,
+    isNew: false,
     image: img("photo-1565814329452-e1efa11c5b89"),
     accent: "#ffc107",
   },

@@ -26,7 +26,7 @@ export function Policies() {
           Frete, troca e contato
         </h2>
         <p className="mt-3 max-w-xl text-muted">
-          Pagamento seguro com Mercado Pago (Pix e cartão).
+          Só entra o que o Capitão aprova. Pagamento seguro com Mercado Pago.
         </p>
         <div className="mt-12 grid gap-8 md:grid-cols-3">
           {policies.map((item) => (

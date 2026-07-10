@@ -19,10 +19,10 @@ const jakarta = Plus_Jakarta_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: `${siteConfig.brand} — Utilidades do lar e tecnologia inteligente`,
+    default: `${siteConfig.brand} — ${siteConfig.slogan}`,
     template: `%s · ${siteConfig.brand}`,
   },
-  description: siteConfig.slogan,
+  description: siteConfig.positioning,
   icons: {
     icon: [{ url: "/brand/favicon-f.png", type: "image/png" }],
     apple: [{ url: "/brand/apple-touch-icon.png" }],

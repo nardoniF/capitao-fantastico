@@ -1,4 +1,5 @@
 import { AddToCartButtons } from "@/components/AddToCartButtons";
+import { ApprovedSeal } from "@/components/ApprovedSeal";
 import {
   categoryLabels,
   formatBRL,
@@ -46,7 +47,15 @@ export default async function ProductDetailPage({ params }: Props) {
           <h1 className="mt-2 font-[family-name:var(--font-syne)] text-3xl font-bold text-white md:text-4xl">
             {product.name}
           </h1>
-          <div className="mt-3 text-sm text-[#888]" aria-label={`${product.rating} de 5`}>
+          {product.approved ? (
+            <div className="mt-4">
+              <ApprovedSeal />
+            </div>
+          ) : null}
+          <div
+            className="mt-3 text-sm text-[#888]"
+            aria-label={`${product.rating} de 5`}
+          >
             {"★".repeat(product.rating)}
             {"☆".repeat(5 - product.rating)}
           </div>
