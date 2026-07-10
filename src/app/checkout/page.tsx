@@ -1,17 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { formatBRL } from "@/data/products";
+import { useEffect, useState } from "react";
+import { formatBRL, type Product } from "@/data/products";
 import { useCart } from "@/components/CartProvider";
 import { siteConfig, whatsappUrl } from "@/lib/site-config";
 
+type UpsellProduct = Product & { complementaryIds?: string[] };
+
 export default function CheckoutPage() {
-  const { lines, subtotal, clear } = useCart();
+  const { lines, subtotal, clear, add } = useCart();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [upsells, setUpsells] = useState<UpsellProduct[]>([]);
+
+  useEffect(() => {
+    const cart = lines.map((l) => l.product.id).join(",");
+    if (!cart) {
+      setUpsells([]);
+      return;
+    }
+    void fetch(`/api/products?cart=${encodeURIComponent(cart)}`)
+      .then((r) => r.json())
+      .then((d: { products?: UpsellProduct[] }) => setUpsells(d.products ?? []))
+      .catch(() => setUpsells([]));
+  }, [lines]);
 
   if (lines.length === 0) {
     return (
@@ -33,6 +49,25 @@ export default function CheckoutPage() {
     setLoading(true);
     setError(null);
     try {
+      const orderRes = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome: name,
+          email,
+          telefone: phone,
+          items: lines.map((l) => ({
+            productId: l.product.id,
+            qty: l.qty,
+          })),
+        }),
+      });
+      const orderData = (await orderRes.json()) as {
+        order?: { orderId: string };
+        error?: string;
+      };
+      if (!orderRes.ok) throw new Error(orderData.error || "Falha no pedido");
+
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -58,7 +93,7 @@ export default function CheckoutPage() {
 
       if (data.demo) {
         clear();
-        window.location.href = "/pedido/sucesso?demo=1";
+        window.location.href = `/pedido/sucesso?demo=1&pedido=${orderData.order?.orderId ?? ""}`;
         return;
       }
 
@@ -84,17 +119,17 @@ export default function CheckoutPage() {
               1 Dados
             </span>
             <span className="rounded-full border border-line px-3 py-1 text-muted">
-              2 Pagamento
+              2 Pagamento MP
             </span>
             <span className="rounded-full border border-line px-3 py-1 text-muted">
-              3 Confirmação
+              3 Fornecedor envia
             </span>
           </div>
           <h1 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-white">
             Checkout
           </h1>
           <p className="mt-2 text-muted">
-            Pix e cartão via Mercado Pago. Sem token: modo demo.
+            Pagamento no Mercado Pago. Frete/envio pelo fornecedor (dropshipping).
           </p>
           <form
             className="mt-8 space-y-4 rounded-xl border border-line bg-card p-6"
@@ -122,6 +157,15 @@ export default function CheckoutPage() {
                 className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
               />
             </label>
+            <label className="block text-sm font-medium text-white">
+              WhatsApp
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(11) 9xxxx-xxxx"
+                className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
+              />
+            </label>
             {error ? <p className="text-sm text-red-400">{error}</p> : null}
             <button
               type="submit"
@@ -142,7 +186,7 @@ export default function CheckoutPage() {
             Ou finalizar no WhatsApp
           </a>
         </div>
-        <aside className="md:col-span-2">
+        <aside className="md:col-span-2 space-y-4">
           <div className="rounded-xl border border-line bg-card p-6">
             <h2 className="font-[family-name:var(--font-syne)] text-xl font-bold text-white">
               Seu carrinho
@@ -163,18 +207,38 @@ export default function CheckoutPage() {
               <span>Total</span>
               <span className="text-gold">{formatBRL(subtotal)}</span>
             </p>
-            <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted">
-              <span className="rounded border border-line px-2 py-1">PIX</span>
-              <span className="rounded border border-line px-2 py-1">Cartão</span>
-              <span className="rounded border border-line px-2 py-1">Mercado Pago</span>
-            </div>
-            <Link
-              href="/produtos"
-              className="mt-5 inline-block text-sm text-gold hover:underline"
-            >
-              + Adicionar mais produtos
-            </Link>
           </div>
+
+          {upsells.length > 0 ? (
+            <div className="rounded-xl border border-gold/30 bg-card p-6">
+              <h2 className="font-[family-name:var(--font-syne)] text-lg font-bold text-gold">
+                Complete seu pedido
+              </h2>
+              <p className="mt-1 text-xs text-muted">
+                Produtos que combinam com o que você escolheu
+              </p>
+              <ul className="mt-4 space-y-3">
+                {upsells.map((p) => (
+                  <li
+                    key={p.id}
+                    className="flex items-center justify-between gap-3 border-b border-line pb-3 last:border-0"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-white">{p.name}</p>
+                      <p className="text-xs text-gold">{formatBRL(p.price)}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => add(p.id)}
+                      className="rounded-md bg-gold px-3 py-1.5 text-xs font-bold text-black"
+                    >
+                      + Add
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </aside>
       </div>
     </div>

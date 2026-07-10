@@ -34,6 +34,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# runtime store (pedidos/cliques locais)
+/data/store-runtime.json
+
 # vercel
 .vercel
 

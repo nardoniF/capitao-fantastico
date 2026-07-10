@@ -34,11 +34,14 @@ export function SiteHeader({ variant = "solid" }: { variant?: "solid" | "hero" }
           <Link href="/produtos" className="hidden transition hover:text-gold sm:inline">
             Produtos
           </Link>
-          <Link href="/#lar" className="hidden transition hover:text-gold md:inline">
-            Lar
+          <Link href="/sobre" className="hidden transition hover:text-gold md:inline">
+            Quem somos
           </Link>
-          <Link href="/#tech" className="hidden transition hover:text-gold md:inline">
-            Tech
+          <Link href="/faq" className="hidden transition hover:text-gold md:inline">
+            FAQ
+          </Link>
+          <Link href="/contato" className="hidden transition hover:text-gold lg:inline">
+            Contato
           </Link>
           <Link
             href="/carrinho"
