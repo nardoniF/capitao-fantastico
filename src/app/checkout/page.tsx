@@ -110,6 +110,9 @@ export default function CheckoutPage() {
             productId: l.product.id,
             qty: l.qty,
             size: l.size,
+            supplierVariantId: l.supplierVariantId,
+            unitPrice: l.unitPrice,
+            sku: l.sku,
           })),
         }),
       });
@@ -133,7 +136,7 @@ export default function CheckoutPage() {
             id: l.product.id,
             title: l.size ? `${l.product.name} (${l.size})` : l.product.name,
             quantity: l.qty,
-            unit_price: l.product.price,
+            unit_price: l.unitPrice,
           })),
         }),
       });

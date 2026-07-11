@@ -14,7 +14,15 @@ import type {
   SupplierMoney,
   SupplierTracking,
 } from "@/lib/suppliers/types";
-import { normalizeImageUrl } from "@/lib/media";
+import type { CjProductFull, CjSearchHit } from "@/lib/suppliers/cj-types";
+import {
+  galleryFromCjRaw,
+  normalizeImageUrl,
+  specsFromCjRaw,
+  stripHtml,
+  variantsFromCjRaw,
+  videoFromCjRaw,
+} from "@/lib/media";
 
 const CJ_BASE = "https://developers.cjdropshipping.com/api2.0/v1";
 
@@ -26,36 +34,68 @@ type CjAuthCache = {
 declare global {
   // eslint-disable-next-line no-var
   var __cjAuth: CjAuthCache | undefined;
+  // eslint-disable-next-line no-var
+  var __cjLastFetchAt: number | undefined;
+}
+
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/** CJ limita ~1 req/s — fila global + retry em QPS. */
+async function cjThrottle() {
+  const last = globalThis.__cjLastFetchAt || 0;
+  const wait = 1100 - (Date.now() - last);
+  if (wait > 0) await sleep(wait);
+  globalThis.__cjLastFetchAt = Date.now();
 }
 
 async function cjFetch<T>(
   path: string,
   opts: { method?: string; body?: unknown; token: string },
 ): Promise<T> {
-  const res = await fetch(`${CJ_BASE}${path}`, {
-    method: opts.method ?? "GET",
-    headers: {
-      "Content-Type": "application/json",
-      "CJ-Access-Token": opts.token,
-    },
-    body: opts.body ? JSON.stringify(opts.body) : undefined,
-    cache: "no-store",
-  });
+  let lastErr: Error | null = null;
 
-  const data = (await res.json()) as {
-    code?: number;
-    result?: boolean;
-    message?: string;
-    data?: T;
-  };
+  for (let attempt = 0; attempt < 4; attempt++) {
+    await cjThrottle();
 
-  if (!res.ok || data.result === false || (data.code && data.code !== 200)) {
-    throw new Error(
-      `CJ API ${path}: ${data.message || res.statusText || "erro"}`,
-    );
+    const res = await fetch(`${CJ_BASE}${path}`, {
+      method: opts.method ?? "GET",
+      headers: {
+        "Content-Type": "application/json",
+        "CJ-Access-Token": opts.token,
+      },
+      body: opts.body ? JSON.stringify(opts.body) : undefined,
+      cache: "no-store",
+    });
+
+    const data = (await res.json()) as {
+      code?: number;
+      result?: boolean;
+      message?: string;
+      data?: T;
+    };
+
+    const msg = data.message || res.statusText || "erro";
+    const isQps =
+      res.status === 429 ||
+      /too many requests|qps/i.test(msg) ||
+      data.code === 1600200;
+
+    if (isQps) {
+      lastErr = new Error(`CJ API ${path}: ${msg}`);
+      await sleep(1200 * (attempt + 1));
+      continue;
+    }
+
+    if (!res.ok || data.result === false || (data.code && data.code !== 200)) {
+      throw new Error(`CJ API ${path}: ${msg}`);
+    }
+
+    return data.data as T;
   }
 
-  return data.data as T;
+  throw lastErr || new Error(`CJ API ${path}: QPS esgotado`);
 }
 
 export class CJSupplier implements SupplierAdapter {
@@ -112,41 +152,152 @@ export class CJSupplier implements SupplierAdapter {
     return t;
   }
 
-  async getProduct(externalId: string): Promise<SupplierCatalogItem | null> {
+  async searchProducts(opts: {
+    keyword?: string;
+    categoryId?: string;
+    page?: number;
+    pageSize?: number;
+    /** 0=all, 2=trending, 21=trending more */
+    searchType?: number;
+    /** createAt | listedNum */
+    orderBy?: "createAt" | "listedNum";
+    sort?: "asc" | "desc";
+    minPrice?: number;
+    maxPrice?: number;
+  }): Promise<{ list: CjSearchHit[]; total: number }> {
     const token = await this.token();
-    const data = await cjFetch<{
-      pid?: string;
-      productNameEn?: string;
-      productName?: string;
-      productImage?: string;
-      sellPrice?: number;
-      nowPrice?: number;
-      productSku?: string;
-      variants?: {
-        vid?: string;
-        variantSku?: string;
-        variantSellPrice?: number;
-        variantInventory?: number;
-      }[];
-    }>(`/product/query?pid=${encodeURIComponent(externalId)}`, { token });
+    const page = opts.page ?? 1;
+    const pageSize = Math.min(opts.pageSize ?? 20, 100);
+    const params = new URLSearchParams({
+      pageNum: String(page),
+      pageSize: String(pageSize),
+      sort: opts.sort ?? "desc",
+      orderBy: opts.orderBy ?? "listedNum",
+    });
+    if (opts.keyword?.trim()) {
+      params.set("productNameEn", opts.keyword.trim());
+    }
+    if (opts.categoryId?.trim()) {
+      params.set("categoryId", opts.categoryId.trim());
+    }
+    if (opts.searchType != null) {
+      params.set("searchType", String(opts.searchType));
+    }
+    if (opts.minPrice != null) params.set("minPrice", String(opts.minPrice));
+    if (opts.maxPrice != null) params.set("maxPrice", String(opts.maxPrice));
 
+    const data = await cjFetch<{
+      list?: {
+        pid?: string;
+        productNameEn?: string;
+        productName?: string;
+        productImage?: string;
+        sellPrice?: number | string;
+        nowPrice?: number | string;
+        categoryName?: string;
+        listedNum?: number;
+      }[];
+      total?: number;
+    }>(`/product/list?${params.toString()}`, { token });
+
+    const parsePrice = (raw: unknown) => {
+      if (typeof raw === "number") return raw;
+      if (typeof raw === "string") {
+        const n = Number(raw.split("--")[0].trim());
+        return Number.isFinite(n) ? n : 0;
+      }
+      return 0;
+    };
+
+    const list: CjSearchHit[] = (data?.list || [])
+      .map((row) => {
+        const priceUsd = parsePrice(row.sellPrice ?? row.nowPrice);
+        return {
+          pid: String(row.pid || ""),
+          title: row.productNameEn || row.productName || "Produto CJ",
+          imageUrl: normalizeImageUrl(row.productImage, "/brand/logo-mark.png"),
+          priceUsd: Number.isFinite(priceUsd) ? priceUsd : 0,
+          categoryName: row.categoryName,
+          listedNum: Number(row.listedNum ?? 0) || 0,
+        };
+      })
+      .filter((h) => h.pid);
+
+    return { list, total: Number(data?.total ?? list.length) };
+  }
+
+  async getProductFull(externalId: string): Promise<CjProductFull | null> {
+    const token = await this.token();
+    const data = await cjFetch<Record<string, unknown>>(
+      `/product/query?pid=${encodeURIComponent(externalId)}`,
+      { token },
+    );
     if (!data) return null;
 
-    const variant = data.variants?.[0];
-    const priceAmt = Number(
-      variant?.variantSellPrice ?? data.sellPrice ?? data.nowPrice ?? 0,
+    const variants = variantsFromCjRaw(data);
+    const gallery = galleryFromCjRaw(data, String(data.productImage || ""));
+    const specs = specsFromCjRaw(data);
+    const videoUrl = videoFromCjRaw(data);
+    const descriptionHtml = String(
+      data.description || data.productDescription || "",
     );
+    const prices = variants.map((v) => v.priceUsd).filter((n) => n > 0);
+    const minPrice = prices.length
+      ? Math.min(...prices)
+      : Number(data.sellPrice ?? data.nowPrice ?? 0);
+    const stock = variants.reduce((s, v) => s + v.stock, 0) ||
+      Number(data.totalInventory ?? 0);
+
+    const options: Record<string, string[]> = {};
+    for (const v of variants) {
+      for (const [k, val] of Object.entries(v.optionValues)) {
+        if (!options[k]) options[k] = [];
+        if (val && !options[k].includes(val)) options[k].push(val);
+      }
+    }
 
     return {
-      externalId: data.pid || externalId,
-      variantId: variant?.vid,
-      sku: variant?.variantSku || data.productSku,
-      title: data.productNameEn || data.productName || "Produto CJ",
-      imageUrl: normalizeImageUrl(data.productImage, ""),
-      price: { amount: priceAmt, currency: "USD" },
-      shippingEstimate: { amount: 0, currency: "USD" },
-      stock: Number(variant?.variantInventory ?? 0),
+      pid: String(data.pid || externalId),
+      titleEn:
+        String(data.productNameEn || data.productName || "Produto CJ"),
+      descriptionHtml,
+      descriptionText: stripHtml(descriptionHtml).slice(0, 8000),
+      imageUrl: normalizeImageUrl(
+        gallery[0] || data.productImage,
+        "/brand/logo-mark.png",
+      ),
+      gallery: gallery.length ? gallery : [
+        normalizeImageUrl(data.productImage, "/brand/logo-mark.png"),
+      ],
+      videoUrl,
+      categoryName:
+        typeof data.categoryName === "string" ? data.categoryName : undefined,
+      priceUsd: Number.isFinite(minPrice) && minPrice > 0
+        ? minPrice
+        : Number(data.sellPrice ?? data.nowPrice ?? 0) || 0,
+      stock,
+      sku: typeof data.productSku === "string" ? data.productSku : undefined,
+      variants,
+      specs,
+      options,
       raw: data,
+    };
+  }
+
+  async getProduct(externalId: string): Promise<SupplierCatalogItem | null> {
+    const full = await this.getProductFull(externalId);
+    if (!full) return null;
+    const first = full.variants[0];
+    return {
+      externalId: full.pid,
+      variantId: first?.vid,
+      sku: first?.sku || full.sku,
+      title: full.titleEn,
+      imageUrl: full.imageUrl,
+      price: { amount: full.priceUsd, currency: "USD" },
+      shippingEstimate: { amount: 0, currency: "USD" },
+      stock: full.stock,
+      raw: full.raw,
     };
   }
 

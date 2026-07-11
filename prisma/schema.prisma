@@ -36,24 +36,24 @@ model Supplier {
 }
 
 model SupplierProduct {
-  id              String   @id @default(cuid())
-  supplierId      String
-  externalId      String // CJ productId
-  variantId       String? // CJ vid
-  sku             String?
-  title           String
-  rawTitle        String?
-  imageUrl        String?
-  supplierPrice   Decimal  @db.Decimal(12, 4) // moeda do fornecedor (USD no CJ)
-  currency        String   @default("USD")
-  shippingEstimate Decimal @default(0) @db.Decimal(12, 4)
-  stock           Int      @default(0)
-  rawJson         Json?
-  lastSyncedAt    DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id               String    @id @default(cuid())
+  supplierId       String
+  externalId       String // CJ productId
+  variantId        String? // CJ vid (âncora do produto usa "")
+  sku              String?
+  title            String
+  rawTitle         String?
+  imageUrl         String?
+  supplierPrice    Decimal   @db.Decimal(12, 4) // moeda do fornecedor (USD no CJ)
+  currency         String    @default("USD")
+  shippingEstimate Decimal   @default(0) @db.Decimal(12, 4)
+  stock            Int       @default(0)
+  rawJson          Json?
+  lastSyncedAt     DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  supplier Supplier  @relation(fields: [supplierId], references: [id])
+  supplier Supplier @relation(fields: [supplierId], references: [id])
   product  Product?
 
   @@unique([supplierId, externalId, variantId])
@@ -71,6 +71,16 @@ model PricingRule {
   updatedAt DateTime @updatedAt
 }
 
+model Category {
+  id        String    @id @default(cuid())
+  slug      String    @unique
+  name      String
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+}
+
 model Product {
   id                String   @id @default(cuid())
   slug              String   @unique
@@ -78,11 +88,17 @@ model Product {
   blurb             String
   description       String
   category          String
+  categoryId        String?
   imageUrl          String
   /// Galeria de fotos (URLs)
   gallery           Json?
   /// Detalhes: tamanhos, medidas, highlights, etc.
   details           Json?
+  /// Opções agregadas { Cor: [...], Tamanho: [...] }
+  options           Json?
+  videoUrl          String?
+  seoTitle          String?
+  seoDescription    String?
   /// Preço de venda BRL calculado (nunca editar como fonte da verdade)
   salePrice         Decimal  @db.Decimal(12, 2)
   compareAt         Decimal? @db.Decimal(12, 2)
@@ -94,10 +110,34 @@ model Product {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  supplierProduct SupplierProduct? @relation(fields: [supplierProductId], references: [id])
+  categoryRef     Category?         @relation(fields: [categoryId], references: [id])
+  supplierProduct SupplierProduct?  @relation(fields: [supplierProductId], references: [id])
+  variants        ProductVariant[]
   orderItems      OrderItem[]
 
   @@index([active, category])
+  @@index([categoryId])
+}
+
+model ProductVariant {
+  id                String   @id @default(cuid())
+  productId         String
+  supplierVariantId String // CJ vid
+  sku               String?
+  label             String // ex. "Preto / M"
+  optionValues      Json? // { Cor: "Preto", Tamanho: "M" }
+  imageUrl          String?
+  supplierPrice     Decimal  @db.Decimal(12, 4)
+  salePrice         Decimal  @db.Decimal(12, 2)
+  stock             Int      @default(0)
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, supplierVariantId])
+  @@index([productId])
 }
 
 model Customer {
@@ -137,7 +177,7 @@ model Order {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
-  customer Customer?  @relation(fields: [customerId], references: [id])
+  customer Customer?        @relation(fields: [customerId], references: [id])
   items    OrderItem[]
   jobs     FulfillmentJob[]
 
@@ -146,12 +186,12 @@ model Order {
 }
 
 model OrderItem {
-  id        String  @id @default(cuid())
-  orderId   String
-  productId String?
-  name      String
-  unitPrice Decimal @db.Decimal(12, 2)
-  qty       Int
+  id                String  @id @default(cuid())
+  orderId           String
+  productId         String?
+  name              String
+  unitPrice         Decimal @db.Decimal(12, 2)
+  qty               Int
   /// snapshot do vínculo CJ no momento da compra
   supplierVariantId String?
   supplierSku       String?
@@ -195,4 +235,22 @@ model Feedback {
 
   @@index([createdAt])
   @@index([kind])
+}
+
+/// Log simplificado de imports CJ (cron / manual)
+model ImportLog {
+  id        String   @id @default(cuid())
+  /// cron | manual | force
+  source    String
+  /// ok | skip | error
+  status    String
+  message   String
+  pid       String?
+  productId String?
+  slug      String?
+  name      String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([status])
 }

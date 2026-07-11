@@ -8,6 +8,8 @@ import type { ProductDetails } from "../src/lib/product-details";
 
 type Curated = {
   name?: string;
+  /** Slug em português (opcional — renomeia o produto) */
+  newSlug?: string;
   blurb: string;
   description: string;
   details: ProductDetails;
@@ -374,15 +376,246 @@ const CURATED: Record<string, Curated> = {
         "Comedouro duplo elevado e dobrável. Medida aproximada 37×27×12 cm — para quem quer o pet comendo mais alto, com água e ração no mesmo lugar.",
     },
   },
+
+  "portable-11-in-1-multifunctional-cleaning-kit-computer-keyboard-cleaner-phone-sc":
+    {
+      newSlug: "kit-limpeza-11-em-1",
+      name: "Kit limpeza 11 em 1",
+      blurb: "Teclado, tela e fone · estojo · branco, roxo, laranja ou azul.",
+      description:
+        "Kit portátil de limpeza com várias pontas e escovas para teclado, tela de celular, notebook e fones. Vem em estojo compacto — cabe na mochila ou na gaveta da mesa.",
+      details: {
+        highlights: [
+          "Kit multifuncional (várias pontas/escovas)",
+          "Ideal para teclado, tela e fones",
+          "Estojo compacto para guardar",
+          "Cores: branco, roxo, laranja ou azul",
+        ],
+        useCases: [
+          "Tirar poeira e migalha do teclado",
+          "Limpar tela do celular sem arranhar",
+          "Limpeza rápida de fones e case",
+          "Levar no escritório ou na bolsa",
+        ],
+        colors: ["Branco", "Roxo", "Laranja", "Azul"],
+        sizes: ["Único (kit + estojo)"],
+        measurements: [
+          { label: "Formato", value: "Kit 11 em 1 com estojo" },
+          { label: "Uso", value: "Notebook, celular, teclado, fones" },
+          { label: "Cores", value: "Branco · Roxo · Laranja · Azul" },
+        ],
+        faqs: [
+          {
+            q: "Serve para notebook e celular?",
+            a: "Sim. As pontas cobrem teclado, tela e cantos pequenos (fone, case).",
+          },
+          {
+            q: "Vem com estojo?",
+            a: "Sim — o kit vem com caixa/estojo para guardar as peças.",
+          },
+          {
+            q: "É produto profissional de limpeza química?",
+            a: "Não. É kit de escovas/ferramentas de limpeza física — sem spray químico incluso.",
+          },
+        ],
+        includes: ["1 kit de limpeza multifuncional com estojo (cor escolhida)"],
+        materials: "Plástico ABS e cerdas/escovas conforme o kit.",
+        howToUse:
+          "Escolha a ponta certa, limpe a seco (ou com pano levemente úmido na tela) e guarde no estojo.",
+        care: "Não molhe demais as cerdas. Guarde seco no estojo.",
+        longDescription:
+          "Kit barato e útil: várias pontas num estojo para limpar teclado, tela e fone sem improvisar cotonete. Quatro cores para escolher.",
+      },
+    },
+
+  "wireless-car-vacuum-cleaner-portable-handheld-high-power-vacuum-cleaner-for-car-":
+    {
+      newSlug: "aspirador-portatil-sem-fio",
+      name: "Aspirador portátil sem fio",
+      blurb: "Carro, casa e teclado · sem fio · filtro lavável · preto ou branco.",
+      description:
+        "Aspirador de mão sem fio para carro, casa e cantos apertados (teclado, sofá). Bateria de lítio, sucção ciclone e filtro/copo laváveis. Ideal para migalha, areia e pó no dia a dia.",
+      details: {
+        highlights: [
+          "Sem fio (bateria de lítio)",
+          "Sucção ciclone para pó e migalha",
+          "Filtro e copo laváveis",
+          "Uso: carro, casa, escritório",
+        ],
+        useCases: [
+          "Limpar banco e assoalho do carro",
+          "Migalha no sofá e no teclado",
+          "Pó em cantos onde o aspirador grande não entra",
+          "Limpeza rápida entre uma faxina e outra",
+        ],
+        colors: ["Preto", "Branco"],
+        sizes: ["Único (portátil de mão)"],
+        measurements: [
+          { label: "Tipo", value: "Aspirador de mão sem fio" },
+          { label: "Filtro", value: "Lavável" },
+          { label: "Cores", value: "Preto · Branco" },
+        ],
+        faqs: [
+          {
+            q: "Precisa de tomada no carro?",
+            a: "Não na hora de aspirar — é sem fio. Você carrega a bateria antes (conforme o modelo).",
+          },
+          {
+            q: "Substitui aspirador de casa grande?",
+            a: "Não. É portátil para limpeza rápida e cantos. Para faxina pesada, use o aspirador principal.",
+          },
+          {
+            q: "O filtro lava?",
+            a: "Sim — filtro e copo são laváveis. Seque bem antes de usar de novo.",
+          },
+        ],
+        includes: ["1 aspirador portátil sem fio (cor escolhida)"],
+        materials: "Plástico + motor + filtro lavável.",
+        howToUse:
+          "Carregue, ligue, aspire o local e esvazie o copo. Lave o filtro quando notar perda de sucção.",
+        care: "Esvazie o pó com frequência. Lave e seque o filtro antes de guardar.",
+        longDescription:
+          "Aspirador de mão sem fio para o carro e para os cantos da casa. Não é o aspirador “de faxina completa” — é o que você pega em 2 minutos para tirar areia e migalha.",
+      },
+    },
+
+  "camping-sofa-inflatable-sofa-portable-air-bed-outdoor-airbed-casual-beach-reclin":
+    {
+      newSlug: "sofa-inflavel-camping",
+      name: "Sofá inflável de camping",
+      blurb: "Praia, camping e quintal · nylon · tamanhos S e L · várias cores.",
+      description:
+        "Sofá/espreguiçadeira inflável portátil para camping, praia e área externa. Nylon, dobra para levar na bolsa. Opções de tamanho S (padrão) e L (mais largo), em várias cores.",
+      details: {
+        highlights: [
+          "Inflável e portátil (dobra para guardar)",
+          "Nylon — uso externo (praia, camping, quintal)",
+          "Tamanhos S e L (L mais largo)",
+          "Várias cores (azul-marinho, amarelo café, azul-céu, verde…)",
+        ],
+        useCases: [
+          "Camping e trilha com descanso no chão",
+          "Praia / lago sem carregar cadeira pesada",
+          "Quintal, piscina e churrasco",
+          "Levar dobrado na mochila ou no porta-malas",
+        ],
+        colors: [
+          "Azul-marinho",
+          "Amarelo café",
+          "Azul-céu",
+          "Verde",
+        ],
+        sizes: ["S (padrão)", "L (mais largo)"],
+        sizeNote:
+          "S é o tamanho padrão; L é a versão mais larga/confortável. Confira a opção no pedido.",
+        measurements: [
+          { label: "Tamanhos", value: "S · L" },
+          { label: "Material", value: "Nylon (camada simples)" },
+          { label: "Uso", value: "Camping, praia, área externa" },
+        ],
+        faqs: [
+          {
+            q: "É colchão de casal?",
+            a: "Não. É sofá/espreguiçadeira individual inflável. O L é mais largo, mas ainda é peça individual.",
+          },
+          {
+            q: "Serve na água?",
+            a: "Alguns modelos são usados como flutuador casual — use com cuidado e supervisão. Não é salva-vidas.",
+          },
+          {
+            q: "Como enche?",
+            a: "Conforme o modelo: muitos acompanham ou permitem enchimento rápido (ex.: saco/ventilador de dobra). Siga o manual da peça recebida.",
+          },
+        ],
+        includes: ["1 sofá inflável (tamanho e cor escolhidos)"],
+        materials: "Nylon.",
+        howToUse:
+          "Abra, encha conforme o modelo, use e esvazie para guardar dobrado.",
+        care: "Evite objetos pontiagudos. Seque antes de guardar. Não deixe ao sol forte por horas sem necessidade.",
+        longDescription:
+          "Sofá inflável para levar no camping ou na praia sem cadeira de ferro. Nylon, dobra pequeno, tamanhos S e L e várias cores.",
+      },
+    },
+
+  "portable-handheld-spray-fan-4-speed-water-spray-mist-fan-summer-cooling-artifact":
+    {
+      newSlug: "ventilador-mao-spray",
+      name: "Ventilador de mão com spray",
+      blurb: "Vento + névoa · 4 velocidades · USB · preto, branco ou rosa.",
+      description:
+        "Mini ventilador de mão com spray de água (névoa) e 4 velocidades. Combina vento e umidificação leve — útil no calor seco, na rua ou no escritório. Recarrega via USB.",
+      details: {
+        highlights: [
+          "Ventilador + spray de névoa",
+          "4 velocidades",
+          "Recarregável via USB",
+          "Cores: preto, branco ou rosa",
+        ],
+        useCases: [
+          "Aliviar o calor na rua ou no ponto de ônibus",
+          "Escritório / home office sem ar-condicionado forte",
+          "Praia, fila e eventos ao ar livre",
+          "Quem quer vento + um pouco de umidade",
+        ],
+        colors: ["Preto", "Branco", "Rosa"],
+        sizes: ["Único (portátil de mão)"],
+        measurements: [
+          { label: "Funções", value: "Vento + névoa" },
+          { label: "Velocidades", value: "4" },
+          { label: "Carga", value: "USB" },
+          { label: "Cores", value: "Preto · Branco · Rosa" },
+        ],
+        faqs: [
+          {
+            q: "Precisa de água?",
+            a: "Para a névoa, sim — coloque água limpa no reservatório. Sem água, ainda funciona como ventilador.",
+          },
+          {
+            q: "É só ventilador ou também joga água?",
+            a: "Os dois: vento e névoa. Sem água no reservatório, funciona só como ventilador.",
+          },
+          {
+            q: "Molha a roupa?",
+            a: "A névoa é fina. Em velocidade alta e bem perto, pode umedecer um pouco — use com distância confortável.",
+          },
+        ],
+        includes: ["1 ventilador de mão com spray (cor escolhida)"],
+        materials: "Plástico + motor + reservatório de água.",
+        howToUse:
+          "Carregue via USB, coloque água limpa se quiser névoa, escolha a velocidade e use na mão.",
+        care: "Esvazie a água antes de guardar. Não submerja o aparelho.",
+        longDescription:
+          "Ventilador de mão com spray: vento + névoa em 4 velocidades. USB e três cores — preto, branco ou rosa.",
+      },
+    },
 };
 
 async function main() {
+  // Remove duplicata: turbo fan ≈ mesmo nicho do ventilador com spray
+  const turbo = await prisma.product.findFirst({
+    where: {
+      OR: [
+        { slug: { contains: "turbo-jet-fan" } },
+        { name: { contains: "Mini turbo fan" } },
+      ],
+    },
+  });
+  if (turbo) {
+    await prisma.product.update({
+      where: { id: turbo.id },
+      data: { active: false },
+    });
+    console.log("desativado (duplicata)", turbo.slug);
+  }
+
   const products = await prisma.product.findMany({
     include: { supplierProduct: true },
   });
 
   for (const p of products) {
-    const curated = CURATED[p.slug];
+    const curated =
+      CURATED[p.slug] ||
+      Object.values(CURATED).find((c) => c.newSlug && c.newSlug === p.slug);
     if (!curated) {
       console.log("skip (no curated)", p.slug);
       continue;
@@ -392,7 +625,13 @@ async function main() {
     let gallery = galleryFromCjRaw(raw, p.imageUrl);
 
     // Colete: prioriza variedade de fotos das variantes (produto em várias cores)
-    if (p.slug === "colete-salva-vidas-pet" && Array.isArray((raw as { variants?: { variantImage?: string }[] })?.variants)) {
+    if (
+      (p.slug === "colete-salva-vidas-pet" ||
+        curated.newSlug === "sofa-inflavel-camping" ||
+        curated.newSlug === "ventilador-mao-spray" ||
+        curated.newSlug === "kit-limpeza-11-em-1") &&
+      Array.isArray((raw as { variants?: { variantImage?: string }[] })?.variants)
+    ) {
       const fromVariants = [
         ...new Set(
           ((raw as { variants: { variantImage?: string }[] }).variants || [])
@@ -403,9 +642,12 @@ async function main() {
       gallery = [...new Set([...fromVariants, ...gallery])].slice(0, 12);
     }
 
+    const nextSlug = curated.newSlug || p.slug;
+
     await prisma.product.update({
       where: { id: p.id },
       data: {
+        slug: nextSlug,
         name: curated.name || p.name,
         blurb: curated.blurb,
         description: curated.description,
@@ -418,6 +660,8 @@ async function main() {
     console.log(
       "ok",
       p.slug,
+      "→",
+      nextSlug,
       "gallery",
       gallery.length,
       "faqs",

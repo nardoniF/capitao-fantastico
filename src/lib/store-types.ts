@@ -3,12 +3,17 @@ import {
   products as seedProducts,
   type Product,
 } from "@/data/products";
+import type { StorefrontVariant } from "@/lib/catalog";
 
 export type StoreProduct = Product & {
   active: boolean;
   sku?: string;
   supplierSku?: string;
   complementaryIds?: string[];
+  variants?: StorefrontVariant[];
+  videoUrl?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
 };
 
 export type ShippingAddress = {
@@ -26,6 +31,9 @@ export type OrderItem = {
   name: string;
   price: number;
   qty: number;
+  supplierVariantId?: string;
+  supplierSku?: string;
+  size?: string;
 };
 
 export type Order = {

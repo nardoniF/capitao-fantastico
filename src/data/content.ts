@@ -23,7 +23,7 @@ export const faqItems = [
   },
   {
     q: "Como acompanho o pedido?",
-    a: "Enviamos o código de rastreio por e-mail/WhatsApp assim que o pedido for despachado. Dúvidas: contato@3n20.com.br.",
+    a: "Enviamos o código de rastreio por e-mail/WhatsApp assim que o pedido for despachado. Dúvidas: contato@capitaofantastico.com.br.",
   },
   {
     q: "Posso trocar ou devolver?",

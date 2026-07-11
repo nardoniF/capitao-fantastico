@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { importCJProduct } from "@/lib/suppliers/import-cj";
+import { importCJProductFull } from "@/lib/suppliers/import-cj";
 
 function checkAuth(request: Request) {
   const expected = process.env.ADMIN_PASSWORD?.trim();
@@ -8,8 +8,9 @@ function checkAuth(request: Request) {
 }
 
 /**
- * POST /api/admin/import-cj
- * Body: { cjProductId, category, blurb?, description?, isNew? }
+ * POST /api/admin/import-cj (legado)
+ * Prefira POST /api/admin/cj/import
+ * Body: { cjProductId, category?, blurb?, description?, isNew? }
  */
 export async function POST(request: Request) {
   if (!checkAuth(request)) {
@@ -20,23 +21,19 @@ export async function POST(request: Request) {
     const body = (await request.json()) as {
       cjProductId?: string;
       category?: string;
-      blurb?: string;
-      description?: string;
       isNew?: boolean;
     };
 
-    if (!body.cjProductId || !body.category) {
+    if (!body.cjProductId) {
       return NextResponse.json(
-        { error: "cjProductId e category são obrigatórios" },
+        { error: "cjProductId é obrigatório" },
         { status: 400 },
       );
     }
 
-    const result = await importCJProduct({
+    const result = await importCJProductFull({
       cjProductId: body.cjProductId.trim(),
-      category: body.category.trim(),
-      blurb: body.blurb,
-      description: body.description,
+      category: body.category?.trim(),
       isNew: body.isNew,
     });
 
@@ -44,6 +41,9 @@ export async function POST(request: Request) {
       ok: true,
       product: result.product,
       priced: result.priced,
+      variantCount: result.variantCount,
+      galleryCount: result.galleryCount,
+      hasVideo: result.hasVideo,
     });
   } catch (e) {
     console.error("import-cj", e);

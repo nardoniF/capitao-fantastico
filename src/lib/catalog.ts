@@ -7,6 +7,17 @@ import {
 } from "@/lib/product-details";
 import type { ProductCategory } from "@/data/products";
 
+export type StorefrontVariant = {
+  id: string;
+  supplierVariantId: string;
+  sku?: string | null;
+  label: string;
+  optionValues: Record<string, string>;
+  imageUrl?: string | null;
+  salePrice: number;
+  stock: number;
+};
+
 export type StorefrontProduct = {
   id: string;
   slug: string;
@@ -24,7 +35,38 @@ export type StorefrontProduct = {
   accent: string;
   gallery: string[];
   details: ProductDetails;
+  videoUrl?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  options?: Record<string, string[]>;
+  variants: StorefrontVariant[];
 };
+
+function num(v: unknown) {
+  if (v == null) return 0;
+  if (typeof v === "number") return v;
+  if (typeof v === "string") return Number(v);
+  if (
+    typeof v === "object" &&
+    v &&
+    "toNumber" in v &&
+    typeof (v as { toNumber: () => number }).toNumber === "function"
+  ) {
+    return (v as { toNumber: () => number }).toNumber();
+  }
+  return Number(v);
+}
+
+function parseOptions(raw: unknown): Record<string, string[]> | undefined {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
+  const out: Record<string, string[]> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (Array.isArray(v)) {
+      out[k] = v.filter((x): x is string => typeof x === "string");
+    }
+  }
+  return Object.keys(out).length ? out : undefined;
+}
 
 function mapRow(p: {
   id: string;
@@ -33,27 +75,50 @@ function mapRow(p: {
   category: string;
   blurb: string;
   description: string;
-  salePrice: { toNumber?: () => number } | number | string;
-  compareAt: { toNumber?: () => number } | number | string | null;
+  salePrice: unknown;
+  compareAt: unknown;
   rating: number;
   approved: boolean;
   isNew: boolean;
   imageUrl: string;
   gallery?: unknown;
   details?: unknown;
-  supplierProduct?: { supplierPrice: { toNumber?: () => number } | number | string } | null;
+  options?: unknown;
+  videoUrl?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  supplierProduct?: {
+    supplierPrice: unknown;
+  } | null;
+  variants?: {
+    id: string;
+    supplierVariantId: string;
+    sku: string | null;
+    label: string;
+    optionValues: unknown;
+    imageUrl: string | null;
+    salePrice: unknown;
+    stock: number;
+    active: boolean;
+  }[];
 }): StorefrontProduct {
-  const num = (v: unknown) => {
-    if (v == null) return 0;
-    if (typeof v === "number") return v;
-    if (typeof v === "string") return Number(v);
-    if (typeof v === "object" && v && "toNumber" in v && typeof (v as { toNumber: () => number }).toNumber === "function") {
-      return (v as { toNumber: () => number }).toNumber();
-    }
-    return Number(v);
-  };
-
   const image = normalizeImageUrl(p.imageUrl);
+  const variants = (p.variants || [])
+    .filter((v) => v.active && v.stock > 0)
+    .map((v) => ({
+      id: v.id,
+      supplierVariantId: v.supplierVariantId,
+      sku: v.sku,
+      label: v.label,
+      optionValues:
+        v.optionValues && typeof v.optionValues === "object"
+          ? (v.optionValues as Record<string, string>)
+          : {},
+      imageUrl: v.imageUrl,
+      salePrice: num(v.salePrice),
+      stock: v.stock,
+    }));
+
   return {
     id: p.id,
     slug: p.slug,
@@ -71,18 +136,46 @@ function mapRow(p: {
     accent: "#ffc107",
     gallery: parseGallery(p.gallery, image),
     details: parseProductDetails(p.details),
+    videoUrl: p.videoUrl,
+    seoTitle: p.seoTitle,
+    seoDescription: p.seoDescription,
+    options: parseOptions(p.options),
+    variants,
   };
 }
+
+const includeVariants = {
+  supplierProduct: true,
+  variants: {
+    where: { active: true, stock: { gt: 0 } },
+    orderBy: { salePrice: "asc" as const },
+  },
+};
 
 export async function listStorefrontProducts(): Promise<StorefrontProduct[]> {
   if (!process.env.DATABASE_URL) return [];
   try {
     const rows = await prisma.product.findMany({
       where: { active: true },
-      include: { supplierProduct: true },
+      include: {
+        supplierProduct: true,
+        variants: {
+          where: { active: true },
+          orderBy: { salePrice: "asc" as const },
+        },
+      },
       orderBy: [{ isNew: "desc" }, { updatedAt: "desc" }],
     });
-    return rows.map(mapRow);
+    return rows
+      .map((row) => ({ row, product: mapRow(row) }))
+      .filter(({ row, product }) => {
+        // Tem variantes cadastradas mas nenhuma com estoque → some da vitrine
+        if (row.variants.length > 0 && product.variants.length === 0) {
+          return false;
+        }
+        return true;
+      })
+      .map(({ product }) => product);
   } catch (e) {
     console.error("listStorefrontProducts", e);
     return [];
@@ -94,7 +187,7 @@ export async function getStorefrontBySlug(slug: string) {
   try {
     const row = await prisma.product.findFirst({
       where: { slug, active: true },
-      include: { supplierProduct: true },
+      include: includeVariants,
     });
     return row ? mapRow(row) : null;
   } catch {
@@ -107,7 +200,7 @@ export async function getStorefrontById(id: string) {
   try {
     const row = await prisma.product.findFirst({
       where: { id, active: true },
-      include: { supplierProduct: true },
+      include: includeVariants,
     });
     return row ? mapRow(row) : null;
   } catch {
@@ -135,7 +228,7 @@ export async function listStorefrontComplementary(
         category: { in: categories },
         id: { notIn: productIds },
       },
-      include: { supplierProduct: true },
+      include: includeVariants,
       orderBy: [{ isNew: "desc" }, { updatedAt: "desc" }],
       take: limit * 2,
     });

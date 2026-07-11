@@ -10,18 +10,27 @@ import {
   type ReactNode,
 } from "react";
 import type { Product } from "@/data/products";
+import type { StorefrontVariant } from "@/lib/catalog";
 
 export type CartItem = {
   productId: string;
   qty: number;
   size?: string;
+  supplierVariantId?: string;
+  unitPrice?: number;
+  sku?: string;
 };
 
 export type CartLine = {
   key: string;
-  product: Product;
+  product: Product & {
+    variants?: StorefrontVariant[];
+  };
   qty: number;
   size?: string;
+  supplierVariantId?: string;
+  sku?: string;
+  unitPrice: number;
   lineTotal: number;
 };
 
@@ -31,26 +40,44 @@ type CartContextValue = {
   subtotal: number;
   lines: CartLine[];
   catalogReady: boolean;
-  add: (productId: string, qty?: number, size?: string) => void;
+  add: (
+    productId: string,
+    qty?: number,
+    size?: string,
+    meta?: {
+      supplierVariantId?: string;
+      unitPrice?: number;
+      sku?: string;
+    },
+  ) => void;
   setQty: (productId: string, qty: number, size?: string) => void;
   remove: (productId: string, size?: string) => void;
   clear: () => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
-const STORAGE_KEY = "cf-cart-v3";
+const STORAGE_KEY = "cf-cart-v4";
 
-function lineKey(productId: string, size?: string) {
+function lineKey(productId: string, size?: string, variantId?: string) {
+  if (variantId) return `${productId}::v:${variantId}`;
   return size ? `${productId}::${size}` : productId;
 }
 
-function sameLine(a: CartItem, productId: string, size?: string) {
+function sameLine(a: CartItem, productId: string, size?: string, variantId?: string) {
+  if (variantId || a.supplierVariantId) {
+    return (
+      a.productId === productId &&
+      (a.supplierVariantId || "") === (variantId || "")
+    );
+  }
   return a.productId === productId && (a.size || "") === (size || "");
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
-  const [catalog, setCatalog] = useState<Product[]>([]);
+  const [catalog, setCatalog] = useState<
+    (Product & { variants?: StorefrontVariant[] })[]
+  >([]);
   const [catalogReady, setCatalogReady] = useState(false);
   const [ready, setReady] = useState(false);
 
@@ -67,7 +94,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void fetch("/api/products")
       .then((r) => r.json())
-      .then((d: { products?: Product[] }) => {
+      .then((d: { products?: (Product & { variants?: StorefrontVariant[] })[] }) => {
         if (d.products?.length) setCatalog(d.products);
       })
       .catch(() => {
@@ -81,17 +108,43 @@ export function CartProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items, ready]);
 
-  const add = useCallback((productId: string, qty = 1, size?: string) => {
-    setItems((prev) => {
-      const existing = prev.find((i) => sameLine(i, productId, size));
-      if (existing) {
-        return prev.map((i) =>
-          sameLine(i, productId, size) ? { ...i, qty: i.qty + qty } : i,
+  const add = useCallback(
+    (
+      productId: string,
+      qty = 1,
+      size?: string,
+      meta?: {
+        supplierVariantId?: string;
+        unitPrice?: number;
+        sku?: string;
+      },
+    ) => {
+      setItems((prev) => {
+        const existing = prev.find((i) =>
+          sameLine(i, productId, size, meta?.supplierVariantId),
         );
-      }
-      return [...prev, { productId, qty, size: size || undefined }];
-    });
-  }, []);
+        if (existing) {
+          return prev.map((i) =>
+            sameLine(i, productId, size, meta?.supplierVariantId)
+              ? { ...i, qty: i.qty + qty }
+              : i,
+          );
+        }
+        return [
+          ...prev,
+          {
+            productId,
+            qty,
+            size: size || undefined,
+            supplierVariantId: meta?.supplierVariantId,
+            unitPrice: meta?.unitPrice,
+            sku: meta?.sku,
+          },
+        ];
+      });
+    },
+    [],
+  );
 
   const setQty = useCallback((productId: string, qty: number, size?: string) => {
     setItems((prev) => {
@@ -118,12 +171,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
       .map((item) => {
         const product = byId.get(item.productId);
         if (!product) return null;
+        const unitPrice =
+          item.unitPrice ??
+          product.variants?.find(
+            (v) => v.supplierVariantId === item.supplierVariantId,
+          )?.salePrice ??
+          product.price;
         return {
-          key: lineKey(item.productId, item.size),
+          key: lineKey(item.productId, item.size, item.supplierVariantId),
           product,
           qty: item.qty,
           size: item.size,
-          lineTotal: product.price * item.qty,
+          supplierVariantId: item.supplierVariantId,
+          sku: item.sku,
+          unitPrice,
+          lineTotal: unitPrice * item.qty,
         };
       })
       .filter(Boolean) as CartLine[];

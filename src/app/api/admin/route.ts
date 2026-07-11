@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import {
+  deleteNeonProduct,
   getAdminBundle,
   updateNeonProduct,
   updatePricingRule,
@@ -47,6 +48,7 @@ export async function PUT(request: Request) {
         name?: string;
         blurb?: string;
       };
+      hard?: boolean;
     };
 
     if (body.action === "update_pricing" && body.pricing) {
@@ -61,15 +63,34 @@ export async function PUT(request: Request) {
       });
     }
 
-    if (body.action === "update_neon_product" && body.productId && body.productPatch) {
+    if (
+      body.action === "update_neon_product" &&
+      body.productId &&
+      body.productPatch
+    ) {
       const product = await updateNeonProduct(body.productId, body.productPatch);
+      return NextResponse.json({ product });
+    }
+
+    if (body.action === "delete_product" && body.productId) {
+      await deleteNeonProduct(body.productId, { hard: body.hard === true });
+      return NextResponse.json({ ok: true });
+    }
+
+    if (body.action === "deactivate_product" && body.productId) {
+      const product = await updateNeonProduct(body.productId, {
+        active: false,
+      });
       return NextResponse.json({ product });
     }
 
     if (body.action === "update_order" && body.orderId && body.patch) {
       const order = await updateOrder(body.orderId, body.patch);
       if (!order) {
-        return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Pedido não encontrado" },
+          { status: 404 },
+        );
       }
       return NextResponse.json({ order });
     }

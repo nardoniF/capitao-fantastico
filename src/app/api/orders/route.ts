@@ -36,7 +36,14 @@ export async function POST(request: Request) {
       email?: string;
       telefone?: string;
       endereco?: unknown;
-      items?: { productId: string; qty: number; size?: string }[];
+      items?: {
+        productId: string;
+        qty: number;
+        size?: string;
+        supplierVariantId?: string;
+        unitPrice?: number;
+        sku?: string;
+      }[];
     };
 
     if (!body.nome || !body.email || !body.items?.length) {
@@ -56,11 +63,20 @@ export async function POST(request: Request) {
       const product = await getProductById(item.productId);
       if (!product || !product.active) continue;
       const size = item.size?.trim();
+      const variant = item.supplierVariantId
+        ? product.variants?.find(
+            (v) => v.supplierVariantId === item.supplierVariantId,
+          )
+        : undefined;
+      const unitPrice = variant?.salePrice ?? item.unitPrice ?? product.price;
       lines.push({
         productId: product.id,
         name: size ? `${product.name} (${size})` : product.name,
-        price: product.price,
+        price: unitPrice,
         qty: Math.max(1, item.qty),
+        supplierVariantId: item.supplierVariantId || variant?.supplierVariantId,
+        supplierSku: item.sku || variant?.sku || undefined,
+        size: size || undefined,
       });
     }
 

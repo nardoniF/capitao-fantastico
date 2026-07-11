@@ -58,7 +58,35 @@ type FeedbackRow = {
 
 type ApiCheck = { name: string; ok: boolean; detail: string };
 
-type Tab = "vendas" | "produtos" | "markup" | "cliques" | "sugestoes" | "api";
+type ImportLogRow = {
+  id: string;
+  source: string;
+  status: string;
+  message: string;
+  name?: string | null;
+  slug?: string | null;
+  pid?: string | null;
+  createdAt: string;
+};
+
+type CatalogInfo = {
+  activeCount: number;
+  cap: number;
+  slotsLeft: number;
+};
+
+type Tab = "vendas" | "produtos" | "importar" | "markup" | "cliques" | "sugestoes" | "api";
+
+type SearchHit = {
+  pid: string;
+  title: string;
+  imageUrl: string;
+  priceUsd: number;
+  salePriceBrl: number;
+  categoryName?: string;
+  alreadyImported?: boolean;
+  productSlug?: string;
+};
 
 const kindLabel = (kind: string) =>
   FEEDBACK_KINDS.find((k) => k.value === kind)?.label || kind;
@@ -73,11 +101,20 @@ export default function AdminPage() {
   const [clicks, setClicks] = useState<ClickRow[]>([]);
   const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
   const [api, setApi] = useState<ApiCheck[]>([]);
+  const [importLogs, setImportLogs] = useState<ImportLogRow[]>([]);
+  const [catalog, setCatalog] = useState<CatalogInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [markupDraft, setMarkupDraft] = useState("2.3");
   const [fxDraft, setFxDraft] = useState("5.6");
   const [feeDraft, setFeeDraft] = useState("5");
+  const [searchQ, setSearchQ] = useState("");
+  const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
+  const [selectedPids, setSelectedPids] = useState<string[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [autoRunning, setAutoRunning] = useState(false);
+  const [autoLog, setAutoLog] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -96,6 +133,8 @@ export default function AdminPage() {
       clicks: ClickRow[];
       feedback: FeedbackRow[];
       api: ApiCheck[];
+      importLogs?: ImportLogRow[];
+      catalog?: CatalogInfo;
     };
     setPricing(data.pricing);
     setProducts(data.products);
@@ -103,6 +142,8 @@ export default function AdminPage() {
     setClicks(data.clicks);
     setFeedback(data.feedback);
     setApi(data.api);
+    setImportLogs(data.importLogs || []);
+    setCatalog(data.catalog || null);
     setMarkupDraft(String(data.pricing.markup));
     setFxDraft(String(data.pricing.fxBrl));
     setFeeDraft(String(Number((data.pricing.feePct * 100).toFixed(2))));
@@ -166,6 +207,141 @@ export default function AdminPage() {
     }
   }
 
+  async function deleteProduct(productId: string, hard: boolean) {
+    const ok = window.confirm(
+      hard
+        ? "Excluir permanentemente este produto?"
+        : "Desativar e tirar da vitrine?",
+    );
+    if (!ok) return;
+    try {
+      await put({ action: "delete_product", productId, hard });
+      setMsg(hard ? "Produto excluído" : "Produto desativado");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao excluir");
+    }
+  }
+
+  async function searchCj() {
+    if (!searchQ.trim()) {
+      setError("Digite uma palavra-chave (ex: vacuum, pet, fan)");
+      return;
+    }
+    setSearching(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/cj/search", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": password,
+        },
+        body: JSON.stringify({ keyword: searchQ.trim(), pageSize: 20 }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        results?: SearchHit[];
+      };
+      if (!res.ok) throw new Error(data.error || "Falha na busca");
+      setSearchHits(data.results || []);
+      setSelectedPids([]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha na busca CJ");
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  async function importSelected(pids: string[]) {
+    if (!pids.length) return;
+    setImporting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/cj/import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": password,
+        },
+        body: JSON.stringify({ cjProductIds: pids.slice(0, 10) }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        imported?: { name: string; slug: string }[];
+        errors?: { pid: string; error: string }[];
+      };
+      if (!res.ok) throw new Error(data.error || "Falha no import");
+      const n = data.imported?.length || 0;
+      const errs = data.errors?.length || 0;
+      setMsg(
+        `Importados: ${n}${errs ? ` · erros: ${errs}` : ""}`,
+      );
+      if (data.errors?.length) {
+        setError(data.errors.map((e) => `${e.pid}: ${e.error}`).join(" · "));
+      }
+      await load();
+      await searchCj();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha no import");
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function autoImportTop30() {
+    const ok = window.confirm(
+      "Forçar uma rodada agora? (o cron já faz isso sozinho a cada 2h)\n\nImporta só o que ainda não existe — trending/top CJ.",
+    );
+    if (!ok) return;
+    setAutoRunning(true);
+    setError(null);
+    setAutoLog("Rodada forçada: buscando e importando novos…");
+    try {
+      const res = await fetch("/api/admin/cj/auto-import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": password,
+        },
+        body: JSON.stringify({ limit: 10 }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        selected?: number;
+        imported?: { name: string; slug: string; category: string; salePrice: number }[];
+        errors?: { pid: string; error: string }[];
+        skipped?: { pid: string; reason: string }[];
+        activeCount?: number;
+        catalogCap?: number;
+        slotsLeft?: number;
+      };
+      if (!res.ok) throw new Error(data.error || "Falha no auto-import");
+      const n = data.imported?.length || 0;
+      const errs = data.errors?.length || 0;
+      setMsg(
+        `Rodada: ${n} novos · ${errs} erros · ${data.activeCount ?? "?"}/${data.catalogCap ?? 150} ativos`,
+      );
+      setAutoLog(
+        (data.imported || [])
+          .map(
+            (p) =>
+              `✓ [${p.category}] ${p.name} — R$ ${p.salePrice.toFixed(2)}`,
+          )
+          .concat(
+            (data.errors || []).map((e) => `✗ ${e.pid}: ${e.error}`),
+          )
+          .join("\n") || "Nada novo nesta rodada (já estava tudo importado).",
+      );
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha no auto-import");
+      setAutoLog(null);
+    } finally {
+      setAutoRunning(false);
+    }
+  }
+
   async function patchOrder(orderId: string, patch: Record<string, unknown>) {
     await put({ action: "update_order", orderId, patch });
     await load();
@@ -216,6 +392,7 @@ export default function AdminPage() {
   const tabs: { id: Tab; label: string }[] = [
     { id: "vendas", label: `Vendas (${orders.length})` },
     { id: "produtos", label: `Produtos (${products.length})` },
+    { id: "importar", label: "Importar CJ" },
     { id: "markup", label: "Markup" },
     { id: "cliques", label: `Cliques (${clicks.length})` },
     { id: "sugestoes", label: `Sugestões (${feedback.length})` },
@@ -451,6 +628,13 @@ export default function AdminPage() {
                       >
                         {p.active ? "Off" : "On"}
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => void deleteProduct(p.id, true)}
+                        className="rounded border border-red-500/50 px-2 py-1 text-xs text-red-300"
+                      >
+                        Excluir
+                      </button>
                       <a
                         href={`/produtos/${p.slug}`}
                         target="_blank"
@@ -465,6 +649,239 @@ export default function AdminPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      ) : null}
+
+      {tab === "importar" ? (
+        <div className="mt-8 space-y-4">
+          <div className="rounded-[14px] border border-gold/40 bg-gold/10 p-5">
+            <h2 className="text-lg font-bold text-gold">
+              Piloto automático
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              Descobre sozinho → publica direto. Prioriza{" "}
+              <strong className="text-white">virais/novos</strong>. Para no teto
+              de ~{catalog?.cap ?? 150} ativos.
+            </p>
+            {catalog ? (
+              <p className="mt-2 text-sm text-white">
+                Catálogo:{" "}
+                <strong className="text-gold">
+                  {catalog.activeCount}/{catalog.cap}
+                </strong>
+                {catalog.slotsLeft > 0
+                  ? ` · ${catalog.slotsLeft} vagas`
+                  : " · teto cheio"}
+              </p>
+            ) : null}
+            <p className="mt-2 text-xs text-muted">
+              Cron a cada 2h · lote ~{5} · botão só força agora
+            </p>
+            <button
+              type="button"
+              disabled={autoRunning || (catalog?.slotsLeft ?? 1) <= 0}
+              onClick={() => void autoImportTop30()}
+              className="mt-4 rounded-md bg-gold px-6 py-3 text-sm font-bold text-black disabled:opacity-50"
+            >
+              {autoRunning
+                ? "Rodando agora…"
+                : catalog?.slotsLeft === 0
+                  ? "Teto cheio"
+                  : "Forçar rodada agora (opcional)"}
+            </button>
+            {autoLog ? (
+              <pre className="mt-4 max-h-40 overflow-auto whitespace-pre-wrap rounded-md border border-[#333] bg-[#111] p-3 text-xs text-[#ccc]">
+                {autoLog}
+              </pre>
+            ) : null}
+          </div>
+
+          <div className="rounded-[14px] border border-[#333] bg-[#1a1a1a] p-5">
+            <h2 className="text-base font-bold text-white">Log de importações</h2>
+            <p className="mt-1 text-xs text-muted">Últimas 40 · ok / erro / teto</p>
+            {importLogs.length === 0 ? (
+              <p className="mt-3 text-sm text-muted">Nenhum log ainda.</p>
+            ) : (
+              <ul className="mt-3 max-h-72 space-y-2 overflow-auto text-sm">
+                {importLogs.map((l) => (
+                  <li
+                    key={l.id}
+                    className="border-b border-[#2a2a2a] pb-2 text-[#ccc]"
+                  >
+                    <span className="text-xs text-muted">
+                      {new Date(l.createdAt).toLocaleString("pt-BR")} · {l.source} ·{" "}
+                      <span
+                        className={
+                          l.status === "ok"
+                            ? "text-emerald-400"
+                            : l.status === "error"
+                              ? "text-red-400"
+                              : "text-gold"
+                        }
+                      >
+                        {l.status}
+                      </span>
+                    </span>
+                    <p className="mt-0.5">
+                      {l.name ? (
+                        <>
+                          <span className="text-white">{l.name}</span>
+                          {" — "}
+                        </>
+                      ) : null}
+                      {l.message}
+                      {l.slug ? (
+                        <>
+                          {" "}
+                          <a
+                            href={`/produtos/${l.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-gold hover:underline"
+                          >
+                            ver
+                          </a>
+                        </>
+                      ) : null}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <div className="rounded-[14px] border border-[#333] bg-[#1a1a1a] p-5">
+            <h2 className="text-lg font-bold text-white">
+              Import unitário (manual)
+            </h2>
+            <p className="mt-1 text-sm text-muted">
+              Busca por palavra-chave e importa um a um — útil para produto
+              específico.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <input
+                value={searchQ}
+                onChange={(e) => setSearchQ(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void searchCj();
+                }}
+                placeholder="Ex: handheld fan, car vacuum, pet vest"
+                className="min-w-[240px] flex-1 rounded-md border border-[#333] bg-[#111] px-3 py-2.5 text-white"
+              />
+              <button
+                type="button"
+                disabled={searching}
+                onClick={() => void searchCj()}
+                className="rounded-md border border-line px-5 py-2.5 text-sm font-bold text-white hover:border-gold disabled:opacity-50"
+              >
+                {searching ? "Buscando…" : "Buscar"}
+              </button>
+              <button
+                type="button"
+                disabled={importing || selectedPids.length === 0}
+                onClick={() => void importSelected(selectedPids)}
+                className="rounded-md border border-gold/50 px-5 py-2.5 text-sm font-bold text-gold disabled:opacity-40"
+              >
+                {importing
+                  ? "Importando…"
+                  : `Importar selecionados (${selectedPids.length})`}
+              </button>
+            </div>
+          </div>
+
+          {searchHits.length === 0 ? (
+            <p className="text-sm text-muted">
+              Nenhum resultado manual ainda. Use o Top 30 acima ou busque por
+              palavra-chave.
+            </p>
+          ) : (
+            <div className="overflow-x-auto rounded-[14px] border border-[#333]">
+              <table className="min-w-full text-left text-sm">
+                <thead className="border-b border-[#333] bg-[#141414] text-muted">
+                  <tr>
+                    <th className="px-3 py-3"> </th>
+                    <th className="px-3 py-3">Produto CJ</th>
+                    <th className="px-3 py-3">Custo</th>
+                    <th className="px-3 py-3">Venda est.</th>
+                    <th className="px-3 py-3">Status</th>
+                    <th className="px-3 py-3">Ação</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {searchHits.map((h) => (
+                    <tr
+                      key={h.pid}
+                      className="border-b border-[#2a2a2a] text-white"
+                    >
+                      <td className="px-3 py-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedPids.includes(h.pid)}
+                          disabled={h.alreadyImported}
+                          onChange={(e) => {
+                            setSelectedPids((prev) =>
+                              e.target.checked
+                                ? [...prev, h.pid]
+                                : prev.filter((id) => id !== h.pid),
+                            );
+                          }}
+                        />
+                      </td>
+                      <td className="px-3 py-3">
+                        <div className="flex gap-3">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={h.imageUrl}
+                            alt=""
+                            className="h-14 w-14 rounded object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div>
+                            <p className="font-semibold leading-snug">
+                              {h.title.slice(0, 90)}
+                            </p>
+                            <p className="text-xs text-muted">
+                              {h.categoryName || "—"} · {h.pid.slice(0, 12)}…
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-3 py-3 text-muted">
+                        US$ {h.priceUsd.toFixed(2)}
+                      </td>
+                      <td className="px-3 py-3 font-semibold text-gold">
+                        {formatBRL(h.salePriceBrl)}
+                      </td>
+                      <td className="px-3 py-3 text-xs text-muted">
+                        {h.alreadyImported ? "Já importado" : "Novo"}
+                      </td>
+                      <td className="px-3 py-3">
+                        {h.alreadyImported && h.productSlug ? (
+                          <a
+                            href={`/produtos/${h.productSlug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-gold hover:underline"
+                          >
+                            Ver na loja
+                          </a>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={importing}
+                            onClick={() => void importSelected([h.pid])}
+                            className="rounded bg-gold px-2 py-1 text-xs font-bold text-black disabled:opacity-50"
+                          >
+                            Importar
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       ) : null}
 

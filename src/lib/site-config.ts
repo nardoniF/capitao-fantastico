@@ -10,7 +10,7 @@ export const siteConfig = {
     "O Capitão Fantástico testa e seleciona os produtos mais incríveis. Só entra na loja aquilo que realmente resolve um problema.",
   company: "3N20 Soluções Tecnológicas Ltda",
   cnpj: "29.321.223/0001-32",
-  email: "contato@3n20.com.br",
+  email: "contato@capitaofantastico.com.br",
   whatsapp: "5511984215176",
   social: {
     instagram: "https://instagram.com/capitaofantastico",

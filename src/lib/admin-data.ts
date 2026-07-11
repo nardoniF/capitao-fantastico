@@ -2,6 +2,11 @@ import { prisma } from "@/lib/db";
 import { calculateSalePrice } from "@/lib/pricing";
 import { listClicks, listOrders } from "@/lib/store-db";
 import { listFeedback } from "@/lib/feedback";
+import {
+  catalogCap,
+  countActiveProducts,
+  listImportLogs,
+} from "@/lib/import-log";
 
 export type PricingSnapshot = {
   markup: number;
@@ -235,18 +240,31 @@ export async function getAdminApiStatus() {
         : "Opcional — pedidos/cliques em memória/disco",
   });
 
+  checks.push({
+    name: "CRON auto-import CJ",
+    ok: Boolean(process.env.CRON_SECRET?.trim()),
+    detail: process.env.CRON_SECRET?.trim()
+      ? `Ativo · lote ${process.env.AUTO_IMPORT_BATCH || 5} / 2h · teto ${catalogCap()}`
+      : "Precisa CRON_SECRET",
+  });
+
   return checks;
 }
 
 export async function getAdminBundle() {
   const pricing = await getPricing();
-  const [products, orders, clicks, feedback, api] = await Promise.all([
-    listAdminProducts(),
-    listAdminOrders(),
-    listClicks(),
-    process.env.DATABASE_URL ? listFeedback() : Promise.resolve([]),
-    getAdminApiStatus(),
-  ]);
+  const [products, orders, clicks, feedback, api, importLogs, activeCount] =
+    await Promise.all([
+      listAdminProducts(),
+      listAdminOrders(),
+      listClicks(),
+      process.env.DATABASE_URL ? listFeedback() : Promise.resolve([]),
+      getAdminApiStatus(),
+      listImportLogs(40),
+      countActiveProducts(),
+    ]);
+
+  const cap = catalogCap();
 
   return {
     pricing,
@@ -255,6 +273,21 @@ export async function getAdminBundle() {
     clicks: clicks.slice(0, 300),
     feedback,
     api,
+    importLogs: importLogs.map((l) => ({
+      id: l.id,
+      source: l.source,
+      status: l.status,
+      message: l.message,
+      name: l.name,
+      slug: l.slug,
+      pid: l.pid,
+      createdAt: l.createdAt.toISOString(),
+    })),
+    catalog: {
+      activeCount,
+      cap,
+      slotsLeft: Math.max(0, cap - activeCount),
+    },
     updatedAt: new Date().toISOString(),
   };
 }
@@ -292,6 +325,40 @@ export async function updateNeonProduct(
       ...(patch.name != null ? { name: patch.name } : {}),
       ...(patch.blurb != null ? { blurb: patch.blurb } : {}),
     },
+  });
+}
+
+/** Soft delete (active=false) ou hard delete se sem OrderItem. */
+export async function deleteNeonProduct(
+  id: string,
+  opts?: { hard?: boolean },
+) {
+  if (opts?.hard) {
+    const items = await prisma.orderItem.count({ where: { productId: id } });
+    if (items > 0) {
+      // Soft se já vendeu
+      return prisma.product.update({
+        where: { id },
+        data: { active: false },
+      });
+    }
+    const product = await prisma.product.findUnique({
+      where: { id },
+      select: { supplierProductId: true },
+    });
+    await prisma.productVariant.deleteMany({ where: { productId: id } });
+    await prisma.product.delete({ where: { id } });
+    if (product?.supplierProductId) {
+      await prisma.supplierProduct.delete({
+        where: { id: product.supplierProductId },
+      }).catch(() => undefined);
+    }
+    return { deleted: true };
+  }
+
+  return prisma.product.update({
+    where: { id },
+    data: { active: false },
   });
 }
 
