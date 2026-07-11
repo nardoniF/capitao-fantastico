@@ -14,7 +14,11 @@ import type {
   SupplierMoney,
   SupplierTracking,
 } from "@/lib/suppliers/types";
-import type { CjProductFull, CjSearchHit } from "@/lib/suppliers/cj-types";
+import type {
+  CjFreightQuote,
+  CjProductFull,
+  CjSearchHit,
+} from "@/lib/suppliers/cj-types";
 import {
   galleryFromCjRaw,
   normalizeImageUrl,
@@ -373,23 +377,116 @@ export class CJSupplier implements SupplierAdapter {
         trackNumber?: string;
         logisticName?: string;
         status?: string;
+        orderStatus?: string | number;
       }>(
         `/shopping/order/getOrderDetail?orderId=${encodeURIComponent(supplierOrderId)}`,
         { token },
       );
 
       const code = data?.trackingNumber || data?.trackNumber;
-      if (!code) return null;
+      if (!code) {
+        return data
+          ? {
+              code: "",
+              carrier: data.logisticName,
+              status: String(data.status ?? data.orderStatus ?? ""),
+              raw: data,
+            }
+          : null;
+      }
 
       return {
         code,
         carrier: data?.logisticName,
-        status: data?.status,
+        status: String(data?.status ?? data?.orderStatus ?? ""),
         raw: data,
       };
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Frete estimado CJ → Brasil para 1 unidade do vid.
+   * Tenta CN primeiro; se falhar, tenta IN (e marca origem).
+   */
+  async freightToBrazil(opts: {
+    vid: string;
+    preferredOrigin?: string;
+  }): Promise<CjFreightQuote | null> {
+    const token = await this.token();
+    const origins = [
+      opts.preferredOrigin?.toUpperCase(),
+      "CN",
+      "US",
+      "IN",
+    ].filter((c, i, arr): c is string => Boolean(c) && arr.indexOf(c) === i);
+
+    for (const startCountryCode of origins) {
+      try {
+        const data = await cjFetch<
+          | {
+              logisticName?: string;
+              freightAmount?: number | string;
+              firstPostage?: number | string;
+              postageAmount?: number | string;
+              aging?: number | string;
+              totalPostageAmount?: number | string;
+            }[]
+          | {
+              list?: {
+                logisticName?: string;
+                freightAmount?: number | string;
+                firstPostage?: number | string;
+                postageAmount?: number | string;
+                aging?: number | string;
+                totalPostageAmount?: number | string;
+              }[];
+            }
+        >("/logistic/freightCalculate", {
+          method: "POST",
+          token,
+          body: {
+            startCountryCode,
+            endCountryCode: "BR",
+            products: [{ vid: opts.vid, quantity: 1 }],
+          },
+        });
+
+        const rows = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.list)
+            ? data.list
+            : [];
+        if (!rows.length) continue;
+
+        const parsed = rows
+          .map((row) => {
+            const amount = Number(
+              row.totalPostageAmount ??
+                row.freightAmount ??
+                row.postageAmount ??
+                row.firstPostage ??
+                0,
+            );
+            const days = Number(row.aging);
+            return {
+              amountUsd: Number.isFinite(amount) ? amount : 0,
+              logisticName: row.logisticName,
+              days: Number.isFinite(days) && days > 0 ? days : undefined,
+              startCountryCode,
+            } satisfies CjFreightQuote;
+          })
+          .filter((q) => q.amountUsd > 0)
+          .sort((a, b) => a.amountUsd - b.amountUsd);
+
+        if (parsed[0]) return parsed[0];
+      } catch {
+        /* tenta próxima origem */
+      }
+    }
+
+    return null;
   }
 }
 

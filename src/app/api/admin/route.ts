@@ -85,7 +85,26 @@ export async function PUT(request: Request) {
     }
 
     if (body.action === "update_order" && body.orderId && body.patch) {
-      const order = await updateOrder(body.orderId, body.patch);
+      const { findOrderById } = await import("@/lib/store-db");
+      const current = await findOrderById(body.orderId);
+      const patch = { ...body.patch } as Record<string, unknown>;
+      if (current && typeof patch.supplierTracking === "string") {
+        const { appendTrackingEvent, statusLabel } = await import(
+          "@/lib/order-tracking"
+        );
+        const nextStatus =
+          patch.status === "fulfilled" ? "fulfilled" : "shipped";
+        patch.status = nextStatus;
+        patch.trackingEvents = appendTrackingEvent(current.trackingEvents, {
+          at: new Date().toISOString(),
+          label: statusLabel(String(nextStatus)),
+          detail: `Rastreio ${patch.supplierTracking}`,
+        });
+      }
+      const order = await updateOrder(
+        body.orderId,
+        patch as Parameters<typeof updateOrder>[1],
+      );
       if (!order) {
         return NextResponse.json(
           { error: "Pedido não encontrado" },

@@ -69,9 +69,17 @@ export async function POST(request: Request) {
 
     if (payment.status === "approved") {
       if (order.status === "pending_payment" || order.status === "cancelled") {
+        const { appendTrackingEvent, statusLabel } = await import(
+          "@/lib/order-tracking"
+        );
         await updateOrder(orderId, {
           status: "paid",
           paymentRef: String(payment.id),
+          trackingEvents: appendTrackingEvent(order.trackingEvents, {
+            at: new Date().toISOString(),
+            label: statusLabel("paid"),
+            detail: "Pagamento aprovado via Mercado Pago",
+          }),
         });
       } else if (!order.paymentRef) {
         await updateOrder(orderId, { paymentRef: String(payment.id) });

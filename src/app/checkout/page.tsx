@@ -409,9 +409,15 @@ export default function CheckoutPage() {
                 Mercado Pago
               </span>
               <span className="rounded-md border border-[#333] px-2 py-2 text-center">
-                E-mail de confirmação
+                Suporte em português
               </span>
             </div>
+            <p className="mt-3 text-center text-xs text-muted">
+              Compra segura · rastreio no site até chegar ·{" "}
+              <Link href="/pedido/rastreio" className="text-gold hover:underline">
+                Acompanhar pedido
+              </Link>
+            </p>
 
             <Link
               href="/produtos"

@@ -77,7 +77,11 @@ export function ProductPurchase({
         />
 
         <p className="mt-5 text-sm text-[#666]">
-          Frete calculado após o pedido · Pix / cartão via Mercado Pago
+          Frete após o pedido · Pix/cartão via Mercado Pago · Suporte em
+          português até chegar ·{" "}
+          <a href="/pedido/rastreio" className="text-gold hover:underline">
+            Rastreio no site
+          </a>
         </p>
       </div>
     </div>

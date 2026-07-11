@@ -42,6 +42,13 @@ function isGoodCandidate(h: CjSearchHit, minUsd: number, maxUsd: number) {
   return true;
 }
 
+/** Score: virais + listagens + barato (mais margem potencial). */
+function candidateScore(h: CjSearchHit, viral: boolean, nicheBoost = 0) {
+  const listed = h.listedNum || 0;
+  const cheapBoost = Math.round(120 / Math.max(h.priceUsd, 0.5));
+  return (viral ? 5000 : 100) + listed * 2 + cheapBoost + nicheBoost;
+}
+
 export type AutoImportResult = {
   selected: number;
   activeCount: number;
@@ -137,7 +144,7 @@ export async function autoImportTopCjProducts(opts?: {
       if (!isGoodCandidate(h, minUsd, maxUsd)) continue;
       if (already.has(h.pid)) continue;
       const storeCategory = mapCjCategoryToStore(h.categoryName, h.title);
-      const score = (h.listedNum || 0) + 5000; // virais no topo
+      const score = candidateScore(h, true);
       byPid.set(h.pid, { ...h, storeCategory, score, viral: true });
     }
   } catch (e) {
@@ -168,7 +175,7 @@ export async function autoImportTopCjProducts(opts?: {
           niche.catMatch.test(h.categoryName || "") ||
           niche.catMatch.test(h.title);
         if (!catOk) continue;
-        const score = (h.listedNum || 0) + 100 + (50 - taken);
+        const score = candidateScore(h, false, 50 - taken);
         const prev = byPid.get(h.pid);
         if (!prev || score > prev.score) {
           byPid.set(h.pid, {
@@ -239,7 +246,7 @@ export async function autoImportTopCjProducts(opts?: {
     message: `Rodada: ${selected.length} candidatos · ativos ${activeCount}/${cap} · vagas ${slotsLeft}`,
   });
 
-  // Corrige até 3 produtos antigos ainda em inglês (dormiu e vende pronto)
+  // Corrige até 3 produtos antigos ainda em inglês OU com SEO fraco
   try {
     const stale = await prisma.product.findMany({
       where: {
@@ -248,7 +255,7 @@ export async function autoImportTopCjProducts(opts?: {
       },
       include: { supplierProduct: true },
       orderBy: { updatedAt: "asc" },
-      take: 8,
+      take: 10,
     });
     let fixed = 0;
     for (const p of stale) {
@@ -256,7 +263,13 @@ export async function autoImportTopCjProducts(opts?: {
       const looksEn =
         /\b(the|and|with|for|portable|wireless|hot|new)\b/i.test(p.name) &&
         !/[áàâãéêíóôõúç]/i.test(p.name);
-      if (!looksEn || !p.supplierProduct?.externalId) continue;
+      const weakSeo =
+        !p.seoTitle ||
+        !p.seoDescription ||
+        p.seoTitle.length < 20 ||
+        p.seoDescription.length < 40 ||
+        !/capitão|capitao/i.test(p.seoTitle);
+      if ((!looksEn && !weakSeo) || !p.supplierProduct?.externalId) continue;
       try {
         await new Promise((r) => setTimeout(r, 800));
         await importCJProductFull({
@@ -268,7 +281,9 @@ export async function autoImportTopCjProducts(opts?: {
         await appendImportLog({
           source,
           status: "ok",
-          message: `Relocalizado PT · ${p.slug}`,
+          message: looksEn
+            ? `Relocalizado PT · ${p.slug}`
+            : `SEO atualizado · ${p.slug}`,
           pid: p.supplierProduct.externalId,
           productId: p.id,
           slug: p.slug,
@@ -324,9 +339,10 @@ export async function autoImportTopCjProducts(opts?: {
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "erro";
-      const isOos = /sem estoque/i.test(msg);
-      if (isOos) {
-        result.skipped.push({ pid: c.pid, reason: "sem estoque CJ" });
+      const isSkip =
+        /sem estoque|sem margem|origem\/prazo|não publicado/i.test(msg);
+      if (isSkip) {
+        result.skipped.push({ pid: c.pid, reason: msg.slice(0, 120) });
         await appendImportLog({
           source,
           status: "skip",

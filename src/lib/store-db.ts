@@ -159,11 +159,22 @@ export async function createOrder(
   },
 ) {
   const store = await getStore();
+  const now = new Date().toISOString();
   const order: Order = {
     ...input,
     orderId: `CF${Date.now().toString(36).toUpperCase()}`,
-    createdAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
     status: input.status ?? "pending_payment",
+    trackingEvents: input.trackingEvents?.length
+      ? input.trackingEvents
+      : [
+          {
+            at: now,
+            label: "Aguardando pagamento",
+            detail: "Pedido criado na loja",
+          },
+        ],
   };
   store.orders.unshift(order);
   store.orders = store.orders.slice(0, 2000);
@@ -175,7 +186,11 @@ export async function updateOrder(orderId: string, patch: Partial<Order>) {
   const store = await getStore();
   const idx = store.orders.findIndex((o) => o.orderId === orderId);
   if (idx < 0) return null;
-  store.orders[idx] = { ...store.orders[idx], ...patch };
+  store.orders[idx] = {
+    ...store.orders[idx],
+    ...patch,
+    updatedAt: new Date().toISOString(),
+  };
   await saveStore(store);
   return store.orders[idx];
 }

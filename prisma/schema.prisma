@@ -173,6 +173,8 @@ model Order {
   supplierOrderId String?
   trackingCode    String?
   trackingCarrier String?
+  /// timeline / eventos de rastreio (sensor de status no site)
+  trackingEvents  Json?
   notes           String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt

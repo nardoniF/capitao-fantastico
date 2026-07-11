@@ -531,7 +531,7 @@ export default function AdminPage() {
                               if (code)
                                 void patchOrder(o.orderId, {
                                   supplierTracking: code,
-                                  status: "fulfilled",
+                                  status: "shipped",
                                 });
                             }}
                             className="rounded border border-line px-2 py-1 text-xs"

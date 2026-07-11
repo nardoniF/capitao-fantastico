@@ -4,6 +4,7 @@ export const aboutContent = {
   paragraphs: [
     "Não somos uma loja de um nicho só. Somos uma curadoria: gadgets, casa, pet, kids, auto, beauty e fit — desde que o Capitão aprove.",
     "Cada item passa pelo filtro: resolve de verdade? Vale o preço? Se sim, ganha o selo Aprovado pelo Capitão. Se não, fica de fora.",
+    "Compra segura, suporte em português e acompanhamento até o pedido chegar — com rastreio atualizado no site.",
     "Empresa: 3N20 Soluções Tecnológicas Ltda · CNPJ 29.321.223/0001-32 · São Paulo/SP.",
   ],
 };
@@ -19,11 +20,19 @@ export const faqItems = [
   },
   {
     q: "Qual o prazo de entrega?",
-    a: "Varia conforme o produto e a sua região. Em geral, saímos em poucos dias úteis. Confirmamos o prazo no WhatsApp após a compra.",
+    a: "Varia conforme o produto e a sua região. Confirmamos o prazo após a compra e você acompanha tudo pelo rastreio no site.",
   },
   {
     q: "Como acompanho o pedido?",
-    a: "Enviamos o código de rastreio por e-mail/WhatsApp assim que o pedido for despachado. Dúvidas: contato@capitaofantastico.com.br.",
+    a: "Use a página de rastreio do site com o número do pedido. O status atualiza sozinho quando o envio avança. Também avisamos por WhatsApp/e-mail. Dúvidas: contato@capitaofantastico.com.br.",
+  },
+  {
+    q: "O suporte é em português?",
+    a: "Sim. Atendimento em português (WhatsApp e e-mail) do pagamento até o pedido chegar na sua casa.",
+  },
+  {
+    q: "A compra é segura?",
+    a: "Sim. Pagamento via Mercado Pago (Pix/cartão), nota fiscal pela 3N20 e acompanhamento do pedido no site até a entrega.",
   },
   {
     q: "Posso trocar ou devolver?",

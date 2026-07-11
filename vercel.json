@@ -7,6 +7,10 @@
     {
       "path": "/api/jobs/auto-import-cj",
       "schedule": "15 */2 * * *"
+    },
+    {
+      "path": "/api/jobs/sync-tracking",
+      "schedule": "45 */3 * * *"
     }
   ]
 }

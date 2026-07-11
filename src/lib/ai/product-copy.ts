@@ -108,14 +108,28 @@ export async function generateProductCopy(
   ].filter(Boolean);
 
   const cat = input.categoryHint || "utilidades";
+  const benefit =
+    cat.toLowerCase().includes("pet")
+      ? "para seu pet"
+      : cat.toLowerCase().includes("auto")
+        ? "para o carro"
+        : cat.toLowerCase().includes("beauty")
+          ? "para cuidados pessoais"
+          : "para o dia a dia";
+
+  const seoTitle = `${name} | Compre online | Capitão Fantástico`.slice(0, 70);
+  const seoDescription = (
+    `Compre ${name} ${benefit} com suporte em português e rastreio no site. ` +
+    `${blurb}`
+  ).slice(0, 155);
 
   return {
     name,
     slug,
     blurb,
     description: descriptionPt.slice(0, 1500),
-    seoTitle: `${name} | Capitão Fantástico`.slice(0, 70),
-    seoDescription: blurb.slice(0, 155),
+    seoTitle,
+    seoDescription,
     optionsPt,
     details: {
       highlights,
@@ -132,6 +146,14 @@ export async function generateProductCopy(
         {
           q: "O preço já inclui frete?",
           a: "Não. O frete é calculado depois do pedido, conforme CEP.",
+        },
+        {
+          q: "Como acompanhar o pedido?",
+          a: "Pelo site em Pedido → Rastreio, com o número do pedido. O status atualiza sozinho até a entrega. Suporte em português no WhatsApp.",
+        },
+        {
+          q: "O suporte é em português?",
+          a: "Sim. Acompanhamos você do pagamento até o pedido chegar — WhatsApp e e-mail em português.",
         },
         {
           q: "Como escolher cor ou tamanho?",

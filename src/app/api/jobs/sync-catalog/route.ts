@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { calculateSalePrice } from "@/lib/pricing";
+import { priceToWin } from "@/lib/pricing";
 import { prisma } from "@/lib/db";
+import { lookupMercadoLivreRef } from "@/lib/market-price";
 import {
   galleryFromCjRaw,
   normalizeImageUrl,
@@ -18,10 +19,9 @@ function authorized(request: Request) {
 
 /**
  * Cron: atualiza preço + estoque + variantes dos produtos ligados ao CJ.
- * - Sem estoque → tira da vitrine (active=false)
- * - Voltou estoque → recoloca na vitrine (active=true)
- * NÃO reescreve copy/SEO (só reimport manual).
- * GET/POST /api/jobs/sync-catalog
+ * - Sem estoque / sem margem vs mercado → tira da vitrine
+ * - Voltou estoque + margem ok → recoloca
+ * NÃO reescreve copy/SEO (só reimport).
  */
 export async function GET(request: Request) {
   return sync(request);
@@ -57,7 +57,6 @@ async function sync(request: Request) {
       const full = await cj.getProductFull(sp.externalId);
       if (!full) {
         errors.push(`missing ${sp.externalId}`);
-        // Produto sumiu na CJ → tira do ar
         if (sp.product?.active) {
           await prisma.product.update({
             where: { id: sp.product.id },
@@ -68,13 +67,27 @@ async function sync(request: Request) {
         continue;
       }
 
-      const priced = calculateSalePrice({
+      let shippingUsd = Number(sp.shippingEstimate) || 0;
+      const inStockVid =
+        full.variants.find((v) => v.stock > 0)?.vid || full.variants[0]?.vid;
+      // Atualiza frete se ainda zero ou a cada sync leve (só quando product ativo / sem frete)
+      if (inStockVid && shippingUsd <= 0) {
+        const freight = await cj.freightToBrazil({ vid: inStockVid });
+        if (freight) shippingUsd = freight.amountUsd;
+      }
+
+      const marketRef = sp.product
+        ? await lookupMercadoLivreRef(sp.product.name || full.titleEn)
+        : await lookupMercadoLivreRef(full.titleEn);
+
+      const priced = priceToWin({
         supplierPrice: full.priceUsd,
-        shippingEstimate: Number(sp.shippingEstimate) || 0,
+        shippingEstimate: shippingUsd,
         currency: "USD",
         markup: Number(rule.markup),
         fxBrl: Number(rule.fxBrl),
         feePct: Number(rule.feePct),
+        marketRef,
       });
 
       const imageUrl = normalizeImageUrl(full.imageUrl, "");
@@ -86,6 +99,7 @@ async function sync(request: Request) {
         where: { id: sp.id },
         data: {
           supplierPrice: full.priceUsd,
+          shippingEstimate: shippingUsd,
           stock: full.stock,
           imageUrl: imageUrl || sp.imageUrl,
           rawJson: full.raw as object,
@@ -111,13 +125,14 @@ async function sync(request: Request) {
               if (!liveOpts[k].includes(val)) liveOpts[k].push(val);
             }
           }
-          const vp = calculateSalePrice({
+          const vp = priceToWin({
             supplierPrice: v.priceUsd || full.priceUsd,
-            shippingEstimate: Number(sp.shippingEstimate) || 0,
+            shippingEstimate: shippingUsd,
             currency: "USD",
             markup: Number(rule.markup),
             fxBrl: Number(rule.fxBrl),
             feePct: Number(rule.feePct),
+            marketRef,
           });
           await prisma.productVariant.upsert({
             where: {
@@ -136,7 +151,7 @@ async function sync(request: Request) {
               supplierPrice: v.priceUsd || full.priceUsd,
               salePrice: vp.salePrice,
               stock: v.stock,
-              active: inStock,
+              active: inStock && vp.ok,
             },
             update: {
               sku: v.sku,
@@ -146,7 +161,7 @@ async function sync(request: Request) {
               supplierPrice: v.priceUsd || full.priceUsd,
               salePrice: vp.salePrice,
               stock: v.stock,
-              active: inStock,
+              active: inStock && vp.ok,
             },
           });
         }
@@ -164,9 +179,10 @@ async function sync(request: Request) {
           });
         }
 
-        const sellable =
+        const stockOk =
           (allVariants.length > 0 && inStockCount > 0) ||
           (allVariants.length === 0 && full.stock > 0);
+        const sellable = stockOk && priced.ok;
 
         const wasActive = sp.product.active;
         const productPatch: {

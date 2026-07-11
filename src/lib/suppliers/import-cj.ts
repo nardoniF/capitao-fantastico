@@ -1,10 +1,11 @@
-import { calculateSalePrice } from "@/lib/pricing";
+import { calculateSalePrice, priceToWin } from "@/lib/pricing";
 import { prisma } from "@/lib/db";
 import { generateProductCopy } from "@/lib/ai/product-copy";
 import {
   ensureStoreCategory,
   mapCjCategoryToStore,
 } from "@/lib/categories";
+import { lookupMercadoLivreRef } from "@/lib/market-price";
 import { getCJSupplier } from "@/lib/suppliers/cj";
 import { localizeOptionValues } from "@/lib/translate-free";
 import type { ProductCategory } from "@/data/products";
@@ -32,9 +33,18 @@ async function uniqueSlug(base: string, excludeProductId?: string) {
   return `${slug}-${Date.now().toString(36)}`;
 }
 
+/** Origem lenta/cara: Índia com prazo alto não compete no BR. */
+function originBlocked(startCountry: string, days?: number) {
+  const cc = startCountry.toUpperCase();
+  if (cc === "IN" && (days == null || days > 18)) return true;
+  if (days != null && days > 35) return true;
+  return false;
+}
+
 /**
  * Import completo e pronto para vender:
  * PT (nome/desc/SEO), galeria, vídeo, variantes, cores, tamanhos, medidas.
+ * Frete CJ + preço vs mercado + margem mínima.
  */
 export async function importCJProductFull(opts: {
   cjProductId: string;
@@ -67,6 +77,69 @@ export async function importCJProductFull(opts: {
     mapCjCategoryToStore(full.categoryName, full.titleEn);
   const categoryRow = await ensureStoreCategory(storeCategory);
 
+  const inStockVariants = full.variants.filter((v) => v.stock > 0);
+  const hasVariantData = full.variants.length > 0;
+  const sellable =
+    (hasVariantData && inStockVariants.length > 0) ||
+    (!hasVariantData && full.stock > 0);
+
+  const existingSp = await prisma.supplierProduct.findUnique({
+    where: {
+      supplierId_externalId_variantId: {
+        supplierId: supplier.id,
+        externalId: full.pid,
+        variantId: "",
+      },
+    },
+  });
+  const existing = existingSp
+    ? await prisma.product.findUnique({
+        where: { supplierProductId: existingSp.id },
+      })
+    : null;
+
+  if (!sellable) {
+    if (existing) {
+      await prisma.product.update({
+        where: { id: existing.id },
+        data: { active: false },
+      });
+      await prisma.productVariant.updateMany({
+        where: { productId: existing.id },
+        data: { active: false, stock: 0 },
+      });
+    }
+    const n = full.variants.length;
+    throw new Error(
+      n > 0
+        ? `Sem estoque na CJ (todas as ${n} variantes zeradas) — não publicado`
+        : "Sem estoque na CJ — não publicado",
+    );
+  }
+
+  const anchorVid =
+    inStockVariants[0]?.vid || full.variants[0]?.vid || "";
+  let shippingUsd = 0;
+  let freightOrigin = "CN";
+  if (anchorVid) {
+    const freight = await cj.freightToBrazil({ vid: anchorVid });
+    if (freight) {
+      if (originBlocked(freight.startCountryCode, freight.days)) {
+        if (existing) {
+          await prisma.product.update({
+            where: { id: existing.id },
+            data: { active: false },
+          });
+        }
+        throw new Error(
+          `Origem/prazo inviável (${freight.startCountryCode}, ~${freight.days ?? "?"}d) — não publicado`,
+        );
+      }
+      shippingUsd = freight.amountUsd;
+      freightOrigin = freight.startCountryCode;
+    }
+  }
+
   const copy = await generateProductCopy({
     titleEn: full.titleEn,
     descriptionText: full.descriptionText,
@@ -89,14 +162,28 @@ export async function importCJProductFull(opts: {
       ? full.gallery
       : [full.imageUrl].filter(Boolean);
 
-  const basePriced = calculateSalePrice({
+  const marketRef = await lookupMercadoLivreRef(copy.name);
+  const basePriced = priceToWin({
     supplierPrice: full.priceUsd,
-    shippingEstimate: 0,
+    shippingEstimate: shippingUsd,
     currency: "USD",
     markup: Number(rule.markup),
     fxBrl: Number(rule.fxBrl),
     feePct: Number(rule.feePct),
+    marketRef,
   });
+
+  if (!basePriced.ok) {
+    if (existing) {
+      await prisma.product.update({
+        where: { id: existing.id },
+        data: { active: false },
+      });
+    }
+    throw new Error(
+      `${basePriced.reason || "Sem margem"} (mercado ${marketRef ?? "n/d"}, frete $${shippingUsd.toFixed(2)} ${freightOrigin}) — não publicado`,
+    );
+  }
 
   const firstVid = full.variants[0]?.vid || "";
 
@@ -118,7 +205,7 @@ export async function importCJProductFull(opts: {
       imageUrl: full.imageUrl,
       supplierPrice: full.priceUsd,
       currency: "USD",
-      shippingEstimate: 0,
+      shippingEstimate: shippingUsd,
       stock: full.stock,
       rawJson: full.raw as object,
       lastSyncedAt: new Date(),
@@ -128,41 +215,12 @@ export async function importCJProductFull(opts: {
       title: full.titleEn,
       imageUrl: full.imageUrl,
       supplierPrice: full.priceUsd,
+      shippingEstimate: shippingUsd,
       stock: full.stock,
       rawJson: full.raw as object,
       lastSyncedAt: new Date(),
     },
   });
-
-  const existing = await prisma.product.findUnique({
-    where: { supplierProductId: sp.id },
-  });
-
-  const inStockVariants = full.variants.filter((v) => v.stock > 0);
-  const hasVariantData = full.variants.length > 0;
-  const sellable =
-    (hasVariantData && inStockVariants.length > 0) ||
-    (!hasVariantData && full.stock > 0);
-
-  // Sem estoque vendável → não publica (e tira da vitrine se já existia)
-  if (!sellable) {
-    if (existing) {
-      await prisma.product.update({
-        where: { id: existing.id },
-        data: { active: false },
-      });
-      await prisma.productVariant.updateMany({
-        where: { productId: existing.id },
-        data: { active: false, stock: 0 },
-      });
-    }
-    const n = full.variants.length;
-    throw new Error(
-      n > 0
-        ? `Sem estoque na CJ (todas as ${n} variantes zeradas) — não publicado`
-        : "Sem estoque na CJ — não publicado",
-    );
-  }
 
   const slug = await uniqueSlug(copy.slug, existing?.id);
 
@@ -200,7 +258,6 @@ export async function importCJProductFull(opts: {
       });
 
   const seenVids = new Set<string>();
-  // Só grava variantes com estoque; se não houver lista de variantes, nada a upsert
   const variantsToUpsert = inStockVariants;
 
   for (const v of variantsToUpsert) {
@@ -208,14 +265,23 @@ export async function importCJProductFull(opts: {
     const optionValuesPt = await localizeOptionValues(v.optionValues);
     const labelPt =
       Object.values(optionValuesPt).filter(Boolean).join(" / ") || v.label;
-    const priced = calculateSalePrice({
+    const priced = priceToWin({
       supplierPrice: v.priceUsd || full.priceUsd,
-      shippingEstimate: 0,
+      shippingEstimate: shippingUsd,
       currency: "USD",
       markup: Number(rule.markup),
       fxBrl: Number(rule.fxBrl),
       feePct: Number(rule.feePct),
+      marketRef,
     });
+    const sale = priced.ok ? priced.salePrice : calculateSalePrice({
+      supplierPrice: v.priceUsd || full.priceUsd,
+      shippingEstimate: shippingUsd,
+      currency: "USD",
+      markup: Number(rule.markup),
+      fxBrl: Number(rule.fxBrl),
+      feePct: Number(rule.feePct),
+    }).salePrice;
     await prisma.productVariant.upsert({
       where: {
         productId_supplierVariantId: {
@@ -231,9 +297,9 @@ export async function importCJProductFull(opts: {
         optionValues: optionValuesPt,
         imageUrl: v.imageUrl || gallery[0] || full.imageUrl,
         supplierPrice: v.priceUsd || full.priceUsd,
-        salePrice: priced.salePrice,
+        salePrice: sale,
         stock: v.stock,
-        active: v.stock > 0,
+        active: v.stock > 0 && priced.ok,
       },
       update: {
         sku: v.sku,
@@ -241,14 +307,13 @@ export async function importCJProductFull(opts: {
         optionValues: optionValuesPt,
         imageUrl: v.imageUrl || gallery[0] || full.imageUrl,
         supplierPrice: v.priceUsd || full.priceUsd,
-        salePrice: priced.salePrice,
+        salePrice: sale,
         stock: v.stock,
-        active: v.stock > 0,
+        active: v.stock > 0 && priced.ok,
       },
     });
   }
 
-  // Variantes zeradas / sumidas → inactive
   await prisma.productVariant.updateMany({
     where: {
       productId: product.id,
@@ -259,7 +324,6 @@ export async function importCJProductFull(opts: {
     data: { active: false },
   });
 
-  // Só opções com estoque na vitrine
   const liveOpts: Record<string, string[]> = {};
   for (const v of variantsToUpsert) {
     if (v.stock <= 0) continue;

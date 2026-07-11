@@ -39,7 +39,14 @@ export type OrderItem = {
 export type Order = {
   orderId: string;
   createdAt: string;
-  status: "pending_payment" | "paid" | "cancelled" | "fulfilled";
+  status:
+    | "pending_payment"
+    | "paid"
+    | "fulfilling"
+    | "shipped"
+    | "cancelled"
+    | "fulfilled"
+    | "failed";
   nome: string;
   email: string;
   telefone?: string;
@@ -49,7 +56,15 @@ export type Order = {
   total: number;
   paymentRef?: string;
   notes?: string;
+  supplierOrderId?: string;
   supplierTracking?: string;
+  trackingCarrier?: string;
+  trackingEvents?: {
+    at: string;
+    label: string;
+    detail?: string;
+  }[];
+  updatedAt?: string;
 };
 
 export type ClickEvent = {

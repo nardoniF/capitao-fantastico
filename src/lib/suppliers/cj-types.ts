@@ -28,3 +28,11 @@ export type CjProductFull = {
   options: Record<string, string[]>;
   raw: unknown;
 };
+
+export type CjFreightQuote = {
+  amountUsd: number;
+  logisticName?: string;
+  /** prazo estimado em dias (aging) */
+  days?: number;
+  startCountryCode: string;
+};

@@ -32,13 +32,21 @@ export function OrderSuccessClient() {
         {demo
           ? "Modo demo: configure MP_ACCESS_TOKEN para receber de verdade via Mercado Pago."
           : pending
-            ? "Assim que o Pix/cartão confirmar, preparamos o envio e mandamos o rastreio."
-            : "Obrigado! Estamos preparando o seu pedido. O rastreio chega por WhatsApp/e-mail."}
+            ? "Assim que o Pix/cartão confirmar, preparamos o envio. Acompanhe o status no rastreio do site — suporte em português até chegar."
+            : "Obrigado! Estamos preparando o seu pedido. Acompanhe o status ao vivo no site; o código de rastreio aparece assim que despacharmos."}
       </p>
       <div className="mt-10 flex flex-wrap justify-center gap-3">
+        {pedido ? (
+          <Link
+            href={`/pedido/rastreio?pedido=${encodeURIComponent(pedido)}`}
+            className="inline-flex rounded-md bg-gold px-6 py-3.5 text-sm font-bold text-black hover:bg-gold-deep"
+          >
+            Acompanhar pedido
+          </Link>
+        ) : null}
         <Link
           href="/produtos"
-          className="inline-flex rounded-md bg-gold px-6 py-3.5 text-sm font-bold text-black hover:bg-gold-deep"
+          className="inline-flex rounded-md border border-line px-6 py-3.5 text-sm font-semibold text-white hover:border-gold hover:text-gold"
         >
           Continuar comprando
         </Link>
@@ -52,7 +60,7 @@ export function OrderSuccessClient() {
           rel="noopener noreferrer"
           className="inline-flex rounded-md border border-line px-6 py-3.5 text-sm font-semibold text-white hover:border-gold hover:text-gold"
         >
-          Falar no WhatsApp
+          Suporte em português
         </a>
       </div>
     </div>
