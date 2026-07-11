@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatBRL, type Product } from "@/data/products";
 import { useCart } from "@/components/CartProvider";
+import { ProductImage } from "@/components/ProductImage";
 import { siteConfig, whatsappUrl } from "@/lib/site-config";
 
 type UpsellProduct = Product & { complementaryIds?: string[] };
@@ -17,6 +18,13 @@ function maskCep(value: string) {
   const d = value.replace(/\D/g, "").slice(0, 8);
   if (d.length <= 5) return d;
   return `${d.slice(0, 5)}-${d.slice(5)}`;
+}
+
+function maskPhone(value: string) {
+  const d = value.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 2) return d;
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`;
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
 }
 
 export default function CheckoutPage() {
@@ -75,6 +83,7 @@ export default function CheckoutPage() {
         <h1 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-white">
           Nada para pagar
         </h1>
+        <p className="mt-3 text-muted">Seu carrinho está vazio.</p>
         <Link
           href="/produtos"
           className="mt-8 inline-flex rounded-md bg-gold px-6 py-3.5 text-sm font-bold text-black"
@@ -144,7 +153,6 @@ export default function CheckoutPage() {
 
       const url = data.init_point || data.sandbox_init_point;
       if (!url) throw new Error("Link de pagamento não retornado");
-      // Carrinho limpa na página de sucesso após retorno do MP
       window.location.href = url;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro no checkout");
@@ -157,215 +165,282 @@ export default function CheckoutPage() {
     .join("\n");
 
   return (
-    <div className="bg-bg py-12 md:py-16">
-      <div className="mx-auto grid max-w-5xl gap-8 px-5 md:grid-cols-5 md:px-8">
-        <div className="md:col-span-3">
+    <div className="bg-bg py-10 md:py-14">
+      <div className="mx-auto grid max-w-[1100px] gap-8 px-5 md:grid-cols-[1fr_360px] md:px-6 lg:gap-10">
+        <section>
           <div className="mb-6 flex flex-wrap gap-2 text-sm">
-            <span className="rounded-full bg-gold px-3 py-1 font-semibold text-black">
-              1 Dados + endereço
+            <span className="inline-flex items-center gap-2 rounded-full bg-gold px-3.5 py-1.5 font-semibold text-black">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-black/15 text-xs">
+                1
+              </span>
+              Dados
             </span>
-            <span className="rounded-full border border-line px-3 py-1 text-muted">
-              2 Pagamento MP
+            <span className="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-1.5 text-muted">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full border border-line text-xs">
+                2
+              </span>
+              Pagamento
             </span>
-            <span className="rounded-full border border-line px-3 py-1 text-muted">
-              3 Envio
+            <span className="inline-flex items-center gap-2 rounded-full border border-line px-3.5 py-1.5 text-muted">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full border border-line text-xs">
+                3
+              </span>
+              Confirmação
             </span>
           </div>
-          <h1 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-white">
-            Checkout
+
+          <h1 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-white md:text-4xl">
+            Finalizar pedido
           </h1>
           <p className="mt-2 text-muted">
-            Informe o endereço de entrega. Pagamento seguro no Mercado Pago.
+            Preencha seus dados e o endereço. Pagamento seguro no Mercado Pago.
           </p>
+
           <form
-            className="mt-8 space-y-4 rounded-xl border border-line bg-card p-6"
+            className="mt-8 space-y-5 rounded-[14px] border border-[#333] bg-[#1a1a1a] p-5 md:p-7"
             onSubmit={(e) => {
               e.preventDefault();
               void payWithMercadoPago();
             }}
           >
-            <label className="block text-sm font-medium text-white">
-              Nome
-              <input
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
-              />
-            </label>
-            <label className="block text-sm font-medium text-white">
-              E-mail
-              <input
-                required
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
-              />
-            </label>
-            <label className="block text-sm font-medium text-white">
-              WhatsApp
-              <input
-                required
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="(11) 9xxxx-xxxx"
-                className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
-              />
-            </label>
-
-            <div className="border-t border-line pt-4">
-              <p className="text-sm font-semibold text-gold">Endereço de entrega</p>
+            <div>
+              <h2 className="text-lg font-bold text-gold">Seus dados</h2>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm font-medium text-white sm:col-span-2">
+                  Nome completo
+                  <input
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    autoComplete="name"
+                    className="mt-1.5 w-full rounded-md border border-[#333] bg-[#111] px-3 py-3 text-white outline-none focus:border-gold"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-white">
+                  E-mail
+                  <input
+                    required
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                    className="mt-1.5 w-full rounded-md border border-[#333] bg-[#111] px-3 py-3 text-white outline-none focus:border-gold"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-white">
+                  WhatsApp
+                  <input
+                    required
+                    value={phone}
+                    onChange={(e) => setPhone(maskPhone(e.target.value))}
+                    placeholder="(11) 9xxxx-xxxx"
+                    autoComplete="tel"
+                    className="mt-1.5 w-full rounded-md border border-[#333] bg-[#111] px-3 py-3 text-white outline-none focus:border-gold"
+                  />
+                </label>
+              </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <label className="block text-sm font-medium text-white sm:col-span-1">
-                CEP
-                <input
-                  required
-                  value={cep}
-                  onChange={(e) => {
-                    const v = maskCep(e.target.value);
-                    setCep(v);
-                    if (v.replace(/\D/g, "").length === 8) void lookupCep(v);
-                  }}
-                  placeholder="00000-000"
-                  className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
-                />
-              </label>
-              <label className="block text-sm font-medium text-white sm:col-span-2">
-                Rua
-                <input
-                  required
-                  value={rua}
-                  onChange={(e) => setRua(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
-                />
-              </label>
+            <div className="border-t border-[#333] pt-5">
+              <h2 className="text-lg font-bold text-gold">Endereço de entrega</h2>
+              <div className="mt-4 grid gap-4 sm:grid-cols-6">
+                <label className="block text-sm font-medium text-white sm:col-span-2">
+                  CEP
+                  <input
+                    required
+                    value={cep}
+                    onChange={(e) => {
+                      const v = maskCep(e.target.value);
+                      setCep(v);
+                      if (v.replace(/\D/g, "").length === 8) void lookupCep(v);
+                    }}
+                    placeholder="00000-000"
+                    autoComplete="postal-code"
+                    className="mt-1.5 w-full rounded-md border border-[#333] bg-[#111] px-3 py-3 text-white outline-none focus:border-gold"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-white sm:col-span-4">
+                  Rua
+                  <input
+                    required
+                    value={rua}
+                    onChange={(e) => setRua(e.target.value)}
+                    autoComplete="address-line1"
+                    className="mt-1.5 w-full rounded-md border border-[#333] bg-[#111] px-3 py-3 text-white outline-none focus:border-gold"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-white sm:col-span-2">
+                  Número
+                  <input
+                    required
+                    value={numero}
+                    onChange={(e) => setNumero(e.target.value)}
+                    className="mt-1.5 w-full rounded-md border border-[#333] bg-[#111] px-3 py-3 text-white outline-none focus:border-gold"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-white sm:col-span-4">
+                  Complemento
+                  <input
+                    value={complemento}
+                    onChange={(e) => setComplemento(e.target.value)}
+                    placeholder="Apto, bloco…"
+                    className="mt-1.5 w-full rounded-md border border-[#333] bg-[#111] px-3 py-3 text-white outline-none focus:border-gold"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-white sm:col-span-2">
+                  Bairro
+                  <input
+                    required
+                    value={bairro}
+                    onChange={(e) => setBairro(e.target.value)}
+                    className="mt-1.5 w-full rounded-md border border-[#333] bg-[#111] px-3 py-3 text-white outline-none focus:border-gold"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-white sm:col-span-3">
+                  Cidade
+                  <input
+                    required
+                    value={cidade}
+                    onChange={(e) => setCidade(e.target.value)}
+                    className="mt-1.5 w-full rounded-md border border-[#333] bg-[#111] px-3 py-3 text-white outline-none focus:border-gold"
+                  />
+                </label>
+                <label className="block text-sm font-medium text-white sm:col-span-1">
+                  UF
+                  <select
+                    required
+                    value={uf}
+                    onChange={(e) => setUf(e.target.value)}
+                    className="mt-1.5 w-full rounded-md border border-[#333] bg-[#111] px-3 py-3 text-white outline-none focus:border-gold"
+                  >
+                    {UF_LIST.map((u) => (
+                      <option key={u} value={u}>
+                        {u}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <label className="block text-sm font-medium text-white">
-                Número
-                <input
-                  required
-                  value={numero}
-                  onChange={(e) => setNumero(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
-                />
-              </label>
-              <label className="block text-sm font-medium text-white sm:col-span-2">
-                Complemento
-                <input
-                  value={complemento}
-                  onChange={(e) => setComplemento(e.target.value)}
-                  placeholder="Apto, bloco…"
-                  className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
-                />
-              </label>
-            </div>
+            {error ? (
+              <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+                {error}
+              </p>
+            ) : null}
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <label className="block text-sm font-medium text-white sm:col-span-1">
-                Bairro
-                <input
-                  required
-                  value={bairro}
-                  onChange={(e) => setBairro(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
-                />
-              </label>
-              <label className="block text-sm font-medium text-white sm:col-span-1">
-                Cidade
-                <input
-                  required
-                  value={cidade}
-                  onChange={(e) => setCidade(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
-                />
-              </label>
-              <label className="block text-sm font-medium text-white">
-                UF
-                <select
-                  required
-                  value={uf}
-                  onChange={(e) => setUf(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white outline-none focus:border-gold"
-                >
-                  {UF_LIST.map((u) => (
-                    <option key={u} value={u}>
-                      {u}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            {error ? <p className="text-sm text-red-400">{error}</p> : null}
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-md bg-gold px-6 py-3.5 text-sm font-bold text-black transition hover:bg-gold-deep disabled:opacity-60"
+              className="w-full rounded-md bg-gold px-6 py-4 text-sm font-bold text-black transition hover:bg-gold-deep disabled:opacity-60"
             >
               {loading ? "Abrindo pagamento…" : "Pagar com Mercado Pago"}
             </button>
+
+            <a
+              href={whatsappUrl(
+                `Pedido ${siteConfig.brand}\n${orderText}\nTotal: ${formatBRL(subtotal)}\nNome: ${name || "—"}\nCEP: ${cep || "—"}`,
+              )}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex w-full justify-center rounded-md border border-[#333] px-6 py-3.5 text-sm font-semibold text-white hover:border-gold hover:text-gold"
+            >
+              Ou finalizar no WhatsApp
+            </a>
           </form>
-          <a
-            href={whatsappUrl(
-              `Pedido ${siteConfig.brand}\n${orderText}\nTotal: ${formatBRL(subtotal)}\nNome: ${name || "—"}\nCEP: ${cep || "—"}`,
-            )}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 inline-flex w-full justify-center rounded-md border border-line px-6 py-3.5 text-sm font-semibold text-white hover:border-gold hover:text-gold"
-          >
-            Ou finalizar no WhatsApp
-          </a>
-        </div>
-        <aside className="md:col-span-2 space-y-4">
-          <div className="rounded-xl border border-line bg-card p-6">
-            <h2 className="font-[family-name:var(--font-syne)] text-xl font-bold text-white">
-              Seu carrinho
-            </h2>
-            <ul className="mt-4 space-y-3 text-sm text-muted">
+        </section>
+
+        <aside className="space-y-4 md:sticky md:top-24 md:self-start">
+          <div className="rounded-[14px] border border-[#333] bg-[#1a1a1a] p-5">
+            <h2 className="text-lg font-bold text-gold">Seu carrinho</h2>
+            <ul className="mt-4 space-y-3">
               {lines.map((l) => (
-                <li key={l.product.id} className="flex justify-between gap-3">
-                  <span>
-                    {l.qty}× {l.product.name}
-                  </span>
-                  <span className="font-medium text-white">
-                    {formatBRL(l.lineTotal)}
-                  </span>
+                <li key={l.product.id} className="flex gap-3">
+                  <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-[#333] bg-[#111]">
+                    <ProductImage
+                      src={l.product.image}
+                      alt={l.product.name}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-2 text-sm font-semibold text-white">
+                      {l.qty}× {l.product.name}
+                    </p>
+                    <p className="mt-1 text-sm font-bold text-gold">
+                      {formatBRL(l.lineTotal)}
+                    </p>
+                  </div>
                 </li>
               ))}
             </ul>
-            <p className="mt-6 flex justify-between border-t border-line pt-4 text-base font-bold text-white">
-              <span>Total</span>
-              <span className="text-gold">{formatBRL(subtotal)}</span>
-            </p>
+
+            <div className="mt-5 space-y-2 border-t border-[#333] pt-4 text-sm">
+              <div className="flex justify-between text-muted">
+                <span>Subtotal</span>
+                <span className="text-white">{formatBRL(subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-muted">
+                <span>Frete</span>
+                <span className="text-white">Calculado após o pedido</span>
+              </div>
+              <div className="flex justify-between border-t border-[#333] pt-3 text-base font-bold text-white">
+                <span>Total</span>
+                <span className="text-gold">{formatBRL(subtotal)}</span>
+              </div>
+            </div>
+
+            <div className="mt-5 grid grid-cols-2 gap-2 text-[11px] text-muted">
+              <span className="rounded-md border border-[#333] px-2 py-2 text-center">
+                PIX
+              </span>
+              <span className="rounded-md border border-[#333] px-2 py-2 text-center">
+                Cartão
+              </span>
+              <span className="rounded-md border border-[#333] px-2 py-2 text-center">
+                Mercado Pago
+              </span>
+              <span className="rounded-md border border-[#333] px-2 py-2 text-center">
+                E-mail de confirmação
+              </span>
+            </div>
+
+            <Link
+              href="/produtos"
+              className="mt-4 inline-flex w-full justify-center text-sm font-semibold text-gold hover:underline"
+            >
+              + Adicionar mais produtos
+            </Link>
           </div>
 
           {upsells.length > 0 ? (
-            <div className="rounded-xl border border-gold/30 bg-card p-6">
-              <h2 className="font-[family-name:var(--font-syne)] text-lg font-bold text-gold">
-                Complete seu pedido
-              </h2>
+            <div className="rounded-[14px] border border-gold/35 bg-gradient-to-b from-gold/10 to-[#1a1a1a] p-5">
+              <h2 className="text-base font-bold text-gold">Complete seu pedido</h2>
               <p className="mt-1 text-xs text-muted">
-                Produtos que combinam com o que você escolheu
+                Combina com o que você escolheu
               </p>
               <ul className="mt-4 space-y-3">
                 {upsells.map((p) => (
-                  <li
-                    key={p.id}
-                    className="flex items-center justify-between gap-3 border-b border-line pb-3 last:border-0"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-white">{p.name}</p>
-                      <p className="text-xs text-gold">{formatBRL(p.price)}</p>
+                  <li key={p.id} className="flex items-center gap-3">
+                    <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-[#333] bg-[#111]">
+                      <ProductImage
+                        src={p.image}
+                        alt={p.name}
+                        className="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="line-clamp-2 text-sm font-semibold text-white">
+                        {p.name}
+                      </p>
+                      <p className="text-xs font-bold text-gold">
+                        {formatBRL(p.price)}
+                      </p>
                     </div>
                     <button
                       type="button"
                       onClick={() => add(p.id)}
-                      className="rounded-md bg-gold px-3 py-1.5 text-xs font-bold text-black"
+                      className="shrink-0 rounded-md bg-gold px-3 py-2 text-xs font-bold text-black"
                     >
                       + Add
                     </button>

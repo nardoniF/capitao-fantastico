@@ -1,26 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
 import { categoryLabels, formatBRL, type Product } from "@/data/products";
 import { useCart } from "@/components/CartProvider";
 import { ApprovedSeal } from "@/components/ApprovedSeal";
+import { ProductImage } from "@/components/ProductImage";
 
 export function ProductCard({ product }: { product: Product }) {
   const { add } = useCart();
-  const [imgSrc, setImgSrc] = useState(product.image || "/brand/logo-mark.png");
 
   return (
-    <article className="loja-card flex h-full flex-col overflow-hidden rounded-[14px] border border-[#333] bg-[#1a1a1a] transition hover:border-gold">
+    <article className="loja-card group flex h-full flex-col overflow-hidden rounded-[14px] border border-[#333] bg-[#1a1a1a] transition duration-200 hover:-translate-y-0.5 hover:border-gold">
       <Link href={`/produtos/${product.slug}`} className="relative block">
         <div className="aspect-square w-full overflow-hidden bg-[#111]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={imgSrc}
+          <ProductImage
+            src={product.image}
             alt={product.name}
-            className="h-full w-full object-cover"
-            loading="lazy"
-            onError={() => setImgSrc("/brand/logo-mark.png")}
+            className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]"
           />
         </div>
         {product.approved ? (
@@ -39,19 +35,15 @@ export function ProductCard({ product }: { product: Product }) {
           {categoryLabels[product.category]}
         </p>
         <Link href={`/produtos/${product.slug}`}>
-          <h3 className="m-0 line-clamp-2 text-[1.05rem] font-bold leading-snug text-gold">
+          <h3 className="m-0 line-clamp-2 min-h-[2.5rem] text-[1.05rem] font-bold leading-snug text-gold">
             {product.name}
           </h3>
         </Link>
-        <p className="m-0 text-xs text-[#666]" aria-label={`${product.rating} de 5`}>
-          {"★".repeat(product.rating)}
-          {"☆".repeat(5 - product.rating)}
-        </p>
         <p className="m-0 line-clamp-2 flex-1 text-[0.9rem] leading-snug text-[#888]">
           {product.blurb}
         </p>
-        <div className="flex items-baseline gap-2">
-          <span className="text-[1.1rem] font-bold text-white">
+        <div className="flex items-baseline gap-2 pt-1">
+          <span className="text-[1.15rem] font-bold text-white">
             {formatBRL(product.price)}
           </span>
           {product.compareAt ? (
@@ -64,15 +56,15 @@ export function ProductCard({ product }: { product: Product }) {
           <button
             type="button"
             onClick={() => add(product.id)}
-            className="min-w-0 flex-1 rounded-md bg-gold px-3 py-2.5 text-sm font-bold text-black hover:bg-gold-deep"
+            className="min-w-0 flex-1 rounded-md border border-[#333] px-3 py-2.5 text-sm font-semibold text-gold transition hover:border-gold"
           >
-            Comprar
+            + Carrinho
           </button>
           <Link
             href={`/produtos/${product.slug}`}
-            className="flex min-w-0 flex-1 items-center justify-center rounded-md border border-[#333] px-3 py-2.5 text-sm font-semibold text-gold hover:border-gold"
+            className="flex min-w-0 flex-1 items-center justify-center rounded-md bg-gold px-3 py-2.5 text-sm font-bold text-black hover:bg-gold-deep"
           >
-            Ver
+            Comprar
           </Link>
         </div>
       </div>

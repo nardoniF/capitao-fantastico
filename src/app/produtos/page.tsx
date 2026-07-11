@@ -48,7 +48,6 @@ export default async function ProductsPage({ searchParams }: Props) {
         </h1>
         <p className="mt-2 text-[#888]">
           {filtered.length} produtos · Só entra o que o Capitão aprova
-          {fromDb.length > 0 ? " · sync CJ" : ""}
         </p>
 
         <div className="mt-6 flex flex-wrap gap-2">

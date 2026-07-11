@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { formatBRL } from "@/data/products";
 import { useCart } from "@/components/CartProvider";
+import { ProductImage } from "@/components/ProductImage";
 
 export default function CartPage() {
   const { lines, subtotal, setQty, remove } = useCart();
@@ -30,18 +31,19 @@ export default function CartPage() {
         <h1 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-white md:text-4xl">
           Carrinho
         </h1>
-        <ul className="mt-10 divide-y divide-line rounded-xl border border-line bg-card">
+        <ul className="mt-10 divide-y divide-line rounded-[14px] border border-[#333] bg-[#1a1a1a]">
           {lines.map(({ product, qty, lineTotal }) => (
             <li
               key={product.id}
               className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={product.image}
-                alt=""
-                className="h-24 w-24 rounded-lg object-cover"
-              />
+              <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-[#333] bg-[#111]">
+                <ProductImage
+                  src={product.image}
+                  alt={product.name}
+                  className="h-full w-full object-cover"
+                />
+              </div>
               <div className="flex-1">
                 <Link
                   href={`/produtos/${product.slug}`}
@@ -58,7 +60,7 @@ export default function CartPage() {
                       min={1}
                       value={qty}
                       onChange={(e) => setQty(product.id, Number(e.target.value))}
-                      className="ml-2 w-16 rounded border border-line bg-card-2 px-2 py-1 text-white"
+                      className="ml-2 w-16 rounded border border-[#333] bg-[#111] px-2 py-1 text-white"
                     />
                   </label>
                   <button
@@ -74,7 +76,7 @@ export default function CartPage() {
             </li>
           ))}
         </ul>
-        <div className="mt-8 flex flex-col items-stretch justify-between gap-4 rounded-xl border border-line bg-card p-6 sm:flex-row sm:items-center">
+        <div className="mt-8 flex flex-col items-stretch justify-between gap-4 rounded-[14px] border border-[#333] bg-[#1a1a1a] p-6 sm:flex-row sm:items-center">
           <p className="text-lg text-white">
             Subtotal: <strong className="text-gold">{formatBRL(subtotal)}</strong>
           </p>

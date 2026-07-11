@@ -1,5 +1,6 @@
 import { AddToCartButtons } from "@/components/AddToCartButtons";
 import { ApprovedSeal } from "@/components/ApprovedSeal";
+import { ProductImage } from "@/components/ProductImage";
 import {
   categoryLabels,
   formatBRL,
@@ -33,10 +34,9 @@ export default async function ProductDetailPage({ params }: Props) {
 
   return (
     <div className="bg-bg py-8 md:py-12">
-      <div className="mx-auto grid max-w-[1200px] gap-8 px-5 md:grid-cols-2 md:gap-10 md:px-6">
+      <div className="mx-auto grid max-w-[1200px] gap-8 px-5 md:grid-cols-2 md:gap-12 md:px-6">
         <div className="overflow-hidden rounded-[14px] border border-[#333] bg-[#1a1a1a]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <ProductImage
             src={product.image}
             alt={product.name}
             className="aspect-square w-full object-cover"
@@ -54,13 +54,6 @@ export default async function ProductDetailPage({ params }: Props) {
               <ApprovedSeal />
             </div>
           ) : null}
-          <div
-            className="mt-3 text-sm text-[#888]"
-            aria-label={`${product.rating} de 5`}
-          >
-            {"★".repeat(product.rating)}
-            {"☆".repeat(5 - product.rating)}
-          </div>
           <div className="mt-4 flex items-baseline gap-3">
             <span className="text-3xl font-bold text-gold">
               {formatBRL(product.price)}
@@ -76,7 +69,7 @@ export default async function ProductDetailPage({ params }: Props) {
           </p>
           <AddToCartButtons productId={product.id} />
           <p className="mt-5 text-sm text-[#666]">
-            Frete calculado após o pedido · Pix / cartão
+            Frete calculado após o pedido · Pix / cartão via Mercado Pago
           </p>
         </div>
       </div>

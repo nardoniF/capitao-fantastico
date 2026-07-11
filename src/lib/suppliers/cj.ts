@@ -14,6 +14,7 @@ import type {
   SupplierMoney,
   SupplierTracking,
 } from "@/lib/suppliers/types";
+import { normalizeImageUrl } from "@/lib/media";
 
 const CJ_BASE = "https://developers.cjdropshipping.com/api2.0/v1";
 
@@ -141,7 +142,7 @@ export class CJSupplier implements SupplierAdapter {
       variantId: variant?.vid,
       sku: variant?.variantSku || data.productSku,
       title: data.productNameEn || data.productName || "Produto CJ",
-      imageUrl: data.productImage,
+      imageUrl: normalizeImageUrl(data.productImage, ""),
       price: { amount: priceAmt, currency: "USD" },
       shippingEstimate: { amount: 0, currency: "USD" },
       stock: Number(variant?.variantInventory ?? 0),
