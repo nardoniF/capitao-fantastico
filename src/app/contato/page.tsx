@@ -1,9 +1,11 @@
+import { ContactForm } from "@/components/ContactForm";
 import { siteConfig, whatsappUrl } from "@/lib/site-config";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Contato",
-  description: "Fale com o Capitão Fantástico — WhatsApp e e-mail.",
+  description:
+    "Fale com o Capitão Fantástico — suporte em português por WhatsApp e e-mail.",
 };
 
 export default function ContatoPage() {
@@ -17,7 +19,8 @@ export default function ContatoPage() {
           Fale conosco
         </h1>
         <p className="mt-4 text-muted">
-          Atendimento da loja Capitão Fantástico · {siteConfig.company}
+          Atendimento da loja {siteConfig.brand} · suporte em português até o
+          pedido chegar · {siteConfig.company}
         </p>
 
         <div className="mt-10 grid gap-4 sm:grid-cols-2">
@@ -33,56 +36,18 @@ export default function ContatoPage() {
             <p className="mt-2 text-lg font-bold text-white">(11) 98421-5176</p>
           </a>
           <a
-            href={`mailto:${siteConfig.email}`}
+            href={`mailto:${siteConfig.email}?subject=${encodeURIComponent("Contato — Capitão Fantástico")}`}
             className="rounded-xl border border-line bg-card p-6 transition hover:border-gold"
           >
             <p className="text-sm font-semibold uppercase tracking-wider text-gold">
-              E-mail
+              E-mail oficial
             </p>
             <p className="mt-2 text-lg font-bold text-white">{siteConfig.email}</p>
+            <p className="mt-1 text-xs text-muted">Capitão Fantástico</p>
           </a>
         </div>
 
-        <form
-          action={`https://formsubmit.co/${siteConfig.email}`}
-          method="POST"
-          className="mt-10 space-y-4 rounded-xl border border-line bg-card p-6"
-        >
-          <input type="hidden" name="_subject" value="Contato — Capitão Fantástico" />
-          <input type="hidden" name="_captcha" value="false" />
-          <label className="block text-sm text-white">
-            Nome
-            <input
-              required
-              name="name"
-              className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white"
-            />
-          </label>
-          <label className="block text-sm text-white">
-            E-mail
-            <input
-              required
-              type="email"
-              name="email"
-              className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white"
-            />
-          </label>
-          <label className="block text-sm text-white">
-            Mensagem
-            <textarea
-              required
-              name="message"
-              rows={4}
-              className="mt-1 w-full rounded-md border border-line bg-card-2 px-3 py-2.5 text-white"
-            />
-          </label>
-          <button
-            type="submit"
-            className="rounded-md bg-gold px-6 py-3 text-sm font-bold text-black hover:bg-gold-deep"
-          >
-            Enviar
-          </button>
-        </form>
+        <ContactForm />
       </div>
     </div>
   );
