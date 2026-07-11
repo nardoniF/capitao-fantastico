@@ -3,8 +3,16 @@ export type ProductMeasurement = {
   value: string;
 };
 
+export type ProductFaq = {
+  q: string;
+  a: string;
+};
+
 export type ProductDetails = {
   highlights?: string[];
+  /** Casos de uso em linguagem de anúncio */
+  useCases?: string[];
+  colors?: string[];
   sizes?: string[];
   sizeNote?: string;
   adjustable?: boolean;
@@ -14,6 +22,8 @@ export type ProductDetails = {
   howToUse?: string;
   care?: string;
   longDescription?: string;
+  /** Perguntas que o cliente faz antes de comprar */
+  faqs?: ProductFaq[];
 };
 
 export function parseProductDetails(raw: unknown): ProductDetails {

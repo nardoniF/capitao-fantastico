@@ -81,6 +81,24 @@ export default async function ProductDetailPage({ params }: Props) {
               {product.blurb}
             </p>
 
+            {details.useCases?.length ? (
+              <div className="mt-5 rounded-[14px] border border-[#333] bg-[#141414] p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gold">
+                  Casos de uso
+                </p>
+                <ul className="mt-2 space-y-1.5">
+                  {details.useCases.slice(0, 4).map((u) => (
+                    <li key={u} className="flex gap-2 text-sm text-[#ccc]">
+                      <span className="text-gold" aria-hidden>
+                        →
+                      </span>
+                      <span>{u}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
             {details.highlights?.length ? (
               <ul className="mt-5 space-y-2">
                 {details.highlights.map((h) => (
@@ -104,10 +122,14 @@ export default async function ProductDetailPage({ params }: Props) {
                 </span>
               ) : null}
             </div>
+            <p className="mt-1 text-xs text-muted">
+              Preço da unidade · frete calculado após o pedido
+            </p>
 
             <AddToCartButtons
               productId={product.id}
               sizes={sizes}
+              colors={details.colors ?? []}
               sizeRequired={sizes.length > 0}
             />
 

@@ -18,6 +18,25 @@ export function ProductDetailsAccordion({
 }) {
   const sections: Section[] = [];
 
+  if (details.useCases?.length) {
+    sections.push({
+      id: "casos",
+      title: "Para que serve (casos de uso)",
+      body: (
+        <ul className="space-y-2">
+          {details.useCases.map((u) => (
+            <li key={u} className="flex gap-2 text-sm text-[#aaa]">
+              <span className="text-gold" aria-hidden>
+                →
+              </span>
+              <span>{u}</span>
+            </li>
+          ))}
+        </ul>
+      ),
+    });
+  }
+
   if (details.longDescription || description) {
     sections.push({
       id: "desc",
@@ -30,45 +49,61 @@ export function ProductDetailsAccordion({
     });
   }
 
-  if (details.measurements?.length) {
+  if (details.measurements?.length || details.colors?.length || details.sizes?.length) {
     sections.push({
       id: "medidas",
-      title: "Medidas e tamanho",
+      title: "Medidas, cores e tamanhos",
       body: (
-        <ul className="space-y-2">
-          {details.measurements.map((m) => (
-            <li
-              key={m.label}
-              className="flex justify-between gap-4 border-b border-[#2a2a2a] pb-2 text-sm"
-            >
-              <span className="text-muted">{m.label}</span>
-              <span className="font-medium text-white">{m.value}</span>
-            </li>
-          ))}
-          {details.sizeNote ? (
-            <li className="pt-1 text-sm text-[#888]">{details.sizeNote}</li>
+        <div className="space-y-4">
+          {details.colors?.length ? (
+            <p className="text-sm text-[#aaa]">
+              <span className="text-muted">Cores: </span>
+              <strong className="text-white">{details.colors.join(" · ")}</strong>
+            </p>
           ) : null}
-          {details.adjustable ? (
-            <li className="text-sm text-gold">Ajustável — adapta ao uso.</li>
-          ) : null}
-        </ul>
-      ),
-    });
-  } else if (details.sizes?.length || details.adjustable || details.sizeNote) {
-    sections.push({
-      id: "tamanhos",
-      title: "Tamanhos",
-      body: (
-        <div className="space-y-2 text-sm text-[#aaa]">
           {details.sizes?.length ? (
-            <p>
-              Disponíveis:{" "}
+            <p className="text-sm text-[#aaa]">
+              <span className="text-muted">Tamanhos: </span>
               <strong className="text-white">{details.sizes.join(" · ")}</strong>
             </p>
           ) : null}
-          {details.adjustable ? <p className="text-gold">Produto ajustável.</p> : null}
-          {details.sizeNote ? <p>{details.sizeNote}</p> : null}
+          {details.measurements?.length ? (
+            <ul className="space-y-2">
+              {details.measurements.map((m) => (
+                <li
+                  key={m.label}
+                  className="flex justify-between gap-4 border-b border-[#2a2a2a] pb-2 text-sm"
+                >
+                  <span className="text-muted">{m.label}</span>
+                  <span className="text-right font-medium text-white">{m.value}</span>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {details.sizeNote ? (
+            <p className="text-sm text-[#888]">{details.sizeNote}</p>
+          ) : null}
+          {details.adjustable ? (
+            <p className="text-sm text-gold">Ajustável — adapta ao uso.</p>
+          ) : null}
         </div>
+      ),
+    });
+  }
+
+  if (details.faqs?.length) {
+    sections.push({
+      id: "faq",
+      title: "Dúvidas frequentes",
+      body: (
+        <ul className="space-y-4">
+          {details.faqs.map((f) => (
+            <li key={f.q}>
+              <p className="text-sm font-semibold text-white">{f.q}</p>
+              <p className="mt-1 text-sm leading-relaxed text-[#aaa]">{f.a}</p>
+            </li>
+          ))}
+        </ul>
       ),
     });
   }

@@ -1,212 +1,380 @@
 /**
- * Enriquece produtos do Neon com galeria (CJ) + detalhes em português.
+ * Enriquece produtos do Neon com galeria (CJ) + detalhes em português (anúncio).
  * Uso: npx tsx scripts/enrich-product-details.ts
  */
 import { prisma } from "../src/lib/db";
 import { galleryFromCjRaw } from "../src/lib/media";
 import type { ProductDetails } from "../src/lib/product-details";
 
-const CURATED: Record<
-  string,
-  { description: string; details: ProductDetails }
-> = {
-  "colete-salva-vidas-pet": {
+type Curated = {
+  name?: string;
+  blurb: string;
+  description: string;
+  details: ProductDetails;
+};
+
+const CURATED: Record<string, Curated> = {
+  "tapete-protetor-pet-carro": {
+    name: "Tapete protetor para pet no carro",
+    blurb: "132×160 cm · banco traseiro · Preto ou Laranja · impermeável.",
     description:
-      "Colete flutuante para cães em praia, lago ou piscina. Ajuda o pet a nadar com mais segurança e facilita o resgate pela alça superior.",
+      "Capa/tapete para o banco traseiro do carro: protege de pelos, lama e arranhões quando o pet viaja. Medida 132 × 160 cm — cobre o banco traseiro da maioria dos sedãs e SUVs (não é sob medida de uma marca específica).",
     details: {
       highlights: [
-        "Flutuação para nadar com mais segurança",
-        "Alça superior para puxar o pet na água",
-        "Ajuste por tiras — melhor encaixe no peito",
-        "Várias cores e tamanhos (do XS ao XL)",
+        "Medida: 132 × 160 cm (banco traseiro)",
+        "Cores: Preto ou Laranja",
+        "Impermeável e fácil de limpar",
+        "Serve na maioria dos carros de passeio — não é exclusivo de um modelo",
       ],
-      sizes: ["XS", "S", "M", "L", "XL"],
+      useCases: [
+        "Levar o cão no banco de trás sem sujar o estofado",
+        "Proteger de lama depois da praia ou do parque",
+        "Evitar pelos grudados no tecido do carro",
+        "Viagens curtas e longas com pet",
+      ],
+      colors: ["Preto", "Laranja"],
+      sizes: ["132×160 cm"],
       adjustable: true,
       sizeNote:
-        "Meça o peito do cão (volta completa) e compare com a tabela. Em dúvida, escolha o tamanho maior e ajuste as tiras.",
+        "É um tamanho único universal (132×160 cm) para banco traseiro. Não existe versão “só Civic” ou “só Onix”: se o banco traseiro do seu carro for padrão de passeio/SUV compacto-médio, costuma servir. Em vans ou bancos muito largos, confira a medida com uma fita.",
       measurements: [
-        { label: "Tamanhos", value: "XS · S · M · L · XL" },
-        { label: "Ajuste", value: "Tiras reguláveis no peito e barriga" },
-        { label: "Uso", value: "Praia, lago, piscina e barco" },
+        { label: "Tamanho aberto", value: "132 × 160 cm" },
+        { label: "Onde vai", value: "Banco traseiro (+ laterais)" },
+        { label: "Cores", value: "Preto · Laranja" },
+        { label: "Compatibilidade", value: "Maioria dos sedãs e SUVs (universal)" },
       ],
-      includes: ["1 colete salva-vidas para pet"],
-      materials: "Tecido resistente à água com espuma de flutuação.",
+      faqs: [
+        {
+          q: "Serve em todos os modelos de carro?",
+          a: "Não é sob medida de marca. É um tapete universal de 132×160 cm para banco traseiro. Na prática serve na maioria dos carros de passeio e SUVs. Se o banco for muito diferente (van, picape com banco estreito), meça antes.",
+        },
+        {
+          q: "É carpete fixo no chão do carro?",
+          a: "Não. É protetor/capa para o banco traseiro (onde o pet senta), não o carpete do assoalho.",
+        },
+        {
+          q: "Molha e estraga o banco?",
+          a: "A ideia é o contrário: a superfície impermeável segura sujeira e umidade para você limpar o tapete, não o estofado.",
+        },
+      ],
+      includes: ["1 tapete protetor 132×160 cm (cor escolhida)"],
+      materials: "Tecido impermeável com base que ajuda a não escorregar.",
       howToUse:
-        "Vista o colete, ajuste as tiras até ficar firme (sem apertar demais) e teste em água rasa antes de ir fundo.",
-      care: "Enxágue com água doce após o mar e deixe secar à sombra.",
+        "Abra sobre o banco traseiro, prenda nas laterais/apoios de cabeça conforme o modelo e acomode o pet. Depois do passeio, sacuda ou passe pano úmido.",
+      care: "Limpe com pano úmido. Se lavar, seque bem antes de guardar.",
       longDescription:
-        "Ideal para pets que ainda estão aprendendo a nadar ou para passeios aquáticos com mais tranquilidade. A alça no dorso ajuda a erguer o animal com segurança. Escolha o tamanho pelo peito — o colete deve ficar firme, sem girar.",
+        "Anúncio direto: é o tapete que você joga no banco de trás para o dog não destruir o carro. Tamanho 132 por 160 cm, duas cores (preto ou laranja). Não promete encaixe perfeito em 100% dos modelos — promete cobertura generosa no banco traseiro da maioria dos carros.",
     },
   },
-  "comedouro-elevado-duplo-caes": {
-    description:
-      "Comedouro elevado com dois bowls de silicone — água e ração na altura certa para cães médios e grandes. Dobrável para guardar ou viajar.",
-    details: {
-      highlights: [
-        "Dois bowls (ração + água)",
-        "Altura elevada — postura mais confortável",
-        "Silicone fácil de limpar",
-        "Estrutura dobrável / portátil",
-      ],
-      sizes: ["Único"],
-      adjustable: true,
-      sizeNote: "Altura ajustável conforme o porte do cão. Ideal para médios e grandes.",
-      measurements: [
-        { label: "Formato", value: "Duplo (2 bowls)" },
-        { label: "Material bowls", value: "Silicone" },
-        { label: "Uso", value: "Casa e viagem" },
-      ],
-      includes: ["1 estrutura elevada", "2 bowls de silicone"],
-      materials: "Estrutura firme + bowls de silicone.",
-      howToUse:
-        "Monte na altura desejada, encaixe os bowls e sirva. Para guardar, dobre a estrutura.",
-      care: "Lave os bowls com detergente neutro. Não use esponja abrasiva no silicone.",
-      longDescription:
-        "Comer e beber mais ereto pode ser mais confortável para cães maiores. O conjunto duplo organiza a área de alimentação e os bowls saem para lavar com facilidade.",
-    },
-  },
-  "tapete-protetor-pet-carro": {
-    description:
-      "Tapete impermeável para o banco traseiro — protege de pelos, lama e arranhões quando o pet viaja no carro.",
-    details: {
-      highlights: [
-        "Impermeável e fácil de limpar",
-        "Protege banco e laterais",
-        "Resistente a arranhões leves",
-        "Instalação rápida com tiras/ganchos",
-      ],
-      sizes: ["Único (banco traseiro)"],
-      adjustable: true,
-      sizeNote: "Cobre o banco traseiro da maioria dos sedãs e SUVs. Ajuste as tiras ao cinto/apoio de cabeça.",
-      measurements: [
-        { label: "Cobertura", value: "Banco traseiro + laterais" },
-        { label: "Proteção", value: "Água, pelos e sujeira" },
-      ],
-      includes: ["1 tapete protetor para pet"],
-      materials: "Tecido impermeável com base antiderrapante.",
-      howToUse:
-        "Abra sobre o banco traseiro, prenda nas laterais/apoios de cabeça e acomode o pet.",
-      care: "Passe pano úmido ou lave conforme a etiqueta. Seque antes de guardar.",
-      longDescription:
-        "Feito para quem leva o pet no carro sem querer sujar o banco. A superfície impermeável facilita limpar lama e pelos depois do passeio.",
-    },
-  },
+
   "massageador-eletrico-2-em-1": {
+    name: "Massageador facial elétrico (luz + vibração)",
+    blurb: "11,6×7×2,7 cm · bateria 600 mAh · USB 5V · branco.",
     description:
-      "Massageador elétrico com duas funções para aliviar tensão em costas, ombros, pernas e pescoço no dia a dia.",
+      "Aparelho portátil de massagem facial com vibração e terapia de luz vermelha/azul. Tamanho do aparelho: 11,6 × 7 × 2,7 cm. Bateria interna 600 mAh, carrega em USB 5V/1A (3W). Cor: branco.",
     details: {
       highlights: [
-        "Duas funções de massagem",
-        "Uso em casa, sem academia",
-        "Alívio muscular pontual",
-        "Fácil de manusear",
+        "Medida do aparelho: 11,6 × 7 × 2,7 cm",
+        "Bateria interna 600 mAh (recarregável)",
+        "Carrega em USB 5V / 1A · 3W",
+        "Massagem por vibração + luz vermelha e azul",
       ],
-      sizes: ["Único"],
-      adjustable: false,
+      useCases: [
+        "Relaxar o rosto depois do dia",
+        "Rotina de skincare em casa (gua sha elétrico)",
+        "Estimular a circulação superficial com massagem leve",
+        "Quem quer aparelho pequeno, não de academia",
+      ],
+      colors: ["Branco"],
+      sizes: ["Único (11,6×7×2,7 cm)"],
       measurements: [
-        { label: "Tipo", value: "Massageador elétrico portátil" },
-        { label: "Funções", value: "2 modos" },
-        { label: "Áreas", value: "Costas, ombros, pernas, pescoço" },
+        { label: "Tamanho do aparelho", value: "11,6 × 7 × 2,7 cm" },
+        { label: "Bateria", value: "600 mAh (interna, recarregável)" },
+        { label: "Carregamento", value: "USB 5V / 1A · 3W" },
+        { label: "Cor", value: "Branco" },
+        { label: "Display", value: "LCD" },
       ],
-      includes: ["1 massageador elétrico", "Cabo / acessórios conforme o kit"],
+      faqs: [
+        {
+          q: "Funciona com pilha?",
+          a: "Não. Tem bateria interna de 600 mAh. Você carrega no USB (5V) com o cabo que acompanha.",
+        },
+        {
+          q: "Qual o tamanho na mão?",
+          a: "Cerca de 11,6 cm de comprimento por 7 cm de largura e 2,7 cm de espessura — cabe na mão e na necessaire.",
+        },
+        {
+          q: "É massageador de costas grande?",
+          a: "Não. É aparelho facial/portátil (gua sha elétrico + luz). Para costas profundas, não é o produto certo.",
+        },
+      ],
+      includes: [
+        "1 massageador",
+        "1 cabo de carregamento USB",
+        "1 manual",
+      ],
+      materials: "Corpo em plástico. Uso doméstico.",
       howToUse:
-        "Ligue, escolha o modo e deslize sobre o músculo com pressão leve a moderada. Não use sobre ossos, feridas ou áreas inflamadas.",
-      care: "Desligue da tomada após o uso. Limpe a superfície com pano seco.",
+        "Carregue antes do primeiro uso. Ligue, escolha o modo e deslize com pressão leve no rosto. Evite olhos, feridas e pele inflamada.",
+      care: "Desligue após o uso. Limpe com pano seco. Não submerja na água.",
       longDescription:
-        "Para quem sente tensão depois do trabalho ou treino. Use por poucos minutos por região — o objetivo é relaxar, não forçar.",
+        "Se a dúvida é “que tamanho é esse massageador e se tem bateria”: aparelho branco de 11,6×7×2,7 cm, bateria 600 mAh recarregável no USB. Massagem por vibração + luz vermelha/azul para rotina facial em casa — não é o bastão gigante de fisioterapia.",
     },
   },
+
   "sabonete-facial-escova-silicone": {
+    name: "Sabonete facial com escova de silicone",
+    blurb: "R$ 34,90 · escova de silicone integrada · limpeza no banho.",
     description:
-      "Sabonete facial com escova de silicone integrada para limpeza mais profunda e massagem suave no banho.",
+      "Sabonete facial com escova de silicone na própria peça — limpa e massageia no banho. Preço da unidade na loja: R$ 34,90 (à vista no site; pagamento no Mercado Pago).",
     details: {
       highlights: [
+        "Preço: R$ 34,90 a unidade",
         "Escova de silicone integrada",
         "Limpeza + massagem no mesmo gesto",
-        "Fórmula com açafrão (turmeric) na linha original",
         "Uso diário no banho",
+      ],
+      useCases: [
+        "Trocar o sabonete comum por um com escovinha",
+        "Limpeza mais mecânica que só a mão",
+        "Rotina rápida de skincare no chuveiro",
       ],
       sizes: ["Único"],
       measurements: [
-        { label: "Tipo", value: "Sabonete facial com escova" },
-        { label: "Escova", value: "Silicone macio" },
+        { label: "Preço na loja", value: "R$ 34,90" },
+        { label: "Formato", value: "Sabonete + escova de silicone" },
+        { label: "Embalagem (aprox.)", value: "55 × 55 × 182 mm" },
+      ],
+      faqs: [
+        {
+          q: "Quanto custa?",
+          a: "R$ 34,90 a unidade nesta loja (preço exibido no produto). Frete é calculado depois do pedido.",
+        },
+        {
+          q: "A escova vem separada?",
+          a: "Não — a escova de silicone já vem integrada no sabonete.",
+        },
+        {
+          q: "Serve para pele sensível?",
+          a: "Faça teste de toque. Se a pele estiver inflamada ou com ferida, evite esfregar com força.",
+        },
       ],
       includes: ["1 sabonete facial com escova de silicone"],
       howToUse:
-        "Molhe o rosto, faça espuma, massageie com a escova em movimentos circulares e enxágue. Evite contato com os olhos.",
-      care: "Guarde em local seco. Faça teste de toque se a pele for sensível.",
+        "Molhe o rosto, faça espuma, massageie em círculos com a escova e enxágue bem. Evite os olhos.",
+      care: "Guarde em local seco. Pare de usar se houver irritação.",
       longDescription:
-        "A escova ajuda a remover impurezas com mais eficiência do que só a mão. Use com cuidado se tiver pele muito sensível ou acne inflamada — nesses casos, prefira pressão bem leve.",
+        "Anúncio sem enrolação: sabonete facial com escovinha de silicone, R$ 34,90. É isso — limpeza no banho com massagem leve. Sem kit misterioso.",
     },
   },
+
   "vedante-impermeavel-cozinha-banheiro": {
+    name: "Vedante para vazamento (cozinha e banheiro)",
+    blurb: "Para fresta e furinho pingando · 30 g · cozinha e banheiro.",
     description:
-      "Revestimento vedante para áreas úmidas — cozinha, banheiro e paredes sujeitas a umidade e respingos.",
+      "Vedante impermeável em bisnaga (30 g) para aquele vazamento chato: fresta na parede, encontro de pia, box, azulejo ou cantinho que fica pingando umidade. Não é reforma estrutural de encanamento embutido — é selante de superfície para estancar respingo e infiltração rasa.",
     details: {
       highlights: [
-        "Ajuda a selar e proteger a parede",
-        "Uso em cozinha e banheiro",
-        "Aplicação doméstica",
-        "Barreira contra umidade superficial",
+        "Para fresta / furinho que pinga água",
+        "Embalagem 30 g",
+        "Cozinha, banheiro e áreas úmidas",
+        "Selagem superficial — não substitui encanador em cano rompido",
       ],
-      sizes: ["Único"],
+      useCases: [
+        "Fresta na junta da pia que fica úmida",
+        "Cantinho do box pingando pela rejunção",
+        "Encontro parede × bancada com infiltração rasa",
+        "Pequeno ponto de umidade em azulejo/revestimento",
+      ],
+      sizes: ["30 g"],
       measurements: [
-        { label: "Uso", value: "Cozinha, banheiro, áreas úmidas" },
-        { label: "Função", value: "Vedação / impermeabilização superficial" },
+        { label: "Conteúdo", value: "30 g" },
+        { label: "Uso", value: "Vedação de frestas e pontos de umidade" },
+        { label: "Ambientes", value: "Cozinha e banheiro" },
       ],
-      includes: ["1 unidade de vedante impermeável"],
+      faqs: [
+        {
+          q: "Serve para cano estourado dentro da parede?",
+          a: "Não. Isso é vedante de superfície para fresta/rejunção/encontro de peças. Cano rompido = encanador.",
+        },
+        {
+          q: "É exatamente para o ‘furinho’ que vaza?",
+          a: "Sim — o caso de uso é selar o pontinho/fresta por onde a água escapa ou a umidade aparece. Limpe, seque e aplique.",
+        },
+        {
+          q: "Quanto vem?",
+          a: "Bisnaga/unidade de 30 g — ideal para retoque pontual, não para impermeabilizar a casa inteira.",
+        },
+      ],
+      includes: ["1 vedante 30 g"],
       howToUse:
-        "Limpe e seque a superfície. Aplique conforme as instruções da embalagem em camadas finas. Deixe secar completamente antes de molhar.",
-      care: "Mantenha a embalagem fechada. Evite aplicar em superfície suja ou úmida.",
+        "1) Limpe e seque bem a fresta. 2) Aplique fino sobre o ponto que vaza. 3) Espere secar totalmente antes de molhar de novo. Se o vazamento for forte por pressão de cano, chame profissional.",
+      care: "Mantenha fechado. Evite aplicar em superfície suja ou molhada.",
       longDescription:
-        "Indicado para quem quer reforçar a proteção contra umidade em pontos críticos. O resultado depende da preparação da superfície — limpeza e secagem fazem diferença.",
+        "O anúncio certo: não é “tinta mágica”. É o vedante do furinho/fresta que está pingando na cozinha ou no banheiro. 30 g, aplicação pontual. Se for cano estourado, não é esse produto.",
     },
   },
+
   "desengordurante-po-cozinha": {
+    name: "Desengordurante em pó para cozinha",
+    blurb: "100 g · coifa, fogão, cooktop e torneira · gordura pesada.",
     description:
-      "Pó desengordurante para coifa, cooktop, fogão e torneiras — remove gordura e sujeira pesada da cozinha.",
+      "Pó desengordurante (kit 100 g) para a gordura que o detergente comum não tira: coifa, grade do fogão, cooktop e torneira. Uso doméstico, por trechos, com luva.",
     details: {
       highlights: [
+        "Kit 100 g",
         "Foco em gordura de cozinha",
-        "Uso em coifa, fogão e torneira",
-        "Ação desengordurante",
-        "Rendimento doméstico",
+        "Coifa · fogão · cooktop · torneira",
+        "Para sujeira pesada do dia a dia",
       ],
-      sizes: ["Único"],
+      useCases: [
+        "Coifa engordurada depois de meses sem lavar",
+        "Grade e laterais do fogão com óleo queimado",
+        "Cooktop com mancha de gordura acumulada",
+        "Torneira e misturador com película oleosa",
+        "Limpeza pesada de final de semana na cozinha",
+      ],
+      sizes: ["100 g"],
       measurements: [
+        { label: "Conteúdo", value: "100 g (set)" },
+        { label: "Onde usar", value: "Coifa, fogão, cooktop, torneira" },
         { label: "Formato", value: "Pó desengordurante" },
-        { label: "Superfícies", value: "Coifa, cooktop, fogão, torneira" },
       ],
-      includes: ["1 embalagem de desengordurante em pó"],
+      faqs: [
+        {
+          q: "Quais os casos de uso?",
+          a: "Gordura de cozinha: coifa, fogão, cooktop e torneira. Não é sabão de roupa — é limpeza pesada de óleo.",
+        },
+        {
+          q: "Posso usar em madeira ou tecido?",
+          a: "Não é o foco. Use em superfícies de cozinha laváveis (metal, inox, vidro de cooktop conforme o fabricante). Sempre teste num cantinho.",
+        },
+        {
+          q: "Quanto vem?",
+          a: "100 g no set — rende vários retoques se usar por trecho.",
+        },
+      ],
+      includes: ["1 set desengordurante em pó 100 g"],
       howToUse:
-        "Polvilhe na área úmida, esfregue com esponja e enxágue bem. Use luvas. Não misture com outros produtos químicos.",
-      care: "Mantenha fora do alcance de crianças. Evite inalar o pó.",
+        "Use luva. Umedeça a área, polvilhe o pó, esfregue com esponja e enxágue bem. Trabalhe por pedaços. Não misture com outros químicos. Não inale o pó.",
+      care: "Fora do alcance de crianças. Guarde fechado e seco.",
       longDescription:
-        "Para a gordura acumulada que detergente comum não resolve. Trabalhe por trechos e enxágue com cuidado para não deixar resíduo.",
+        "Casos de uso claros: coifa suja, fogão engordurado, cooktop e torneira. Pó 100 g para a limpeza pesada da cozinha — não é perfume, é desengordurante.",
+    },
+  },
+
+  "colete-salva-vidas-pet": {
+    name: "Colete salva-vidas para pet",
+    blurb: "Cores várias · tamanhos XS–M · alça no dorso · flutuação.",
+    description:
+      "Colete salva-vidas para cães na água. Cores: amarelo, rosa, camuflado rosa, camuflado azul, roxo, azul, verde fluorescente, vermelho, flores laranja e estampa barquinho. Tamanhos em estoque: XS, S e M (ajuste por tiras). Nas fotos da galeria você vê o colete sozinho e com pet — use as miniaturas.",
+    details: {
+      highlights: [
+        "Tamanhos: XS · S · M (ajuste por tiras)",
+        "Várias cores e estampas",
+        "Alça superior para erguer o pet",
+        "Flutuação para praia, lago e piscina",
+      ],
+      useCases: [
+        "Pet aprendendo a nadar",
+        "Passeio de barco / stand-up",
+        "Praia e lago com mais segurança",
+        "Cão que se cansa rápido na água",
+      ],
+      colors: [
+        "Azul",
+        "Camuflado azul",
+        "Verde fluorescente",
+        "Flores laranja",
+        "Rosa",
+        "Camuflado rosa",
+        "Roxo",
+        "Vermelho",
+        "Barquinho",
+        "Amarelo",
+      ],
+      sizes: ["XS", "S", "M"],
+      adjustable: true,
+      sizeNote:
+        "Meça a circunferência do peito do cão (volta completa atrás das patas dianteiras). Escolha XS/S/M e aperte as tiras. Em dúvida entre dois tamanhos, fique com o maior e ajuste. A galeria tem fotos do colete — troque a miniatura para ver o modelo sem depender só da foto com o dog.",
+      measurements: [
+        { label: "Tamanhos", value: "XS · S · M" },
+        { label: "Ajuste", value: "Tiras no peito e barriga" },
+        { label: "Cores", value: "10 opções (sólidas e estampadas)" },
+        { label: "Uso", value: "Praia, lago, piscina, barco" },
+      ],
+      faqs: [
+        {
+          q: "Quais tamanhos tem?",
+          a: "XS, S e M, com tiras ajustáveis. Meça o peito do pet antes de comprar.",
+        },
+        {
+          q: "Quais cores?",
+          a: "Azul, camuflado azul, verde fluorescente, flores laranja, rosa, camuflado rosa, roxo, vermelho, barquinho e amarelo.",
+        },
+        {
+          q: "Tem foto sem o cachorro?",
+          a: "Sim — na galeria há várias fotos do produto. Clique nas miniaturas abaixo da foto principal para ver o colete sozinho e as cores.",
+        },
+        {
+          q: "Substitui supervisão na água?",
+          a: "Não. É apoio de flutuação e segurança — você continua responsável pelo pet.",
+        },
+      ],
+      includes: ["1 colete salva-vidas (cor e tamanho escolhidos)"],
+      materials: "Poliéster com espuma de flutuação.",
+      howToUse:
+        "Vista, ajuste as tiras firme (sem apertar demais) e teste em água rasa. Use a alça do dorso só para apoio/resgate curto.",
+      care: "Enxágue com água doce depois do mar e seque à sombra.",
+      longDescription:
+        "Colete de pet com cor e tamanho para escolher. Estoque atual: XS/S/M em várias cores. Galeria com mais de uma foto — inclusive ângulos do produto. Não é “um tamanho só misterioso”.",
+    },
+  },
+
+  "comedouro-elevado-duplo-caes": {
+    name: "Comedouro elevado duplo para cães",
+    blurb: "Dois bowls · dobrável · ~37×27×12 cm · médios e grandes.",
+    description:
+      "Mesa/comedouro elevado dobrável com dois bowls — ração e água. Dimensão aproximada da estrutura: 37 × 27 × 12 cm. Pensado para cães médios e grandes; altura elevada para comer mais ereto.",
+    details: {
+      highlights: [
+        "Dois bowls (ração + água)",
+        "Estrutura ~37 × 27 × 12 cm",
+        "Dobrável para guardar/viajar",
+        "Melhor para portes médio e grande",
+      ],
+      useCases: [
+        "Organizar canto da comida sem tigela no chão",
+        "Cão grande que se incomoda abaixando demais",
+        "Levar comedouro em viagem (dobra)",
+        "Separar água e ração no mesmo suporte",
+      ],
+      sizes: ["Único (elevado / dobrável)"],
+      adjustable: true,
+      measurements: [
+        { label: "Estrutura (aprox.)", value: "37 × 27 × 12 cm" },
+        { label: "Formato", value: "Duplo (2 bowls)" },
+        { label: "Peso embalado (aprox.)", value: "1,6 kg" },
+      ],
+      faqs: [
+        {
+          q: "Serve para filhote pequeno?",
+          a: "O foco é médio/grande. Filhote muito baixo pode ficar alto demais — prefira comedouro baixo.",
+        },
+        {
+          q: "É fixo ou dobra?",
+          a: "Dobra. Por isso serve em casa e em viagem.",
+        },
+      ],
+      includes: ["1 estrutura elevada dobrável", "2 bowls"],
+      materials: "Estrutura plástica + bowls (silicone/plástico conforme o kit).",
+      howToUse: "Abra a estrutura, encaixe os bowls, ajuste a altura se houver trava, e sirva.",
+      care: "Lave os bowls com detergente neutro.",
+      longDescription:
+        "Comedouro duplo elevado e dobrável. Medida aproximada 37×27×12 cm — para quem quer o pet comendo mais alto, com água e ração no mesmo lugar.",
     },
   },
 };
-
-function stripHtml(html: string) {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/p>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-}
-
-function sizesFromCjDescription(html: string): string[] | undefined {
-  const text = stripHtml(html);
-  const m = text.match(/Size:\s*([^\n]+)/i);
-  if (!m) return undefined;
-  return m[1]
-    .split(/[,/]/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 12);
-}
 
 async function main() {
   const products = await prisma.product.findMany({
@@ -215,48 +383,46 @@ async function main() {
 
   for (const p of products) {
     const curated = CURATED[p.slug];
+    if (!curated) {
+      console.log("skip (no curated)", p.slug);
+      continue;
+    }
+
     const raw = p.supplierProduct?.rawJson;
-    const gallery = galleryFromCjRaw(raw, p.imageUrl);
-    const cjSizes = typeof (raw as { description?: string } | null)?.description === "string"
-      ? sizesFromCjDescription((raw as { description: string }).description)
-      : undefined;
+    let gallery = galleryFromCjRaw(raw, p.imageUrl);
 
-    const details: ProductDetails = {
-      ...(curated?.details || {}),
-      sizes: curated?.details.sizes || cjSizes || curated?.details.sizes,
-    };
-
-    // medidas aproximadas da 1ª variante CJ (mm do pacote)
-    const v0 = Array.isArray((raw as { variants?: unknown[] } | null)?.variants)
-      ? ((raw as { variants: Record<string, number>[] }).variants[0] as
-          | { variantWidth?: number; variantHeight?: number; variantLength?: number }
-          | undefined)
-      : undefined;
-    if (v0 && (v0.variantLength || v0.variantWidth || v0.variantHeight)) {
-      const pack = [
-        v0.variantLength ? `C ${v0.variantLength}` : null,
-        v0.variantWidth ? `L ${v0.variantWidth}` : null,
-        v0.variantHeight ? `A ${v0.variantHeight}` : null,
-      ]
-        .filter(Boolean)
-        .join(" × ");
-      details.measurements = [
-        ...(details.measurements || []),
-        { label: "Embalagem (aprox.)", value: `${pack} mm` },
+    // Colete: prioriza variedade de fotos das variantes (produto em várias cores)
+    if (p.slug === "colete-salva-vidas-pet" && Array.isArray((raw as { variants?: { variantImage?: string }[] })?.variants)) {
+      const fromVariants = [
+        ...new Set(
+          ((raw as { variants: { variantImage?: string }[] }).variants || [])
+            .map((v) => v.variantImage)
+            .filter((u): u is string => Boolean(u)),
+        ),
       ];
+      gallery = [...new Set([...fromVariants, ...gallery])].slice(0, 12);
     }
 
     await prisma.product.update({
       where: { id: p.id },
       data: {
+        name: curated.name || p.name,
+        blurb: curated.blurb,
+        description: curated.description,
         gallery,
-        details,
-        description: curated?.description || p.description,
+        details: curated.details,
         imageUrl: gallery[0] || p.imageUrl,
       },
     });
 
-    console.log(p.slug, "gallery", gallery.length, "sizes", details.sizes?.join(",") || "-");
+    console.log(
+      "ok",
+      p.slug,
+      "gallery",
+      gallery.length,
+      "faqs",
+      curated.details.faqs?.length || 0,
+    );
   }
 }
 
