@@ -5,7 +5,7 @@ import {
   formatBRL,
   products as seedProducts,
 } from "@/data/products";
-import { getProductBySlug } from "@/lib/store-db";
+import { getStorefrontBySlug } from "@/lib/catalog";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -19,14 +19,16 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const product = await getProductBySlug(slug);
+  const fromDb = await getStorefrontBySlug(slug);
+  const product = fromDb ?? seedProducts.find((p) => p.slug === slug);
   if (!product) return { title: "Produto" };
   return { title: product.name, description: product.blurb };
 }
 
 export default async function ProductDetailPage({ params }: Props) {
   const { slug } = await params;
-  const product = await getProductBySlug(slug);
+  const fromDb = await getStorefrontBySlug(slug);
+  const product = fromDb ?? seedProducts.find((p) => p.slug === slug);
   if (!product) notFound();
 
   return (

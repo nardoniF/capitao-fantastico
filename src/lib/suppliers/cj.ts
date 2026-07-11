@@ -3,8 +3,8 @@
  * Docs: https://developers.cjdropshipping.com
  *
  * Env:
- * - CJ_EMAIL + CJ_API_KEY  → login e obtém access token
- * - ou CJ_ACCESS_TOKEN     → token já pronto
+ * - CJ_API_KEY           → POST /authentication/getAccessToken { apiKey }
+ * - ou CJ_ACCESS_TOKEN   → token já pronto
  */
 import type {
   SupplierAdapter,
@@ -74,18 +74,15 @@ export class CJSupplier implements SupplierAdapter {
     const cached = globalThis.__cjAuth;
     if (cached && cached.expiresAt > Date.now() + 60_000) return;
 
-    const email = process.env.CJ_EMAIL?.trim();
     const apiKey = process.env.CJ_API_KEY?.trim();
-    if (!email || !apiKey) {
-      throw new Error(
-        "Configure CJ_ACCESS_TOKEN ou CJ_EMAIL + CJ_API_KEY no ambiente",
-      );
+    if (!apiKey) {
+      throw new Error("Configure CJ_API_KEY ou CJ_ACCESS_TOKEN no ambiente");
     }
 
     const res = await fetch(`${CJ_BASE}/authentication/getAccessToken`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password: apiKey }),
+      body: JSON.stringify({ apiKey }),
       cache: "no-store",
     });
 
@@ -170,7 +167,6 @@ export class CJSupplier implements SupplierAdapter {
   }
 
   async getPrice(variantIdOrSku: string): Promise<SupplierMoney | null> {
-    // MVP: reconsulta produto via stock endpoints não traz preço — caller deve usar getProduct
     void variantIdOrSku;
     return null;
   }

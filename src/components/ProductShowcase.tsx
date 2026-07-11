@@ -1,10 +1,19 @@
 import Link from "next/link";
 import { ProductCard } from "@/components/ProductCard";
-import { categoryLabels, categoryOrder } from "@/data/products";
-import { listActiveProducts } from "@/lib/store-db";
+import {
+  categoryLabels,
+  categoryOrder,
+  products as seedProducts,
+} from "@/data/products";
+import { listStorefrontProducts } from "@/lib/catalog";
 
 export async function ProductShowcase() {
-  const products = await listActiveProducts();
+  const fromDb = await listStorefrontProducts();
+  const products =
+    fromDb.length > 0
+      ? fromDb
+      : seedProducts.map((p) => ({ ...p, image: p.image }));
+
   const novidades = products.filter((p) => p.isNew);
   const byCat = categoryOrder
     .map((cat) => ({
@@ -23,11 +32,17 @@ export async function ProductShowcase() {
           <h2 className="mt-2 font-[family-name:var(--font-syne)] text-2xl font-bold text-white md:text-3xl">
             Novidades do Capitão
           </h2>
-          <p className="mt-2 text-[#888]">Os que acabaram de ganhar o selo.</p>
+          <p className="mt-2 text-[#888]">
+            {fromDb.length > 0
+              ? `${fromDb.length} produtos do fornecedor · preço com markup automático`
+              : "Os que acabaram de ganhar o selo."}
+          </p>
           <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {novidades.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
+            {(novidades.length ? novidades : products.slice(0, 8)).map(
+              (product) => (
+                <ProductCard key={product.id} product={product} />
+              ),
+            )}
           </div>
         </div>
       </section>

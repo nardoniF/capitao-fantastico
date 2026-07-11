@@ -4,9 +4,10 @@ import { ProductCard } from "@/components/ProductCard";
 import {
   categoryLabels,
   categoryOrder,
+  products as seedProducts,
   type ProductCategory,
 } from "@/data/products";
-import { listActiveProducts } from "@/lib/store-db";
+import { listStorefrontProducts } from "@/lib/catalog";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,8 @@ function isCategory(v: string | undefined): v is ProductCategory {
 
 export default async function ProductsPage({ searchParams }: Props) {
   const q = await searchParams;
-  const products = await listActiveProducts();
+  const fromDb = await listStorefrontProducts();
+  const products = fromDb.length > 0 ? fromDb : seedProducts;
   const onlyNew = q.novidades === "1";
   const cat = isCategory(q.cat) ? q.cat : null;
 
@@ -46,6 +48,7 @@ export default async function ProductsPage({ searchParams }: Props) {
         </h1>
         <p className="mt-2 text-[#888]">
           {filtered.length} produtos · Só entra o que o Capitão aprova
+          {fromDb.length > 0 ? " · sync CJ" : ""}
         </p>
 
         <div className="mt-6 flex flex-wrap gap-2">
