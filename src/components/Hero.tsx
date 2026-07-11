@@ -45,7 +45,7 @@ export function Hero() {
           </div>
         </div>
 
-        <div className="relative mx-auto w-full max-w-[280px] md:max-w-[320px] lg:max-w-[360px]">
+        <div className="relative mx-auto w-full max-w-[392px] md:max-w-[448px] lg:max-w-[504px]">
           <div
             aria-hidden
             className="pointer-events-none absolute left-1/2 top-1/2 h-[78%] w-[78%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gold/25 blur-3xl"
@@ -57,7 +57,7 @@ export function Hero() {
             height={1024}
             priority
             className="relative h-auto w-full drop-shadow-[0_0_48px_rgba(255,193,7,0.28)]"
-            sizes="(max-width: 768px) 280px, 360px"
+            sizes="(max-width: 768px) 392px, 504px"
           />
         </div>
       </div>
