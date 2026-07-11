@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { normalizeImageUrl } from "@/lib/media";
 import type { ProductCategory } from "@/data/products";
 
 export type StorefrontProduct = {
@@ -56,7 +57,7 @@ function mapRow(p: {
     rating: p.rating,
     approved: p.approved,
     isNew: p.isNew,
-    image: p.imageUrl,
+    image: normalizeImageUrl(p.imageUrl),
     accent: "#ffc107",
   };
 }

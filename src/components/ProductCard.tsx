@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { categoryLabels, formatBRL, type Product } from "@/data/products";
 import { useCart } from "@/components/CartProvider";
 import { ApprovedSeal } from "@/components/ApprovedSeal";
 
 export function ProductCard({ product }: { product: Product }) {
   const { add } = useCart();
+  const [imgSrc, setImgSrc] = useState(product.image || "/brand/logo-mark.png");
 
   return (
     <article className="loja-card flex h-full flex-col overflow-hidden rounded-[14px] border border-[#333] bg-[#1a1a1a] transition hover:border-gold">
@@ -14,10 +16,11 @@ export function ProductCard({ product }: { product: Product }) {
         <div className="aspect-square w-full overflow-hidden bg-[#111]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={product.image}
+            src={imgSrc}
             alt={product.name}
             className="h-full w-full object-cover"
             loading="lazy"
+            onError={() => setImgSrc("/brand/logo-mark.png")}
           />
         </div>
         {product.approved ? (
@@ -36,7 +39,7 @@ export function ProductCard({ product }: { product: Product }) {
           {categoryLabels[product.category]}
         </p>
         <Link href={`/produtos/${product.slug}`}>
-          <h3 className="m-0 text-[1.05rem] font-bold leading-snug text-gold">
+          <h3 className="m-0 line-clamp-2 text-[1.05rem] font-bold leading-snug text-gold">
             {product.name}
           </h3>
         </Link>
@@ -44,7 +47,7 @@ export function ProductCard({ product }: { product: Product }) {
           {"★".repeat(product.rating)}
           {"☆".repeat(5 - product.rating)}
         </p>
-        <p className="m-0 flex-1 text-[0.9rem] leading-snug text-[#888]">
+        <p className="m-0 line-clamp-2 flex-1 text-[0.9rem] leading-snug text-[#888]">
           {product.blurb}
         </p>
         <div className="flex items-baseline gap-2">

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { calculateSalePrice } from "@/lib/pricing";
 import { prisma } from "@/lib/db";
+import { normalizeImageUrl } from "@/lib/media";
 import { getCJSupplier } from "@/lib/suppliers/cj";
 
 function authorized(request: Request) {
@@ -58,12 +59,14 @@ async function sync(request: Request) {
         feePct: Number(rule.feePct),
       });
 
+      const imageUrl = normalizeImageUrl(item.imageUrl, "");
+
       await prisma.supplierProduct.update({
         where: { id: sp.id },
         data: {
           supplierPrice: item.price.amount,
           stock: item.stock,
-          imageUrl: item.imageUrl || sp.imageUrl,
+          imageUrl: imageUrl || sp.imageUrl,
           lastSyncedAt: new Date(),
         },
       });
@@ -74,8 +77,7 @@ async function sync(request: Request) {
           data: {
             salePrice: priced.salePrice,
             compareAt: priced.compareAt,
-            active: item.stock > 0 && sp.product.active,
-            imageUrl: item.imageUrl || sp.product.imageUrl,
+            imageUrl: imageUrl || sp.product.imageUrl,
           },
         });
       }

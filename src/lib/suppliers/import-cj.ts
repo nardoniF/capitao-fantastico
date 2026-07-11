@@ -1,5 +1,6 @@
 import { calculateSalePrice } from "@/lib/pricing";
 import { prisma } from "@/lib/db";
+import { normalizeImageUrl } from "@/lib/media";
 import { getCJSupplier } from "@/lib/suppliers/cj";
 
 function slugify(text: string) {
@@ -18,6 +19,7 @@ function slugify(text: string) {
 export async function importCJProduct(opts: {
   cjProductId: string;
   category: string;
+  name?: string;
   blurb?: string;
   description?: string;
   isNew?: boolean;
@@ -52,6 +54,8 @@ export async function importCJProduct(opts: {
     feePct: Number(rule.feePct),
   });
 
+  const imageUrl = normalizeImageUrl(item.imageUrl, "");
+
   const sp = await prisma.supplierProduct.upsert({
     where: {
       supplierId_externalId_variantId: {
@@ -67,7 +71,7 @@ export async function importCJProduct(opts: {
       sku: item.sku,
       title: item.title,
       rawTitle: item.title,
-      imageUrl: item.imageUrl,
+      imageUrl: imageUrl || null,
       supplierPrice: item.price.amount,
       currency: item.price.currency,
       shippingEstimate: item.shippingEstimate?.amount ?? 0,
@@ -78,7 +82,7 @@ export async function importCJProduct(opts: {
     update: {
       sku: item.sku,
       title: item.title,
-      imageUrl: item.imageUrl,
+      imageUrl: imageUrl || undefined,
       supplierPrice: item.price.amount,
       shippingEstimate: item.shippingEstimate?.amount ?? 0,
       stock: item.stock,
@@ -96,8 +100,9 @@ export async function importCJProduct(opts: {
     ? await prisma.product.update({
         where: { id: existing.id },
         data: {
-          name: item.title,
-          imageUrl: item.imageUrl || existing.imageUrl,
+          // Mantém nome/blurb/descrição curados; só atualiza preço/imagem/categoria
+          name: opts.name || existing.name,
+          imageUrl: imageUrl || existing.imageUrl,
           salePrice: priced.salePrice,
           compareAt: priced.compareAt,
           category: opts.category,
@@ -110,13 +115,13 @@ export async function importCJProduct(opts: {
     : await prisma.product.create({
         data: {
           slug: baseSlug,
-          name: item.title,
+          name: opts.name || item.title,
           blurb: opts.blurb || "Aprovado pelo Capitão.",
           description:
             opts.description ||
-            `${item.title}. Produto curado — preço alinhado ao fornecedor.`,
+            `${opts.name || item.title}. Produto curado pelo Capitão.`,
           category: opts.category,
-          imageUrl: item.imageUrl || "/brand/logo-mark.png",
+          imageUrl: imageUrl || "/brand/logo-mark.png",
           salePrice: priced.salePrice,
           compareAt: priced.compareAt,
           approved: true,
