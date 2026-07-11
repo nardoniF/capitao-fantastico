@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       email?: string;
       telefone?: string;
       endereco?: unknown;
-      items?: { productId: string; qty: number }[];
+      items?: { productId: string; qty: number; size?: string }[];
     };
 
     if (!body.nome || !body.email || !body.items?.length) {
@@ -55,9 +55,10 @@ export async function POST(request: Request) {
     for (const item of body.items) {
       const product = await getProductById(item.productId);
       if (!product || !product.active) continue;
+      const size = item.size?.trim();
       lines.push({
         productId: product.id,
-        name: product.name,
+        name: size ? `${product.name} (${size})` : product.name,
         price: product.price,
         qty: Math.max(1, item.qty),
       });

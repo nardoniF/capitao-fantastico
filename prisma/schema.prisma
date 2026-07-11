@@ -79,6 +79,10 @@ model Product {
   description       String
   category          String
   imageUrl          String
+  /// Galeria de fotos (URLs)
+  gallery           Json?
+  /// Detalhes: tamanhos, medidas, highlights, etc.
+  details           Json?
   /// Preço de venda BRL calculado (nunca editar como fonte da verdade)
   salePrice         Decimal  @db.Decimal(12, 2)
   compareAt         Decimal? @db.Decimal(12, 2)

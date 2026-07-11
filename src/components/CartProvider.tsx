@@ -14,22 +14,39 @@ import type { Product } from "@/data/products";
 export type CartItem = {
   productId: string;
   qty: number;
+  size?: string;
+};
+
+export type CartLine = {
+  key: string;
+  product: Product;
+  qty: number;
+  size?: string;
+  lineTotal: number;
 };
 
 type CartContextValue = {
   items: CartItem[];
   count: number;
   subtotal: number;
-  lines: { product: Product; qty: number; lineTotal: number }[];
+  lines: CartLine[];
   catalogReady: boolean;
-  add: (productId: string, qty?: number) => void;
-  setQty: (productId: string, qty: number) => void;
-  remove: (productId: string) => void;
+  add: (productId: string, qty?: number, size?: string) => void;
+  setQty: (productId: string, qty: number, size?: string) => void;
+  remove: (productId: string, size?: string) => void;
   clear: () => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
-const STORAGE_KEY = "cf-cart-v2";
+const STORAGE_KEY = "cf-cart-v3";
+
+function lineKey(productId: string, size?: string) {
+  return size ? `${productId}::${size}` : productId;
+}
+
+function sameLine(a: CartItem, productId: string, size?: string) {
+  return a.productId === productId && (a.size || "") === (size || "");
+}
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
@@ -54,7 +71,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         if (d.products?.length) setCatalog(d.products);
       })
       .catch(() => {
-        /* keep seed */
+        /* keep empty until ready */
       })
       .finally(() => setCatalogReady(true));
   }, []);
@@ -64,27 +81,29 @@ export function CartProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items, ready]);
 
-  const add = useCallback((productId: string, qty = 1) => {
+  const add = useCallback((productId: string, qty = 1, size?: string) => {
     setItems((prev) => {
-      const existing = prev.find((i) => i.productId === productId);
+      const existing = prev.find((i) => sameLine(i, productId, size));
       if (existing) {
         return prev.map((i) =>
-          i.productId === productId ? { ...i, qty: i.qty + qty } : i,
+          sameLine(i, productId, size) ? { ...i, qty: i.qty + qty } : i,
         );
       }
-      return [...prev, { productId, qty }];
+      return [...prev, { productId, qty, size: size || undefined }];
     });
   }, []);
 
-  const setQty = useCallback((productId: string, qty: number) => {
+  const setQty = useCallback((productId: string, qty: number, size?: string) => {
     setItems((prev) => {
-      if (qty <= 0) return prev.filter((i) => i.productId !== productId);
-      return prev.map((i) => (i.productId === productId ? { ...i, qty } : i));
+      if (qty <= 0) return prev.filter((i) => !sameLine(i, productId, size));
+      return prev.map((i) =>
+        sameLine(i, productId, size) ? { ...i, qty } : i,
+      );
     });
   }, []);
 
-  const remove = useCallback((productId: string) => {
-    setItems((prev) => prev.filter((i) => i.productId !== productId));
+  const remove = useCallback((productId: string, size?: string) => {
+    setItems((prev) => prev.filter((i) => !sameLine(i, productId, size)));
   }, []);
 
   const clear = useCallback(() => setItems([]), []);
@@ -100,12 +119,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
         const product = byId.get(item.productId);
         if (!product) return null;
         return {
+          key: lineKey(item.productId, item.size),
           product,
           qty: item.qty,
+          size: item.size,
           lineTotal: product.price * item.qty,
         };
       })
-      .filter(Boolean) as { product: Product; qty: number; lineTotal: number }[];
+      .filter(Boolean) as CartLine[];
   }, [items, byId]);
 
   const count = useMemo(

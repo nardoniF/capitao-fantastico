@@ -32,9 +32,9 @@ export default function CartPage() {
           Carrinho
         </h1>
         <ul className="mt-10 divide-y divide-line rounded-[14px] border border-[#333] bg-[#1a1a1a]">
-          {lines.map(({ product, qty, lineTotal }) => (
+          {lines.map(({ product, qty, lineTotal, size }) => (
             <li
-              key={product.id}
+              key={`${product.id}-${size || ""}`}
               className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center"
             >
               <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-[#333] bg-[#111]">
@@ -51,6 +51,9 @@ export default function CartPage() {
                 >
                   {product.name}
                 </Link>
+                {size ? (
+                  <p className="mt-1 text-sm text-gold">Tamanho: {size}</p>
+                ) : null}
                 <p className="mt-1 text-sm text-muted">{formatBRL(product.price)}</p>
                 <div className="mt-3 flex items-center gap-3">
                   <label className="text-sm text-muted">
@@ -59,13 +62,15 @@ export default function CartPage() {
                       type="number"
                       min={1}
                       value={qty}
-                      onChange={(e) => setQty(product.id, Number(e.target.value))}
+                      onChange={(e) =>
+                        setQty(product.id, Number(e.target.value), size)
+                      }
                       className="ml-2 w-16 rounded border border-[#333] bg-[#111] px-2 py-1 text-white"
                     />
                   </label>
                   <button
                     type="button"
-                    onClick={() => remove(product.id)}
+                    onClick={() => remove(product.id, size)}
                     className="text-sm text-gold underline-offset-2 hover:underline"
                   >
                     Remover

@@ -109,6 +109,7 @@ export default function CheckoutPage() {
           items: lines.map((l) => ({
             productId: l.product.id,
             qty: l.qty,
+            size: l.size,
           })),
         }),
       });
@@ -130,7 +131,7 @@ export default function CheckoutPage() {
           orderId,
           items: lines.map((l) => ({
             id: l.product.id,
-            title: l.product.name,
+            title: l.size ? `${l.product.name} (${l.size})` : l.product.name,
             quantity: l.qty,
             unit_price: l.product.price,
           })),
@@ -355,7 +356,7 @@ export default function CheckoutPage() {
             <h2 className="text-lg font-bold text-gold">Seu carrinho</h2>
             <ul className="mt-4 space-y-3">
               {lines.map((l) => (
-                <li key={l.product.id} className="flex gap-3">
+                <li key={l.key} className="flex gap-3">
                   <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-[#333] bg-[#111]">
                     <ProductImage
                       src={l.product.image}
@@ -366,6 +367,7 @@ export default function CheckoutPage() {
                   <div className="min-w-0 flex-1">
                     <p className="line-clamp-2 text-sm font-semibold text-white">
                       {l.qty}× {l.product.name}
+                      {l.size ? ` · ${l.size}` : ""}
                     </p>
                     <p className="mt-1 text-sm font-bold text-gold">
                       {formatBRL(l.lineTotal)}

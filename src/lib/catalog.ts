@@ -1,5 +1,10 @@
 import { prisma } from "@/lib/db";
 import { normalizeImageUrl } from "@/lib/media";
+import {
+  parseGallery,
+  parseProductDetails,
+  type ProductDetails,
+} from "@/lib/product-details";
 import type { ProductCategory } from "@/data/products";
 
 export type StorefrontProduct = {
@@ -17,6 +22,8 @@ export type StorefrontProduct = {
   isNew: boolean;
   image: string;
   accent: string;
+  gallery: string[];
+  details: ProductDetails;
 };
 
 function mapRow(p: {
@@ -32,6 +39,8 @@ function mapRow(p: {
   approved: boolean;
   isNew: boolean;
   imageUrl: string;
+  gallery?: unknown;
+  details?: unknown;
   supplierProduct?: { supplierPrice: { toNumber?: () => number } | number | string } | null;
 }): StorefrontProduct {
   const num = (v: unknown) => {
@@ -44,6 +53,7 @@ function mapRow(p: {
     return Number(v);
   };
 
+  const image = normalizeImageUrl(p.imageUrl);
   return {
     id: p.id,
     slug: p.slug,
@@ -57,8 +67,10 @@ function mapRow(p: {
     rating: p.rating,
     approved: p.approved,
     isNew: p.isNew,
-    image: normalizeImageUrl(p.imageUrl),
+    image,
     accent: "#ffc107",
+    gallery: parseGallery(p.gallery, image),
+    details: parseProductDetails(p.details),
   };
 }
 

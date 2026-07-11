@@ -1,6 +1,7 @@
 import { AddToCartButtons } from "@/components/AddToCartButtons";
 import { ApprovedSeal } from "@/components/ApprovedSeal";
-import { ProductImage } from "@/components/ProductImage";
+import { ProductDetailsAccordion } from "@/components/ProductDetailsAccordion";
+import { ProductGallery } from "@/components/ProductGallery";
 import {
   categoryLabels,
   formatBRL,
@@ -8,6 +9,7 @@ import {
 } from "@/data/products";
 import { getStorefrontBySlug } from "@/lib/catalog";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -29,49 +31,96 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ProductDetailPage({ params }: Props) {
   const { slug } = await params;
   const fromDb = await getStorefrontBySlug(slug);
-  const product = fromDb ?? seedProducts.find((p) => p.slug === slug);
+  const seed = seedProducts.find((p) => p.slug === slug);
+  const product = fromDb
+    ? fromDb
+    : seed
+      ? {
+          ...seed,
+          gallery: [seed.image],
+          details: {},
+        }
+      : null;
   if (!product) notFound();
+
+  const details = "details" in product ? product.details : {};
+  const gallery =
+    "gallery" in product && product.gallery.length
+      ? product.gallery
+      : [product.image];
+  const sizes = details.sizes ?? [];
 
   return (
     <div className="bg-bg py-8 md:py-12">
-      <div className="mx-auto grid max-w-[1200px] gap-8 px-5 md:grid-cols-2 md:gap-12 md:px-6">
-        <div className="overflow-hidden rounded-[14px] border border-[#333] bg-[#1a1a1a]">
-          <ProductImage
-            src={product.image}
-            alt={product.name}
-            className="aspect-square w-full object-cover"
-          />
-        </div>
-        <div className="flex flex-col justify-center">
-          <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold">
-            {categoryLabels[product.category]}
-          </p>
-          <h1 className="mt-2 font-[family-name:var(--font-syne)] text-3xl font-bold text-white md:text-4xl">
-            {product.name}
-          </h1>
-          {product.approved ? (
-            <div className="mt-4">
-              <ApprovedSeal />
-            </div>
-          ) : null}
-          <div className="mt-4 flex items-baseline gap-3">
-            <span className="text-3xl font-bold text-gold">
-              {formatBRL(product.price)}
-            </span>
-            {product.compareAt ? (
-              <span className="text-lg text-[#666] line-through">
-                {formatBRL(product.compareAt)}
-              </span>
+      <div className="mx-auto max-w-[1200px] px-5 md:px-6">
+        <p className="mb-6 text-sm text-muted">
+          <Link href="/produtos" className="hover:text-gold">
+            Produtos
+          </Link>
+          <span className="mx-2">/</span>
+          <span className="text-white/80">{product.name}</span>
+        </p>
+
+        <div className="grid gap-8 md:grid-cols-2 md:gap-12">
+          <ProductGallery images={gallery} alt={product.name} />
+
+          <div className="flex flex-col">
+            <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold">
+              {categoryLabels[product.category]}
+            </p>
+            <h1 className="mt-2 font-[family-name:var(--font-syne)] text-3xl font-bold text-white md:text-4xl">
+              {product.name}
+            </h1>
+            {product.approved ? (
+              <div className="mt-4">
+                <ApprovedSeal />
+              </div>
             ) : null}
+
+            <p className="mt-4 text-base leading-relaxed text-[#aaa]">
+              {product.blurb}
+            </p>
+
+            {details.highlights?.length ? (
+              <ul className="mt-5 space-y-2">
+                {details.highlights.map((h) => (
+                  <li key={h} className="flex gap-2 text-sm text-[#ccc]">
+                    <span className="text-gold" aria-hidden>
+                      ✓
+                    </span>
+                    <span>{h}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            <div className="mt-6 flex items-baseline gap-3">
+              <span className="text-3xl font-bold text-gold">
+                {formatBRL(product.price)}
+              </span>
+              {product.compareAt ? (
+                <span className="text-lg text-[#666] line-through">
+                  {formatBRL(product.compareAt)}
+                </span>
+              ) : null}
+            </div>
+
+            <AddToCartButtons
+              productId={product.id}
+              sizes={sizes}
+              sizeRequired={sizes.length > 0}
+            />
+
+            <p className="mt-5 text-sm text-[#666]">
+              Frete calculado após o pedido · Pix / cartão via Mercado Pago
+            </p>
           </div>
-          <p className="mt-5 text-base leading-relaxed text-[#888]">
-            {product.description}
-          </p>
-          <AddToCartButtons productId={product.id} />
-          <p className="mt-5 text-sm text-[#666]">
-            Frete calculado após o pedido · Pix / cartão via Mercado Pago
-          </p>
         </div>
+
+        <ProductDetailsAccordion
+          description={product.description}
+          details={details}
+        />
       </div>
     </div>
   );
