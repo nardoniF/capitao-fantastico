@@ -162,7 +162,10 @@ export default function CheckoutPage() {
   }
 
   const orderText = lines
-    .map((l) => `${l.qty}x ${l.product.name} — ${formatBRL(l.lineTotal)}`)
+    .map(
+      (l) =>
+        `${l.qty}x ${l.product.name}${l.size ? ` (${l.size})` : ""} — ${formatBRL(l.lineTotal)}`,
+    )
     .join("\n");
 
   return (
