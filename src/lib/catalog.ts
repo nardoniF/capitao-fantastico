@@ -88,3 +88,50 @@ export async function getStorefrontBySlug(slug: string) {
     return null;
   }
 }
+
+export async function getStorefrontById(id: string) {
+  if (!process.env.DATABASE_URL) return null;
+  try {
+    const row = await prisma.product.findFirst({
+      where: { id, active: true },
+      include: { supplierProduct: true },
+    });
+    return row ? mapRow(row) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Upsells por categoria quando o produto vem do banco (sem complementaryIds do seed). */
+export async function listStorefrontComplementary(
+  productIds: string[],
+  limit = 6,
+): Promise<StorefrontProduct[]> {
+  if (!process.env.DATABASE_URL || !productIds.length) return [];
+  try {
+    const cart = await prisma.product.findMany({
+      where: { id: { in: productIds }, active: true },
+      select: { id: true, category: true },
+    });
+    if (!cart.length) return [];
+    const categories = [...new Set(cart.map((p) => p.category))];
+    const exclude = new Set(productIds);
+    const rows = await prisma.product.findMany({
+      where: {
+        active: true,
+        category: { in: categories },
+        id: { notIn: productIds },
+      },
+      include: { supplierProduct: true },
+      orderBy: [{ isNew: "desc" }, { updatedAt: "desc" }],
+      take: limit * 2,
+    });
+    return rows
+      .filter((r) => !exclude.has(r.id))
+      .slice(0, limit)
+      .map(mapRow);
+  } catch (e) {
+    console.error("listStorefrontComplementary", e);
+    return [];
+  }
+}

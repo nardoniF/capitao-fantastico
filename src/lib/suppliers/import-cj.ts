@@ -103,7 +103,7 @@ export async function importCJProduct(opts: {
           category: opts.category,
           blurb: opts.blurb || existing.blurb,
           description: opts.description || existing.description,
-          active: item.stock > 0,
+          active: true,
           isNew: opts.isNew ?? existing.isNew,
         },
       })
@@ -121,7 +121,7 @@ export async function importCJProduct(opts: {
           compareAt: priced.compareAt,
           approved: true,
           isNew: opts.isNew ?? true,
-          active: item.stock > 0,
+          active: true,
           supplierProductId: sp.id,
         },
       });

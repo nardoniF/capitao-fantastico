@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { products as seedProducts, type Product } from "@/data/products";
+import type { Product } from "@/data/products";
 
 export type CartItem = {
   productId: string;
@@ -29,11 +29,11 @@ type CartContextValue = {
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
-const STORAGE_KEY = "cf-cart-v1";
+const STORAGE_KEY = "cf-cart-v2";
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
-  const [catalog, setCatalog] = useState<Product[]>(seedProducts);
+  const [catalog, setCatalog] = useState<Product[]>([]);
   const [catalogReady, setCatalogReady] = useState(false);
   const [ready, setReady] = useState(false);
 

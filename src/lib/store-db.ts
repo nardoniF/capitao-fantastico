@@ -1,6 +1,13 @@
 import { promises as fs } from "fs";
 import path from "path";
 import {
+  getStorefrontById,
+  getStorefrontBySlug,
+  listStorefrontProducts,
+  type StorefrontProduct,
+} from "@/lib/catalog";
+import { prisma } from "@/lib/db";
+import {
   applySeedIfNeeded,
   createEmptyStore,
   type ClickEvent,
@@ -13,6 +20,23 @@ import {
   redisGetStoreJson,
   redisSetStoreJson,
 } from "@/lib/redis-store";
+
+function toStoreProduct(p: StorefrontProduct): StoreProduct {
+  return {
+    ...p,
+    active: true,
+    complementaryIds: [],
+  };
+}
+
+async function dbCatalogCount(): Promise<number> {
+  if (!process.env.DATABASE_URL) return 0;
+  try {
+    return await prisma.product.count({ where: { active: true } });
+  } catch {
+    return 0;
+  }
+}
 
 const DATA_PATH = path.join(process.cwd(), "data", "store-runtime.json");
 
@@ -93,16 +117,29 @@ export async function saveStore(state: StoreState) {
 }
 
 export async function listActiveProducts(): Promise<StoreProduct[]> {
+  const fromDb = await listStorefrontProducts();
+  if (fromDb.length > 0) return fromDb.map(toStoreProduct);
+
   const store = await getStore();
   return store.products.filter((p) => p.active);
 }
 
 export async function getProductById(id: string) {
+  const fromDb = await getStorefrontById(id);
+  if (fromDb) return toStoreProduct(fromDb);
+
+  if ((await dbCatalogCount()) > 0) return undefined;
+
   const store = await getStore();
   return store.products.find((p) => p.id === id);
 }
 
 export async function getProductBySlug(slug: string) {
+  const fromDb = await getStorefrontBySlug(slug);
+  if (fromDb) return toStoreProduct(fromDb);
+
+  if ((await dbCatalogCount()) > 0) return undefined;
+
   const store = await getStore();
   return store.products.find((p) => p.slug === slug && p.active);
 }

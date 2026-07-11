@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { listStorefrontComplementary } from "@/lib/catalog";
 import { listActiveProducts, getProductById } from "@/lib/store-db";
 
 export async function GET(request: Request) {
@@ -17,6 +18,13 @@ export async function GET(request: Request) {
 
   // Upsell: complementares dos itens do carrinho, excluindo o que já está no carrinho
   if (cartIds.length) {
+    const fromDb = await listStorefrontComplementary(cartIds);
+    if (fromDb.length) {
+      return NextResponse.json({
+        products: fromDb.map((p) => ({ ...p, active: true, complementaryIds: [] })),
+      });
+    }
+
     const cartSet = new Set(cartIds);
     const suggestedIds = new Set<string>();
     for (const id of cartIds) {
