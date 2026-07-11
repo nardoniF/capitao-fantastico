@@ -46,13 +46,17 @@ export function Hero() {
         </div>
 
         <div className="relative mx-auto w-full max-w-[280px] md:max-w-[320px] lg:max-w-[360px]">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-1/2 h-[78%] w-[78%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gold/25 blur-3xl"
+          />
           <Image
             src="/brand/logo.png"
             alt="Capitão Fantástico"
             width={1024}
             height={1024}
             priority
-            className="h-auto w-full drop-shadow-[0_12px_40px_rgba(255,193,7,0.18)]"
+            className="relative h-auto w-full drop-shadow-[0_0_48px_rgba(255,193,7,0.28)]"
             sizes="(max-width: 768px) 280px, 360px"
           />
         </div>
