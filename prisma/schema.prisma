@@ -1,0 +1,173 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  pending_payment
+  paid
+  fulfilling
+  shipped
+  fulfilled
+  cancelled
+  failed
+}
+
+enum FulfillmentJobStatus {
+  pending
+  processing
+  done
+  failed
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  code      String   @unique // cj | nacional | ...
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products SupplierProduct[]
+}
+
+model SupplierProduct {
+  id              String   @id @default(cuid())
+  supplierId      String
+  externalId      String // CJ productId
+  variantId       String? // CJ vid
+  sku             String?
+  title           String
+  rawTitle        String?
+  imageUrl        String?
+  supplierPrice   Decimal  @db.Decimal(12, 4) // moeda do fornecedor (USD no CJ)
+  currency        String   @default("USD")
+  shippingEstimate Decimal @default(0) @db.Decimal(12, 4)
+  stock           Int      @default(0)
+  rawJson         Json?
+  lastSyncedAt    DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  supplier Supplier  @relation(fields: [supplierId], references: [id])
+  product  Product?
+
+  @@unique([supplierId, externalId, variantId])
+  @@index([supplierId])
+}
+
+model PricingRule {
+  id        String   @id @default(cuid())
+  name      String   @default("default")
+  markup    Decimal  @db.Decimal(8, 4) // ex 2.3
+  fxBrl     Decimal  @db.Decimal(12, 4) // USD→BRL
+  feePct    Decimal  @default(0.05) @db.Decimal(8, 4) // taxa MP etc
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id                String   @id @default(cuid())
+  slug              String   @unique
+  name              String
+  blurb             String
+  description       String
+  category          String
+  imageUrl          String
+  /// Preço de venda BRL calculado (nunca editar como fonte da verdade)
+  salePrice         Decimal  @db.Decimal(12, 2)
+  compareAt         Decimal? @db.Decimal(12, 2)
+  rating            Int      @default(5)
+  approved          Boolean  @default(true)
+  isNew             Boolean  @default(false)
+  active            Boolean  @default(true)
+  supplierProductId String?  @unique
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  supplierProduct SupplierProduct? @relation(fields: [supplierProductId], references: [id])
+  orderItems      OrderItem[]
+
+  @@index([active, category])
+}
+
+model Customer {
+  id        String   @id @default(cuid())
+  email     String
+  name      String
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+
+  @@index([email])
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique
+  status          OrderStatus @default(pending_payment)
+  customerId      String?
+  email           String
+  name            String
+  phone           String?
+  cep             String
+  street          String
+  number          String
+  complement      String?
+  neighborhood    String
+  city            String
+  state           String
+  subtotal        Decimal     @db.Decimal(12, 2)
+  total           Decimal     @db.Decimal(12, 2)
+  paymentRef      String?
+  supplierOrderId String?
+  trackingCode    String?
+  trackingCarrier String?
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  customer Customer?  @relation(fields: [customerId], references: [id])
+  items    OrderItem[]
+  jobs     FulfillmentJob[]
+
+  @@index([status])
+  @@index([paymentRef])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String?
+  name      String
+  unitPrice Decimal @db.Decimal(12, 2)
+  qty       Int
+  /// snapshot do vínculo CJ no momento da compra
+  supplierVariantId String?
+  supplierSku       String?
+
+  order   Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
+}
+
+model FulfillmentJob {
+  id          String               @id @default(cuid())
+  orderId     String
+  status      FulfillmentJobStatus @default(pending)
+  attempts    Int                  @default(0)
+  lastError   String?
+  scheduledAt DateTime             @default(now())
+  processedAt DateTime?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledAt])
+}
