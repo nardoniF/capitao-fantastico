@@ -99,11 +99,20 @@ export async function autoImportTopCjProducts(opts?: {
   }
 
   const cj = getCJSupplier();
+  // Só ignora PID que já está ATIVO na vitrine.
+  // Inativo / só no supplier → pode tentar de novo se a CJ voltar estoque.
   const existing = await prisma.supplierProduct.findMany({
     where: { supplier: { code: "cj" } },
-    select: { externalId: true },
+    select: {
+      externalId: true,
+      product: { select: { active: true } },
+    },
   });
-  const already = new Set(existing.map((e) => e.externalId));
+  const already = new Set(
+    existing
+      .filter((e) => e.product?.active === true)
+      .map((e) => e.externalId),
+  );
 
   type Candidate = CjSearchHit & {
     storeCategory: ProductCategory;

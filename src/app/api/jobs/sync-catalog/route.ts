@@ -18,6 +18,8 @@ function authorized(request: Request) {
 
 /**
  * Cron: atualiza preço + estoque + variantes dos produtos ligados ao CJ.
+ * - Sem estoque → tira da vitrine (active=false)
+ * - Voltou estoque → recoloca na vitrine (active=true)
  * NÃO reescreve copy/SEO (só reimport manual).
  * GET/POST /api/jobs/sync-catalog
  */
@@ -46,6 +48,8 @@ async function sync(request: Request) {
   });
 
   let updated = 0;
+  let deactivated = 0;
+  let reactivated = 0;
   const errors: string[] = [];
 
   for (const sp of linked) {
@@ -53,6 +57,14 @@ async function sync(request: Request) {
       const full = await cj.getProductFull(sp.externalId);
       if (!full) {
         errors.push(`missing ${sp.externalId}`);
+        // Produto sumiu na CJ → tira do ar
+        if (sp.product?.active) {
+          await prisma.product.update({
+            where: { id: sp.product.id },
+            data: { active: false },
+          });
+          deactivated += 1;
+        }
         continue;
       }
 
@@ -82,27 +94,23 @@ async function sync(request: Request) {
       });
 
       if (sp.product) {
-        await prisma.product.update({
-          where: { id: sp.product.id },
-          data: {
-            salePrice: priced.salePrice,
-            compareAt: priced.compareAt,
-            imageUrl: imageUrl || sp.product.imageUrl,
-            gallery: gallery.length ? gallery : undefined,
-            videoUrl: videoUrl ?? undefined,
-            // copy/SEO intencionalmente não tocados
-          },
-        });
-
         const allVariants =
           parsedVariants.length ? parsedVariants : full.variants;
         const seen = new Set<string>();
         let inStockCount = 0;
+        const liveOpts: Record<string, string[]> = {};
 
         for (const v of allVariants) {
           seen.add(v.vid);
           const inStock = v.stock > 0;
-          if (inStock) inStockCount += 1;
+          if (inStock) {
+            inStockCount += 1;
+            for (const [k, val] of Object.entries(v.optionValues || {})) {
+              if (!val) continue;
+              if (!liveOpts[k]) liveOpts[k] = [];
+              if (!liveOpts[k].includes(val)) liveOpts[k].push(val);
+            }
+          }
           const vp = calculateSalePrice({
             supplierPrice: v.priceUsd || full.priceUsd,
             shippingEstimate: Number(sp.shippingEstimate) || 0,
@@ -156,16 +164,38 @@ async function sync(request: Request) {
           });
         }
 
-        // Sem variante vendável → tira da vitrine
-        const noSellable =
-          (allVariants.length > 0 && inStockCount === 0) ||
-          (allVariants.length === 0 && full.stock <= 0);
-        if (noSellable) {
-          await prisma.product.update({
-            where: { id: sp.product.id },
-            data: { active: false },
-          });
+        const sellable =
+          (allVariants.length > 0 && inStockCount > 0) ||
+          (allVariants.length === 0 && full.stock > 0);
+
+        const wasActive = sp.product.active;
+        const productPatch: {
+          salePrice: number;
+          compareAt: number;
+          imageUrl?: string;
+          gallery?: string[];
+          videoUrl?: string | null;
+          active: boolean;
+          options?: Record<string, string[]>;
+        } = {
+          salePrice: priced.salePrice,
+          compareAt: priced.compareAt,
+          imageUrl: imageUrl || sp.product.imageUrl,
+          gallery: gallery.length ? gallery : undefined,
+          videoUrl: videoUrl ?? undefined,
+          active: sellable,
+        };
+        if (Object.keys(liveOpts).length) {
+          productPatch.options = liveOpts;
         }
+
+        await prisma.product.update({
+          where: { id: sp.product.id },
+          data: productPatch,
+        });
+
+        if (wasActive && !sellable) deactivated += 1;
+        if (!wasActive && sellable) reactivated += 1;
       }
 
       updated += 1;
@@ -176,5 +206,11 @@ async function sync(request: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, updated, errors });
+  return NextResponse.json({
+    ok: true,
+    updated,
+    deactivated,
+    reactivated,
+    errors,
+  });
 }
