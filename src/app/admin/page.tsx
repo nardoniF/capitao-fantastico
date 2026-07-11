@@ -3,13 +3,48 @@
 import { useCallback, useEffect, useState } from "react";
 import { formatBRL } from "@/data/products";
 import { FEEDBACK_KINDS } from "@/components/SuggestionForm";
-import {
-  formatAddress,
-  type ClickEvent,
-  type Order,
-  type StoreProduct,
-} from "@/lib/store-types";
 import { whatsappUrl } from "@/lib/site-config";
+
+type Pricing = { markup: number; fxBrl: number; feePct: number; ruleId?: string };
+
+type ProductRow = {
+  id: string;
+  slug: string;
+  name: string;
+  category: string;
+  active: boolean;
+  costUsd: number;
+  shippingUsd: number;
+  costBrl: number;
+  salePrice: number;
+  marginBrl: number;
+  marginPct: number;
+  mpFeeBrl: number;
+  netAfterMpBrl: number;
+};
+
+type OrderRow = {
+  orderId: string;
+  createdAt: string;
+  status: string;
+  nome: string;
+  email: string;
+  charged: number;
+  costPaid: number;
+  mpFee: number;
+  commission: number;
+  items: { name: string; qty: number; unitPrice: number; unitCostBrl: number }[];
+  paymentRef?: string;
+  supplierTracking?: string;
+};
+
+type ClickRow = {
+  id: string;
+  createdAt: string;
+  tipo: string;
+  rotulo?: string;
+  pagina?: string;
+};
 
 type FeedbackRow = {
   id: string;
@@ -21,21 +56,28 @@ type FeedbackRow = {
   createdAt: string;
 };
 
+type ApiCheck = { name: string; ok: boolean; detail: string };
+
+type Tab = "vendas" | "produtos" | "markup" | "cliques" | "sugestoes" | "api";
+
 const kindLabel = (kind: string) =>
   FEEDBACK_KINDS.find((k) => k.value === kind)?.label || kind;
 
 export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [authed, setAuthed] = useState(false);
-  const [tab, setTab] = useState<"products" | "orders" | "clicks" | "feedback">(
-    "orders",
-  );
-  const [products, setProducts] = useState<StoreProduct[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [clicks, setClicks] = useState<ClickEvent[]>([]);
+  const [tab, setTab] = useState<Tab>("vendas");
+  const [pricing, setPricing] = useState<Pricing | null>(null);
+  const [products, setProducts] = useState<ProductRow[]>([]);
+  const [orders, setOrders] = useState<OrderRow[]>([]);
+  const [clicks, setClicks] = useState<ClickRow[]>([]);
   const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
+  const [api, setApi] = useState<ApiCheck[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [markupDraft, setMarkupDraft] = useState("2.3");
+  const [fxDraft, setFxDraft] = useState("5.6");
+  const [feeDraft, setFeeDraft] = useState("5");
 
   const load = useCallback(async () => {
     setError(null);
@@ -48,24 +90,22 @@ export default function AdminPage() {
       return;
     }
     const data = (await res.json()) as {
-      products: StoreProduct[];
-      orders: Order[];
-      clicks: ClickEvent[];
+      pricing: Pricing;
+      products: ProductRow[];
+      orders: OrderRow[];
+      clicks: ClickRow[];
+      feedback: FeedbackRow[];
+      api: ApiCheck[];
     };
+    setPricing(data.pricing);
     setProducts(data.products);
     setOrders(data.orders);
     setClicks(data.clicks);
-
-    const fbRes = await fetch("/api/feedback", {
-      headers: { "x-admin-password": password },
-    });
-    if (fbRes.ok) {
-      const fbData = (await fbRes.json()) as { feedback?: FeedbackRow[] };
-      setFeedback(fbData.feedback ?? []);
-    } else {
-      setFeedback([]);
-    }
-
+    setFeedback(data.feedback);
+    setApi(data.api);
+    setMarkupDraft(String(data.pricing.markup));
+    setFxDraft(String(data.pricing.fxBrl));
+    setFeeDraft(String(Number((data.pricing.feePct * 100).toFixed(2))));
     setAuthed(true);
   }, [password]);
 
@@ -80,33 +120,54 @@ export default function AdminPage() {
     return () => window.clearTimeout(t);
   }, [msg]);
 
-  async function saveProduct(product: StoreProduct) {
-    setError(null);
+  async function put(body: unknown) {
     const res = await fetch("/api/admin", {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
         "x-admin-password": password,
       },
-      body: JSON.stringify({ action: "upsert_product", product }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
-      setError("Falha ao salvar produto");
-      return;
+      const d = (await res.json()) as { error?: string };
+      throw new Error(d.error || "Falha");
     }
-    setMsg(`Salvo: ${product.name}`);
-    await load();
+    return res.json();
   }
 
-  async function patchOrder(orderId: string, patch: Partial<Order>) {
-    await fetch("/api/admin", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        "x-admin-password": password,
-      },
-      body: JSON.stringify({ action: "update_order", orderId, patch }),
-    });
+  async function savePricing() {
+    try {
+      await put({
+        action: "update_pricing",
+        pricing: {
+          markup: Number(markupDraft),
+          fxBrl: Number(fxDraft),
+          feePct: Number(feeDraft) / 100,
+        },
+      });
+      setMsg("Markup salvo. Novos imports/sync usam essa regra.");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha ao salvar markup");
+    }
+  }
+
+  async function patchProduct(
+    productId: string,
+    productPatch: { salePrice?: number; active?: boolean },
+  ) {
+    try {
+      await put({ action: "update_neon_product", productId, productPatch });
+      setMsg("Produto atualizado");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha no produto");
+    }
+  }
+
+  async function patchOrder(orderId: string, patch: Record<string, unknown>) {
+    await put({ action: "update_order", orderId, patch });
     await load();
   }
 
@@ -114,10 +175,10 @@ export default function AdminPage() {
     return (
       <div className="mx-auto max-w-md px-5 py-20">
         <h1 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-white">
-          Admin
+          Admin · Capitão
         </h1>
         <p className="mt-2 text-sm text-muted">
-          Defina <code className="text-gold">ADMIN_PASSWORD</code> no .env / Vercel.
+          Senha = <code className="text-gold">ADMIN_PASSWORD</code> no Vercel.
         </p>
         <input
           type="password"
@@ -137,322 +198,402 @@ export default function AdminPage() {
         >
           Entrar
         </button>
+        <p className="mt-6 text-xs text-muted">
+          Catálogo CJ:{" "}
+          <a
+            href="https://cjdropshipping.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-gold hover:underline"
+          >
+            cjdropshipping.com
+          </a>
+        </p>
       </div>
     );
   }
+
+  const tabs: { id: Tab; label: string }[] = [
+    { id: "vendas", label: `Vendas (${orders.length})` },
+    { id: "produtos", label: `Produtos (${products.length})` },
+    { id: "markup", label: "Markup" },
+    { id: "cliques", label: `Cliques (${clicks.length})` },
+    { id: "sugestoes", label: `Sugestões (${feedback.length})` },
+    { id: "api", label: "API" },
+  ];
 
   return (
     <div className="mx-auto max-w-6xl px-5 py-10 md:px-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-white">
-            Admin · Capitão
+            Admin · Capitão Fantástico
           </h1>
           <p className="mt-1 text-sm text-muted">
-            Pedidos, produtos, cliques e sugestões dos visitantes
+            Custo · venda · taxa MP · comissão líquida
+            {pricing
+              ? ` · markup ${pricing.markup}× · FX ${pricing.fxBrl} · MP ${(pricing.feePct * 100).toFixed(0)}%`
+              : ""}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => void load()}
-          className="rounded-md border border-line px-4 py-2 text-sm text-white hover:border-gold"
-        >
-          Atualizar
-        </button>
+        <div className="flex gap-2">
+          <a
+            href="https://cjdropshipping.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-md border border-line px-4 py-2 text-sm text-gold hover:border-gold"
+          >
+            Abrir CJ
+          </a>
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="rounded-md border border-line px-4 py-2 text-sm text-white hover:border-gold"
+          >
+            Atualizar
+          </button>
+        </div>
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
-        {(
-          [
-            ["orders", "Pedidos"],
-            ["products", "Produtos"],
-            ["feedback", `Sugestões (${feedback.length})`],
-            ["clicks", "Cliques"],
-          ] as const
-        ).map(([t, label]) => (
+        {tabs.map((t) => (
           <button
-            key={t}
+            key={t.id}
             type="button"
             onClick={() => {
-              setMsg(null);
+              setTab(t.id);
               setError(null);
-              setTab(t);
             }}
             className={`rounded-full px-4 py-1.5 text-sm font-semibold ${
-              tab === t ? "bg-gold text-black" : "border border-line text-muted"
+              tab === t.id ? "bg-gold text-black" : "border border-line text-muted"
             }`}
           >
-            {label}
+            {t.label}
           </button>
         ))}
       </div>
 
       {msg ? (
-        <p className="mt-4 flex items-center justify-between gap-3 rounded-md border border-gold/30 bg-gold/10 px-3 py-2 text-sm text-gold">
-          <span>{msg}</span>
-          <button
-            type="button"
-            onClick={() => setMsg(null)}
-            className="shrink-0 text-xs font-semibold text-white/70 hover:text-white"
-            aria-label="Fechar"
-          >
-            ✕
-          </button>
+        <p className="mt-4 rounded-md border border-gold/30 bg-gold/10 px-3 py-2 text-sm text-gold">
+          {msg}
+        </p>
+      ) : null}
+      {error ? (
+        <p className="mt-4 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          {error}
         </p>
       ) : null}
 
-      {tab === "orders" ? (
+      {tab === "vendas" ? (
         <div className="mt-8 space-y-4">
           {orders.length === 0 ? (
-            <p className="text-muted">Nenhum pedido ainda.</p>
+            <p className="text-muted">Nenhuma venda ainda.</p>
           ) : (
-            orders.map((o) => (
-              <div key={o.orderId} className="rounded-xl border border-line bg-card p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-bold text-white">
-                      {o.orderId} ·{" "}
-                      <span className="text-gold">{o.status}</span>
-                      {o.paymentRef ? (
-                        <span className="ml-2 text-xs font-normal text-muted">
-                          MP #{o.paymentRef}
-                        </span>
-                      ) : null}
-                    </p>
-                    <p className="mt-1 text-sm text-muted">
-                      {o.nome} · {o.email}
-                      {o.telefone ? ` · ${o.telefone}` : ""} · {formatBRL(o.total)}
-                    </p>
-                    {o.endereco ? (
-                      <pre className="mt-2 whitespace-pre-wrap font-sans text-sm text-white/80">
-                        {formatAddress(o.endereco)}
-                      </pre>
-                    ) : (
-                      <p className="mt-2 text-sm text-red-400">
-                        Sem endereço — pedir no WhatsApp
-                      </p>
-                    )}
-                    <ul className="mt-2 text-sm text-muted">
-                      {o.items.map((i) => (
-                        <li key={i.productId}>
-                          {i.qty}× {i.name} ({formatBRL(i.price)})
-                        </li>
-                      ))}
-                    </ul>
-                    {o.supplierTracking ? (
-                      <p className="mt-2 text-sm text-gold">
-                        Rastreio: {o.supplierTracking}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {o.status === "pending_payment" ? (
-                      <button
-                        type="button"
-                        onClick={() => void patchOrder(o.orderId, { status: "paid" })}
-                        className="rounded-md bg-gold px-3 py-2 text-xs font-bold text-black"
-                      >
-                        Marcar pago
-                      </button>
-                    ) : null}
-                    {o.status !== "cancelled" && o.status !== "fulfilled" ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const code = window.prompt("Código de rastreio do fornecedor");
-                          if (code)
-                            void patchOrder(o.orderId, {
-                              supplierTracking: code,
-                              status: "fulfilled",
-                            });
-                        }}
-                        className="rounded-md border border-line px-3 py-2 text-xs text-white"
-                      >
-                        Rastreio fornecedor
-                      </button>
-                    ) : null}
-                    {o.telefone || o.email ? (
-                      <a
-                        href={whatsappUrl(
-                          `Olá ${o.nome}! Pedido ${o.orderId}${
-                            o.supplierTracking
-                              ? ` — rastreio: ${o.supplierTracking}`
-                              : " — estamos processando seu envio."
-                          }`,
-                        )}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="rounded-md border border-gold/40 px-3 py-2 text-center text-xs text-gold"
-                      >
-                        WhatsApp cliente
-                      </a>
-                    ) : null}
-                    {o.status !== "cancelled" && o.status !== "fulfilled" ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (window.confirm("Cancelar este pedido?"))
-                            void patchOrder(o.orderId, { status: "cancelled" });
-                        }}
-                        className="rounded-md border border-red-500/40 px-3 py-2 text-xs text-red-400"
-                      >
-                        Cancelar
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            ))
+            <div className="overflow-x-auto rounded-[14px] border border-[#333]">
+              <table className="min-w-full text-left text-sm">
+                <thead className="border-b border-[#333] bg-[#141414] text-muted">
+                  <tr>
+                    <th className="px-3 py-3">Pedido</th>
+                    <th className="px-3 py-3">Cliente</th>
+                    <th className="px-3 py-3">Custo (paguei)</th>
+                    <th className="px-3 py-3">Cobrado</th>
+                    <th className="px-3 py-3">Taxa MP</th>
+                    <th className="px-3 py-3">Comissão</th>
+                    <th className="px-3 py-3">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map((o) => (
+                    <tr key={o.orderId} className="border-b border-[#2a2a2a] text-white">
+                      <td className="px-3 py-3 align-top">
+                        <p className="font-semibold">{o.orderId}</p>
+                        <p className="text-xs text-muted">
+                          {new Date(o.createdAt).toLocaleString("pt-BR")}
+                        </p>
+                        <p className="text-xs text-gold">{o.status}</p>
+                        <ul className="mt-1 text-xs text-muted">
+                          {o.items.map((it, i) => (
+                            <li key={`${o.orderId}-${i}`}>
+                              {it.qty}× {it.name}
+                            </li>
+                          ))}
+                        </ul>
+                      </td>
+                      <td className="px-3 py-3 align-top text-muted">
+                        {o.nome}
+                        <br />
+                        {o.email}
+                      </td>
+                      <td className="px-3 py-3 align-top">{formatBRL(o.costPaid)}</td>
+                      <td className="px-3 py-3 align-top font-semibold">
+                        {formatBRL(o.charged)}
+                      </td>
+                      <td className="px-3 py-3 align-top text-red-300">
+                        −{formatBRL(o.mpFee)}
+                      </td>
+                      <td className="px-3 py-3 align-top font-bold text-gold">
+                        {formatBRL(o.commission)}
+                      </td>
+                      <td className="px-3 py-3 align-top">
+                        <div className="flex flex-col gap-1">
+                          {o.status === "pending_payment" ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void patchOrder(o.orderId, { status: "paid" })
+                              }
+                              className="rounded bg-gold px-2 py-1 text-xs font-bold text-black"
+                            >
+                              Marcar pago
+                            </button>
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const code = window.prompt("Rastreio fornecedor");
+                              if (code)
+                                void patchOrder(o.orderId, {
+                                  supplierTracking: code,
+                                  status: "fulfilled",
+                                });
+                            }}
+                            className="rounded border border-line px-2 py-1 text-xs"
+                          >
+                            Rastreio
+                          </button>
+                          <a
+                            href={whatsappUrl(
+                              `Olá ${o.nome}! Pedido ${o.orderId}${
+                                o.supplierTracking
+                                  ? ` — rastreio: ${o.supplierTracking}`
+                                  : ""
+                              }`,
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="rounded border border-gold/40 px-2 py-1 text-center text-xs text-gold"
+                          >
+                            WhatsApp
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
+          <p className="text-xs text-muted">
+            Comissão = cobrado − custo fornecedor (BRL) − taxa MP estimada (
+            {pricing ? `${(pricing.feePct * 100).toFixed(0)}%` : "5%"}). Frete CJ
+            ainda pode estar zerado em alguns itens.
+          </p>
         </div>
       ) : null}
 
-      {tab === "products" ? (
-        <div className="mt-8 space-y-4">
-          {products.map((p) => {
-            const margin = p.price - (p.cost ?? 0);
-            return (
-              <div key={p.id} className="rounded-xl border border-line bg-card p-5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="font-bold text-white">{p.name}</p>
-                    <p className="text-sm text-muted">
-                      {p.sku || "sem SKU"}
-                      {p.supplierSku ? ` · forn: ${p.supplierSku}` : ""} · venda{" "}
-                      {formatBRL(p.price)} · custo {formatBRL(p.cost ?? 0)} · margem{" "}
-                      {formatBRL(margin)} · {p.active ? "ativo" : "inativo"}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const price = Number(
-                          window.prompt("Preço de venda", String(p.price)),
-                        );
-                        if (!Number.isFinite(price)) return;
-                        void saveProduct({ ...p, price });
-                      }}
-                      className="rounded-md border border-line px-3 py-2 text-xs text-white"
-                    >
-                      Preço
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const cost = Number(
-                          window.prompt("Custo fornecedor", String(p.cost ?? 0)),
-                        );
-                        if (!Number.isFinite(cost)) return;
-                        void saveProduct({ ...p, cost });
-                      }}
-                      className="rounded-md border border-line px-3 py-2 text-xs text-white"
-                    >
-                      Custo
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const sku = window.prompt("SKU interno", p.sku || "");
-                        if (sku === null) return;
-                        void saveProduct({ ...p, sku: sku.trim() || undefined });
-                      }}
-                      className="rounded-md border border-line px-3 py-2 text-xs text-white"
-                    >
-                      SKU
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const supplierSku = window.prompt(
-                          "SKU / link fornecedor",
-                          p.supplierSku || "",
-                        );
-                        if (supplierSku === null) return;
-                        void saveProduct({
-                          ...p,
-                          supplierSku: supplierSku.trim() || undefined,
-                        });
-                      }}
-                      className="rounded-md border border-line px-3 py-2 text-xs text-white"
-                    >
-                      Fornecedor
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void saveProduct({ ...p, active: !p.active })}
-                      className="rounded-md bg-gold px-3 py-2 text-xs font-bold text-black"
-                    >
-                      {p.active ? "Desativar" : "Ativar"}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
-
-      {tab === "feedback" ? (
-        <div className="mt-8 space-y-4">
-          {feedback.length === 0 ? (
-            <p className="text-muted">
-              Nenhuma sugestão ainda. Link público:{" "}
-              <a href="/sugestoes" className="text-gold hover:underline">
-                /sugestoes
-              </a>
-            </p>
-          ) : (
-            feedback.map((f) => (
-              <div key={f.id} className="rounded-xl border border-line bg-card p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-bold text-gold">{kindLabel(f.kind)}</p>
-                    <p className="mt-1 text-sm text-muted">
-                      {f.name} ·{" "}
-                      <a className="text-white hover:text-gold" href={`mailto:${f.email}`}>
-                        {f.email}
-                      </a>
-                      {f.page ? ` · página ${f.page}` : ""}
-                    </p>
-                    <p className="mt-3 whitespace-pre-wrap text-sm text-white/90">
-                      {f.message}
-                    </p>
-                  </div>
-                  <p className="text-xs text-muted">
-                    {new Date(f.createdAt).toLocaleString("pt-BR")}
-                  </p>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      ) : null}
-
-      {tab === "clicks" ? (
-        <div className="mt-8 overflow-x-auto rounded-xl border border-line bg-card">
+      {tab === "produtos" ? (
+        <div className="mt-8 overflow-x-auto rounded-[14px] border border-[#333]">
           <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-line text-muted">
+            <thead className="border-b border-[#333] bg-[#141414] text-muted">
               <tr>
-                <th className="px-4 py-3">Quando</th>
-                <th className="px-4 py-3">Tipo</th>
-                <th className="px-4 py-3">Rótulo</th>
-                <th className="px-4 py-3">Página</th>
+                <th className="px-3 py-3">Produto</th>
+                <th className="px-3 py-3">Custo CJ</th>
+                <th className="px-3 py-3">Custo BRL</th>
+                <th className="px-3 py-3">Venda</th>
+                <th className="px-3 py-3">Taxa MP</th>
+                <th className="px-3 py-3">Comissão líq.</th>
+                <th className="px-3 py-3">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {clicks.map((c) => (
-                <tr key={c.id} className="border-b border-line/60 text-white">
-                  <td className="px-4 py-2 text-muted">
-                    {new Date(c.createdAt).toLocaleString("pt-BR")}
+              {products.map((p) => (
+                <tr key={p.id} className="border-b border-[#2a2a2a] text-white">
+                  <td className="px-3 py-3">
+                    <p className="font-semibold">{p.name}</p>
+                    <p className="text-xs text-muted">
+                      {p.category} · {p.active ? "ativo" : "inativo"}
+                    </p>
                   </td>
-                  <td className="px-4 py-2">{c.tipo}</td>
-                  <td className="px-4 py-2">{c.rotulo || "—"}</td>
-                  <td className="px-4 py-2">{c.pagina || "—"}</td>
+                  <td className="px-3 py-3 text-muted">
+                    US$ {p.costUsd.toFixed(2)}
+                    {p.shippingUsd > 0 ? ` + frete ${p.shippingUsd.toFixed(2)}` : ""}
+                  </td>
+                  <td className="px-3 py-3">{formatBRL(p.costBrl)}</td>
+                  <td className="px-3 py-3 font-semibold">{formatBRL(p.salePrice)}</td>
+                  <td className="px-3 py-3 text-red-300">−{formatBRL(p.mpFeeBrl)}</td>
+                  <td className="px-3 py-3 font-bold text-gold">
+                    {formatBRL(p.netAfterMpBrl)}
+                    <span className="ml-1 text-xs font-normal text-muted">
+                      ({p.marginPct}%)
+                    </span>
+                  </td>
+                  <td className="px-3 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const salePrice = Number(
+                            window.prompt("Preço de venda BRL", String(p.salePrice)),
+                          );
+                          if (!Number.isFinite(salePrice)) return;
+                          void patchProduct(p.id, { salePrice });
+                        }}
+                        className="rounded border border-line px-2 py-1 text-xs"
+                      >
+                        Preço
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void patchProduct(p.id, { active: !p.active })
+                        }
+                        className="rounded bg-gold px-2 py-1 text-xs font-bold text-black"
+                      >
+                        {p.active ? "Off" : "On"}
+                      </button>
+                      <a
+                        href={`/produtos/${p.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded border border-gold/40 px-2 py-1 text-xs text-gold"
+                      >
+                        Ver
+                      </a>
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      ) : null}
+
+      {tab === "markup" ? (
+        <div className="mt-8 max-w-lg space-y-4 rounded-[14px] border border-[#333] bg-[#1a1a1a] p-6">
+          <h2 className="text-lg font-bold text-gold">Regra de preço global</h2>
+          <p className="text-sm text-muted">
+            venda ≈ (custo USD + frete) × câmbio × (1 + taxa) × markup → arredonda
+            .90
+          </p>
+          <label className="block text-sm text-white">
+            Markup (ex. 2.3 = 130% sobre custo+taxa)
+            <input
+              value={markupDraft}
+              onChange={(e) => setMarkupDraft(e.target.value)}
+              className="mt-1 w-full rounded-md border border-[#333] bg-[#111] px-3 py-2.5"
+            />
+          </label>
+          <label className="block text-sm text-white">
+            Câmbio USD → BRL
+            <input
+              value={fxDraft}
+              onChange={(e) => setFxDraft(e.target.value)}
+              className="mt-1 w-full rounded-md border border-[#333] bg-[#111] px-3 py-2.5"
+            />
+          </label>
+          <label className="block text-sm text-white">
+            Taxa Mercado Pago (%)
+            <input
+              value={feeDraft}
+              onChange={(e) => setFeeDraft(e.target.value)}
+              className="mt-1 w-full rounded-md border border-[#333] bg-[#111] px-3 py-2.5"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={() => void savePricing()}
+            className="w-full rounded-md bg-gold py-3 font-bold text-black"
+          >
+            Salvar markup
+          </button>
+          <p className="text-xs text-muted">
+            Produtos já importados não recalculam sozinhos — rode o sync ou ajuste
+            o preço na aba Produtos. Novos imports usam a regra nova.
+          </p>
+        </div>
+      ) : null}
+
+      {tab === "cliques" ? (
+        <div className="mt-8 overflow-x-auto rounded-[14px] border border-[#333]">
+          <table className="min-w-full text-left text-sm">
+            <thead className="border-b border-[#333] bg-[#141414] text-muted">
+              <tr>
+                <th className="px-3 py-3">Quando</th>
+                <th className="px-3 py-3">Tipo</th>
+                <th className="px-3 py-3">Rótulo</th>
+                <th className="px-3 py-3">Página</th>
+              </tr>
+            </thead>
+            <tbody>
+              {clicks.map((c) => (
+                <tr key={c.id} className="border-b border-[#2a2a2a] text-white">
+                  <td className="px-3 py-2 text-muted">
+                    {new Date(c.createdAt).toLocaleString("pt-BR")}
+                  </td>
+                  <td className="px-3 py-2">{c.tipo}</td>
+                  <td className="px-3 py-2">{c.rotulo || "—"}</td>
+                  <td className="px-3 py-2">{c.pagina || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
+      {tab === "sugestoes" ? (
+        <div className="mt-8 space-y-4">
+          {feedback.length === 0 ? (
+            <p className="text-muted">Nenhuma sugestão ainda.</p>
+          ) : (
+            feedback.map((f) => (
+              <div key={f.id} className="rounded-[14px] border border-[#333] bg-[#1a1a1a] p-5">
+                <p className="font-bold text-gold">{kindLabel(f.kind)}</p>
+                <p className="mt-1 text-sm text-muted">
+                  {f.name} ·{" "}
+                  <a href={`mailto:${f.email}`} className="text-white hover:text-gold">
+                    {f.email}
+                  </a>
+                </p>
+                <p className="mt-3 whitespace-pre-wrap text-sm text-white/90">
+                  {f.message}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+      ) : null}
+
+      {tab === "api" ? (
+        <div className="mt-8 space-y-3">
+          {api.map((c) => (
+            <div
+              key={c.name}
+              className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-[#333] bg-[#1a1a1a] px-4 py-3"
+            >
+              <div>
+                <p className="font-semibold text-white">{c.name}</p>
+                <p className="text-sm text-muted">{c.detail}</p>
+              </div>
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-bold ${
+                  c.ok ? "bg-emerald-500/20 text-emerald-300" : "bg-red-500/20 text-red-300"
+                }`}
+              >
+                {c.ok ? "OK" : "FALTA"}
+              </span>
+            </div>
+          ))}
+          <p className="pt-2 text-sm text-muted">
+            Fornecedor:{" "}
+            <a
+              href="https://cjdropshipping.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gold hover:underline"
+            >
+              https://cjdropshipping.com
+            </a>
+          </p>
         </div>
       ) : null}
     </div>

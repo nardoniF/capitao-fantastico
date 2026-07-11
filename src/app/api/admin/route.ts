@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
 import {
-  getStore,
-  listClicks,
-  listOrders,
-  saveStore,
-  updateOrder,
-  upsertProduct,
-} from "@/lib/store-db";
-import type { StoreProduct } from "@/lib/store-types";
+  getAdminBundle,
+  updateNeonProduct,
+  updatePricingRule,
+} from "@/lib/admin-data";
+import { updateOrder } from "@/lib/store-db";
 
 function unauthorized() {
   return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
@@ -22,52 +19,67 @@ function checkAuth(request: Request) {
 
 export async function GET(request: Request) {
   if (!checkAuth(request)) return unauthorized();
-  const store = await getStore();
-  const url = new URL(request.url);
-  const tab = url.searchParams.get("tab") || "all";
-
-  if (tab === "orders") return NextResponse.json({ orders: await listOrders() });
-  if (tab === "clicks") return NextResponse.json({ clicks: await listClicks() });
-  if (tab === "products") return NextResponse.json({ products: store.products });
-
-  return NextResponse.json({
-    products: store.products,
-    orders: store.orders,
-    clicks: store.clicks.slice(0, 200),
-    updatedAt: store.updatedAt,
-  });
+  try {
+    const data = await getAdminBundle();
+    return NextResponse.json(data);
+  } catch (e) {
+    console.error("admin GET", e);
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Falha no admin" },
+      { status: 500 },
+    );
+  }
 }
 
 export async function PUT(request: Request) {
   if (!checkAuth(request)) return unauthorized();
-  const body = (await request.json()) as {
-    action?: string;
-    product?: StoreProduct;
-    orderId?: string;
-    patch?: Record<string, unknown>;
-  };
 
-  if (body.action === "upsert_product" && body.product) {
-    const product = await upsertProduct(body.product);
-    return NextResponse.json({ product });
+  try {
+    const body = (await request.json()) as {
+      action?: string;
+      orderId?: string;
+      patch?: Record<string, unknown>;
+      pricing?: { markup?: number; fxBrl?: number; feePct?: number };
+      productId?: string;
+      productPatch?: {
+        salePrice?: number;
+        active?: boolean;
+        name?: string;
+        blurb?: string;
+      };
+    };
+
+    if (body.action === "update_pricing" && body.pricing) {
+      const rule = await updatePricingRule(body.pricing);
+      return NextResponse.json({
+        ok: true,
+        pricing: {
+          markup: Number(rule.markup),
+          fxBrl: Number(rule.fxBrl),
+          feePct: Number(rule.feePct),
+        },
+      });
+    }
+
+    if (body.action === "update_neon_product" && body.productId && body.productPatch) {
+      const product = await updateNeonProduct(body.productId, body.productPatch);
+      return NextResponse.json({ product });
+    }
+
+    if (body.action === "update_order" && body.orderId && body.patch) {
+      const order = await updateOrder(body.orderId, body.patch);
+      if (!order) {
+        return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
+      }
+      return NextResponse.json({ order });
+    }
+
+    return NextResponse.json({ error: "Ação inválida" }, { status: 400 });
+  } catch (e) {
+    console.error("admin PUT", e);
+    return NextResponse.json(
+      { error: e instanceof Error ? e.message : "Falha" },
+      { status: 500 },
+    );
   }
-
-  if (body.action === "update_order" && body.orderId && body.patch) {
-    const order = await updateOrder(body.orderId, body.patch);
-    if (!order) return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
-    return NextResponse.json({ order });
-  }
-
-  if (body.action === "replace_products" && Array.isArray(body.product)) {
-    // unused
-  }
-
-  if (body.action === "set_products" && Array.isArray((body as { products?: StoreProduct[] }).products)) {
-    const store = await getStore();
-    store.products = (body as { products: StoreProduct[] }).products;
-    await saveStore(store);
-    return NextResponse.json({ ok: true, count: store.products.length });
-  }
-
-  return NextResponse.json({ error: "Ação inválida" }, { status: 400 });
 }
