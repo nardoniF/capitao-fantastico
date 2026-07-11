@@ -44,6 +44,9 @@ export function SiteFooter() {
             {siteConfig.email}
           </a>
           <p className="mt-2 flex flex-wrap gap-3">
+            <Link href="/sugestoes" className="hover:text-gold">
+              Sugestões
+            </Link>
             <Link href="/termos" className="hover:text-gold">
               Termos
             </Link>

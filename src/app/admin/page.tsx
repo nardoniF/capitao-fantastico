@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { formatBRL } from "@/data/products";
+import { FEEDBACK_KINDS } from "@/components/SuggestionForm";
 import {
   formatAddress,
   type ClickEvent,
@@ -10,13 +11,29 @@ import {
 } from "@/lib/store-types";
 import { whatsappUrl } from "@/lib/site-config";
 
+type FeedbackRow = {
+  id: string;
+  name: string;
+  email: string;
+  kind: string;
+  message: string;
+  page: string | null;
+  createdAt: string;
+};
+
+const kindLabel = (kind: string) =>
+  FEEDBACK_KINDS.find((k) => k.value === kind)?.label || kind;
+
 export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [authed, setAuthed] = useState(false);
-  const [tab, setTab] = useState<"products" | "orders" | "clicks">("orders");
+  const [tab, setTab] = useState<"products" | "orders" | "clicks" | "feedback">(
+    "orders",
+  );
   const [products, setProducts] = useState<StoreProduct[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [clicks, setClicks] = useState<ClickEvent[]>([]);
+  const [feedback, setFeedback] = useState<FeedbackRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -38,6 +55,17 @@ export default function AdminPage() {
     setProducts(data.products);
     setOrders(data.orders);
     setClicks(data.clicks);
+
+    const fbRes = await fetch("/api/feedback", {
+      headers: { "x-admin-password": password },
+    });
+    if (fbRes.ok) {
+      const fbData = (await fbRes.json()) as { feedback?: FeedbackRow[] };
+      setFeedback(fbData.feedback ?? []);
+    } else {
+      setFeedback([]);
+    }
+
     setAuthed(true);
   }, [password]);
 
@@ -118,10 +146,10 @@ export default function AdminPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-white">
-            Admin · Drop
+            Admin · Capitão
           </h1>
           <p className="mt-1 text-sm text-muted">
-            Pedido pago → comprar no fornecedor → colar rastreio → avisar cliente
+            Pedidos, produtos, cliques e sugestões dos visitantes
           </p>
         </div>
         <button
@@ -133,8 +161,15 @@ export default function AdminPage() {
         </button>
       </div>
 
-      <div className="mt-6 flex gap-2">
-        {(["orders", "products", "clicks"] as const).map((t) => (
+      <div className="mt-6 flex flex-wrap gap-2">
+        {(
+          [
+            ["orders", "Pedidos"],
+            ["products", "Produtos"],
+            ["feedback", `Sugestões (${feedback.length})`],
+            ["clicks", "Cliques"],
+          ] as const
+        ).map(([t, label]) => (
           <button
             key={t}
             type="button"
@@ -147,7 +182,7 @@ export default function AdminPage() {
               tab === t ? "bg-gold text-black" : "border border-line text-muted"
             }`}
           >
-            {t === "orders" ? "Pedidos" : t === "products" ? "Produtos" : "Cliques"}
+            {label}
           </button>
         ))}
       </div>
@@ -355,6 +390,42 @@ export default function AdminPage() {
               </div>
             );
           })}
+        </div>
+      ) : null}
+
+      {tab === "feedback" ? (
+        <div className="mt-8 space-y-4">
+          {feedback.length === 0 ? (
+            <p className="text-muted">
+              Nenhuma sugestão ainda. Link público:{" "}
+              <a href="/sugestoes" className="text-gold hover:underline">
+                /sugestoes
+              </a>
+            </p>
+          ) : (
+            feedback.map((f) => (
+              <div key={f.id} className="rounded-xl border border-line bg-card p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-bold text-gold">{kindLabel(f.kind)}</p>
+                    <p className="mt-1 text-sm text-muted">
+                      {f.name} ·{" "}
+                      <a className="text-white hover:text-gold" href={`mailto:${f.email}`}>
+                        {f.email}
+                      </a>
+                      {f.page ? ` · página ${f.page}` : ""}
+                    </p>
+                    <p className="mt-3 whitespace-pre-wrap text-sm text-white/90">
+                      {f.message}
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted">
+                    {new Date(f.createdAt).toLocaleString("pt-BR")}
+                  </p>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       ) : null}
 

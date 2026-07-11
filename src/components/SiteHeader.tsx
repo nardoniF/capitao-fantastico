@@ -51,6 +51,9 @@ export function SiteHeader({ variant = "solid" }: { variant?: "solid" | "hero" }
           <Link href="/contato" className="hidden transition hover:text-gold lg:inline">
             Contato
           </Link>
+          <Link href="/sugestoes" className="hidden transition hover:text-gold xl:inline">
+            Sugestões
+          </Link>
           <Link
             href="/carrinho"
             className="relative rounded-md bg-gold px-3 py-2 font-semibold text-black transition hover:bg-gold-deep"

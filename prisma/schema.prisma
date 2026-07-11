@@ -171,3 +171,24 @@ model FulfillmentJob {
 
   @@index([status, scheduledAt])
 }
+
+enum FeedbackKind {
+  product_idea
+  missing_feature
+  product_issue
+  complaint
+  other
+}
+
+model Feedback {
+  id        String       @id @default(cuid())
+  name      String
+  email     String
+  kind      FeedbackKind @default(other)
+  message   String
+  page      String?
+  createdAt DateTime     @default(now())
+
+  @@index([createdAt])
+  @@index([kind])
+}
