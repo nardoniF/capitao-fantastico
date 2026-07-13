@@ -9,6 +9,9 @@ import {
   videoFromCjRaw,
 } from "@/lib/media";
 import { getCJSupplier } from "@/lib/suppliers/cj";
+import { localizeOptionValues, localizeOptions } from "@/lib/translate-free";
+import type { ProductDetails } from "@/lib/product-details";
+import { parseProductDetails } from "@/lib/product-details";
 
 function authorized(request: Request) {
   const secret = process.env.CRON_SECRET?.trim();
@@ -21,6 +24,7 @@ function authorized(request: Request) {
  * Cron: atualiza preço + estoque + variantes dos produtos ligados ao CJ.
  * - Sem estoque / sem margem vs mercado → tira da vitrine
  * - Voltou estoque + margem ok → recoloca
+ * - Reenche galeria/opções se o parser antigo tinha deixado vazio
  * NÃO reescreve copy/SEO (só reimport).
  */
 export async function GET(request: Request) {
@@ -117,9 +121,10 @@ async function sync(request: Request) {
         for (const v of allVariants) {
           seen.add(v.vid);
           const inStock = v.stock > 0;
+          const optionValuesPt = await localizeOptionValues(v.optionValues || {});
           if (inStock) {
             inStockCount += 1;
-            for (const [k, val] of Object.entries(v.optionValues || {})) {
+            for (const [k, val] of Object.entries(optionValuesPt)) {
               if (!val) continue;
               if (!liveOpts[k]) liveOpts[k] = [];
               if (!liveOpts[k].includes(val)) liveOpts[k].push(val);
@@ -134,6 +139,8 @@ async function sync(request: Request) {
             feePct: Number(rule.feePct),
             marketRef,
           });
+          const labelPt =
+            Object.values(optionValuesPt).filter(Boolean).join(" / ") || v.label;
           await prisma.productVariant.upsert({
             where: {
               productId_supplierVariantId: {
@@ -145,8 +152,8 @@ async function sync(request: Request) {
               productId: sp.product.id,
               supplierVariantId: v.vid,
               sku: v.sku,
-              label: v.label,
-              optionValues: v.optionValues,
+              label: labelPt,
+              optionValues: optionValuesPt,
               imageUrl: v.imageUrl || imageUrl,
               supplierPrice: v.priceUsd || full.priceUsd,
               salePrice: vp.salePrice,
@@ -155,8 +162,8 @@ async function sync(request: Request) {
             },
             update: {
               sku: v.sku,
-              label: v.label,
-              optionValues: v.optionValues,
+              label: labelPt,
+              optionValues: optionValuesPt,
               imageUrl: v.imageUrl || imageUrl,
               supplierPrice: v.priceUsd || full.priceUsd,
               salePrice: vp.salePrice,
@@ -185,6 +192,50 @@ async function sync(request: Request) {
         const sellable = stockOk && priced.ok;
 
         const wasActive = sp.product.active;
+        const prevGallery = Array.isArray(sp.product.gallery)
+          ? (sp.product.gallery as string[])
+          : [];
+        const nextGallery =
+          gallery.length >= prevGallery.length && gallery.length > 0
+            ? gallery
+            : gallery.length > 0 && prevGallery.length === 0
+              ? gallery
+              : prevGallery.length
+                ? prevGallery
+                : gallery.length
+                  ? gallery
+                  : undefined;
+
+        const prevDetails = parseProductDetails(sp.product.details);
+        const measurementsFromCj = full.specs.map((s) => ({
+          label: s.label,
+          value: s.value,
+        }));
+        const mergedDetails: ProductDetails = {
+          ...prevDetails,
+          colors:
+            liveOpts.Cor?.length || liveOpts.Color?.length
+              ? liveOpts.Cor || liveOpts.Color
+              : prevDetails.colors,
+          sizes:
+            liveOpts.Tamanho?.length ||
+            liveOpts.Size?.length ||
+            liveOpts.Opção?.length
+              ? liveOpts.Tamanho || liveOpts.Size || liveOpts.Opção
+              : prevDetails.sizes,
+          measurements:
+            prevDetails.measurements?.length
+              ? prevDetails.measurements
+              : measurementsFromCj.length
+                ? measurementsFromCj
+                : prevDetails.measurements,
+        };
+
+        const optionsPt =
+          Object.keys(liveOpts).length > 0
+            ? await localizeOptions(liveOpts)
+            : undefined;
+
         const productPatch: {
           salePrice: number;
           compareAt: number;
@@ -193,16 +244,18 @@ async function sync(request: Request) {
           videoUrl?: string | null;
           active: boolean;
           options?: Record<string, string[]>;
+          details?: ProductDetails;
         } = {
           salePrice: priced.salePrice,
           compareAt: priced.compareAt,
           imageUrl: imageUrl || sp.product.imageUrl,
-          gallery: gallery.length ? gallery : undefined,
+          gallery: nextGallery,
           videoUrl: videoUrl ?? undefined,
           active: sellable,
+          details: mergedDetails,
         };
-        if (Object.keys(liveOpts).length) {
-          productPatch.options = liveOpts;
+        if (optionsPt && Object.keys(optionsPt).length) {
+          productPatch.options = optionsPt;
         }
 
         await prisma.product.update({

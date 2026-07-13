@@ -73,14 +73,21 @@ export async function generateProductCopy(
     value: s.value,
   }));
 
-  const descSrc = input.descriptionText.replace(/\s+/g, " ").trim().slice(0, 900);
+  const descSrc = input.descriptionText.replace(/\s+/g, " ").trim().slice(0, 2000);
   let descriptionPt = "";
   if (descSrc) {
-    const chunk = descSrc.slice(0, 400);
-    descriptionPt = await translateToPt(chunk, 450);
+    // Traduz em 2 chunks para não perder o anúncio
+    const chunk1 = descSrc.slice(0, 450);
+    const chunk2 = descSrc.slice(450, 900);
+    const t1 = await translateToPt(chunk1, 500);
+    const t2 = chunk2 ? await translateToPt(chunk2, 500) : "";
+    descriptionPt = [t1, t2].filter(Boolean).join(" ").trim();
   }
-  if (!descriptionPt || descriptionPt === descSrc) {
-    descriptionPt = `${name}. Produto selecionado pelo Capitão Fantástico — confira fotos, medidas e opções abaixo.`;
+  if (!descriptionPt || descriptionPt.length < 40) {
+    descriptionPt =
+      descSrc.length > 40
+        ? `${name}. ${descSrc.slice(0, 700)}`
+        : `${name}. Produto selecionado pelo Capitão Fantástico — confira fotos, medidas e opções abaixo.`;
   } else {
     descriptionPt = `${name}. ${descriptionPt}`;
   }

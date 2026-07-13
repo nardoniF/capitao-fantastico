@@ -10,7 +10,7 @@ export function extractImageUrls(raw: unknown): string[] {
   const seen = new Set<string>();
 
   const push = (url: string) => {
-    const u = url.trim();
+    const u = url.trim().replace(/^\/\//, "https://");
     if (!u) return;
     if (!(u.startsWith("http://") || u.startsWith("https://") || u.startsWith("/"))) return;
     if (seen.has(u)) return;
@@ -35,7 +35,6 @@ export function extractImageUrls(raw: unknown): string[] {
           /* fall through */
         }
       }
-      // lista separada por vírgula (raro)
       if (trimmed.includes("http") && trimmed.includes(",http")) {
         for (const part of trimmed.split(",")) push(part);
         return;
@@ -45,7 +44,15 @@ export function extractImageUrls(raw: unknown): string[] {
     }
     if (typeof value === "object") {
       const obj = value as Record<string, unknown>;
-      for (const key of ["url", "src", "image", "imageUrl", "variantImage", "bigImage", "productImage"]) {
+      for (const key of [
+        "url",
+        "src",
+        "image",
+        "imageUrl",
+        "variantImage",
+        "bigImage",
+        "productImage",
+      ]) {
         if (key in obj) walk(obj[key]);
       }
     }
@@ -71,6 +78,10 @@ export function galleryFromCjRaw(raw: unknown, primary?: string): string[] {
   if (!raw || typeof raw !== "object") return urls;
 
   const data = raw as Record<string, unknown>;
+  // Campo oficial da API atual: productImageSet
+  add(extractImageUrls(data.productImageSet));
+  add(extractImageUrls(data.productImages));
+  add(extractImageUrls(data.imageSet));
   add(extractImageUrls(data.bigImage));
   add(extractImageUrls(data.productImage));
   if (Array.isArray(data.variants)) {
@@ -100,6 +111,7 @@ export function videoFromCjRaw(raw: unknown): string | null {
         if (typeof item === "string" && item.trim().startsWith("http")) {
           return item.trim();
         }
+        // IDs de vídeo CJ não são URL — ignora
         if (item && typeof item === "object") {
           const o = item as Record<string, unknown>;
           for (const k of ["url", "src", "videoUrl"]) {
@@ -126,7 +138,45 @@ export type CjParsedVariant = {
   label: string;
 };
 
-function parseVariantOptions(v: Record<string, unknown>): Record<string, string> {
+/** Estoque real da CJ atual: inventories[].totalInventory (não variantInventory). */
+export function stockFromCjVariant(v: Record<string, unknown>): number {
+  const direct = Number(v.variantInventory ?? v.inventory ?? v.totalInventory ?? 0);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+
+  if (Array.isArray(v.inventories)) {
+    let total = 0;
+    for (const row of v.inventories) {
+      if (!row || typeof row !== "object") continue;
+      const inv = row as Record<string, unknown>;
+      total +=
+        Number(inv.totalInventory ?? inv.cjInventory ?? inv.factoryInventory ?? 0) ||
+        0;
+    }
+    if (total > 0) return total;
+  }
+  return Number.isFinite(direct) ? Math.max(0, direct) : 0;
+}
+
+/** Chaves de opção do produto (ex.: Color-Size → ["Color","Size"]). */
+export function optionKeysFromCjRaw(raw: unknown): string[] {
+  if (!raw || typeof raw !== "object") return [];
+  const data = raw as Record<string, unknown>;
+  if (Array.isArray(data.productKeyEnSet)) {
+    return data.productKeyEnSet.map((x) => String(x).trim()).filter(Boolean);
+  }
+  if (typeof data.productKeyEn === "string" && data.productKeyEn.trim()) {
+    return data.productKeyEn.split(/[-/|,]/).map((s) => s.trim()).filter(Boolean);
+  }
+  if (Array.isArray(data.productKeySet)) {
+    return data.productKeySet.map((x) => String(x).trim()).filter(Boolean);
+  }
+  return [];
+}
+
+function parseVariantOptions(
+  v: Record<string, unknown>,
+  productKeys: string[] = [],
+): Record<string, string> {
   const out: Record<string, string> = {};
   const raw =
     v.variantKey ||
@@ -134,10 +184,10 @@ function parseVariantOptions(v: Record<string, unknown>): Record<string, string>
     v.variantName ||
     v.variantProperty ||
     "";
+
   if (typeof raw === "string" && raw.trim()) {
-    // Formatos comuns: "Black-M" | "Color:Black;Size:M" | "Black / M"
     const s = raw.trim();
-    if (s.includes(";") || s.includes(":")) {
+    if (s.includes(";") || (s.includes(":") && !productKeys.length)) {
       for (const part of s.split(/[;|]/)) {
         const [k, ...rest] = part.split(":");
         if (k && rest.length) out[k.trim()] = rest.join(":").trim();
@@ -145,9 +195,15 @@ function parseVariantOptions(v: Record<string, unknown>): Record<string, string>
     }
     if (!Object.keys(out).length) {
       const parts = s.split(/[-/|,]/).map((p) => p.trim()).filter(Boolean);
-      if (parts.length === 1) out.Opção = parts[0];
-      else if (parts.length >= 2) {
-        out.Cor = parts[0];
+      if (productKeys.length && parts.length) {
+        for (let i = 0; i < Math.max(productKeys.length, parts.length); i++) {
+          const key = productKeys[i] || (i === 0 ? "Cor" : `Opção ${i + 1}`);
+          if (parts[i]) out[key] = parts[i]!;
+        }
+      } else if (parts.length === 1) {
+        out.Opção = parts[0]!;
+      } else if (parts.length >= 2) {
+        out.Cor = parts[0]!;
         out.Tamanho = parts.slice(1).join(" ");
       }
     }
@@ -165,18 +221,24 @@ function parseVariantOptions(v: Record<string, unknown>): Record<string, string>
 export function variantsFromCjRaw(raw: unknown): CjParsedVariant[] {
   if (!raw || typeof raw !== "object") return [];
   const data = raw as Record<string, unknown>;
-  if (!Array.isArray(data.variants)) return [];
+  const list = Array.isArray(data.variants)
+    ? data.variants
+    : Array.isArray(data.variantList)
+      ? data.variantList
+      : [];
+  if (!list.length) return [];
 
+  const productKeys = optionKeysFromCjRaw(data);
   const out: CjParsedVariant[] = [];
-  for (const item of data.variants) {
+  for (const item of list) {
     if (!item || typeof item !== "object") continue;
     const v = item as Record<string, unknown>;
     const vid = String(v.vid || "").trim();
     if (!vid) continue;
-    const optionValues = parseVariantOptions(v);
+    const optionValues = parseVariantOptions(v, productKeys);
     const label =
       Object.values(optionValues).filter(Boolean).join(" / ") ||
-      String(v.variantSku || vid).slice(0, 40);
+      String(v.variantSku || v.variantNameEn || vid).slice(0, 40);
     const priceUsd = Number(
       v.variantSellPrice ?? v.variantPrice ?? data.sellPrice ?? data.nowPrice ?? 0,
     );
@@ -184,7 +246,7 @@ export function variantsFromCjRaw(raw: unknown): CjParsedVariant[] {
       vid,
       sku: typeof v.variantSku === "string" ? v.variantSku : undefined,
       priceUsd: Number.isFinite(priceUsd) ? priceUsd : 0,
-      stock: Number(v.variantInventory ?? v.inventory ?? 0) || 0,
+      stock: stockFromCjVariant(v),
       imageUrl: normalizeImageUrl(v.variantImage, "") || undefined,
       optionValues,
       label,
@@ -195,6 +257,14 @@ export function variantsFromCjRaw(raw: unknown): CjParsedVariant[] {
 
 export type CjSpec = { label: string; value: string };
 
+function mmToCm(raw: unknown): string | null {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  // CJ envia mm nas variantes; se já parecer cm (< 50 e inteiro pequeno), mantém
+  if (n >= 50) return `${(n / 10).toFixed(n % 10 === 0 ? 0 : 1)} cm`;
+  return `${n} cm`;
+}
+
 /** Extrai medidas/peso/specs do rawJson CJ. */
 export function specsFromCjRaw(raw: unknown): CjSpec[] {
   if (!raw || typeof raw !== "object") return [];
@@ -203,16 +273,41 @@ export function specsFromCjRaw(raw: unknown): CjSpec[] {
   const push = (label: string, value: unknown) => {
     if (value == null || value === "") return;
     const s = String(value).trim();
-    if (!s || s === "0" || s === "undefined") return;
+    if (!s || s === "0" || s === "undefined" || s === "null") return;
     specs.push({ label, value: s });
   };
 
-  push("Peso embalagem (g)", data.packWeight ?? data.productWeight ?? data.weight);
-  push("Comprimento (cm)", data.packLength ?? data.length);
-  push("Largura (cm)", data.packWidth ?? data.width);
-  push("Altura (cm)", data.packHeight ?? data.height);
+  push(
+    "Peso embalagem (g)",
+    data.packingWeight ?? data.packWeight ?? data.productWeight ?? data.weight,
+  );
+  push("Peso produto (g)", data.productWeight);
+  push("Comprimento (cm)", data.packLength ?? data.length ?? data.packingLength);
+  push("Largura (cm)", data.packWidth ?? data.width ?? data.packingWidth);
+  push("Altura (cm)", data.packHeight ?? data.height ?? data.packingHeight);
   push("SKU", data.productSku);
   push("Categoria CJ", data.categoryName);
+
+  if (Array.isArray(data.materialNameEnSet)) {
+    push("Material", data.materialNameEnSet.filter(Boolean).join(", "));
+  } else if (typeof data.materialNameEn === "string") {
+    push("Material", data.materialNameEn.replace(/[\[\]"]/g, ""));
+  }
+
+  // Medidas da 1ª variante (mm → cm)
+  if (Array.isArray(data.variants) && data.variants[0] && typeof data.variants[0] === "object") {
+    const v0 = data.variants[0] as Record<string, unknown>;
+    const L = mmToCm(v0.variantLength);
+    const W = mmToCm(v0.variantWidth);
+    const H = mmToCm(v0.variantHeight);
+    if (L) push("Comprimento variante", L);
+    if (W) push("Largura variante", W);
+    if (H) push("Altura variante", H);
+    if (v0.variantWeight != null) push("Peso variante (g)", v0.variantWeight);
+    if (typeof v0.variantStandard === "string" && v0.variantStandard.trim()) {
+      push("Especificação", v0.variantStandard);
+    }
+  }
 
   if (Array.isArray(data.productPropSet)) {
     for (const prop of data.productPropSet) {

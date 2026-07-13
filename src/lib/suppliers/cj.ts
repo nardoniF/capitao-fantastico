@@ -232,25 +232,38 @@ export class CJSupplier implements SupplierAdapter {
 
   async getProductFull(externalId: string): Promise<CjProductFull | null> {
     const token = await this.token();
+    // enable_video = vídeos; countryCode omitido = todas as variantes/estoques
     const data = await cjFetch<Record<string, unknown>>(
-      `/product/query?pid=${encodeURIComponent(externalId)}`,
+      `/product/query?pid=${encodeURIComponent(externalId)}&features=enable_video`,
       { token },
     );
     if (!data) return null;
 
-    const variants = variantsFromCjRaw(data);
-    const gallery = galleryFromCjRaw(data, String(data.productImage || ""));
-    const specs = specsFromCjRaw(data);
-    const videoUrl = videoFromCjRaw(data);
+    // Às vezes a CJ embrulha o produto
+    const product =
+      data.pid || data.productNameEn || data.variants
+        ? data
+        : data.product && typeof data.product === "object"
+          ? (data.product as Record<string, unknown>)
+          : data;
+
+    const variants = variantsFromCjRaw(product);
+    const gallery = galleryFromCjRaw(
+      product,
+      String(product.bigImage || product.productImage || ""),
+    );
+    const specs = specsFromCjRaw(product);
+    const videoUrl = videoFromCjRaw(product);
     const descriptionHtml = String(
-      data.description || data.productDescription || "",
+      product.description || product.productDescription || "",
     );
     const prices = variants.map((v) => v.priceUsd).filter((n) => n > 0);
     const minPrice = prices.length
       ? Math.min(...prices)
-      : Number(data.sellPrice ?? data.nowPrice ?? 0);
-    const stock = variants.reduce((s, v) => s + v.stock, 0) ||
-      Number(data.totalInventory ?? 0);
+      : Number(product.sellPrice ?? product.nowPrice ?? 0);
+    const stock =
+      variants.reduce((s, v) => s + v.stock, 0) ||
+      Number(product.totalInventory ?? 0);
 
     const options: Record<string, string[]> = {};
     for (const v of variants) {
@@ -261,30 +274,39 @@ export class CJSupplier implements SupplierAdapter {
     }
 
     return {
-      pid: String(data.pid || externalId),
-      titleEn:
-        String(data.productNameEn || data.productName || "Produto CJ"),
+      pid: String(product.pid || externalId),
+      titleEn: String(
+        product.productNameEn || product.productName || "Produto CJ",
+      ),
       descriptionHtml,
       descriptionText: stripHtml(descriptionHtml).slice(0, 8000),
       imageUrl: normalizeImageUrl(
-        gallery[0] || data.productImage,
+        gallery[0] || product.bigImage || product.productImage,
         "/brand/logo-mark.png",
       ),
-      gallery: gallery.length ? gallery : [
-        normalizeImageUrl(data.productImage, "/brand/logo-mark.png"),
-      ],
+      gallery: gallery.length
+        ? gallery
+        : [
+            normalizeImageUrl(
+              product.bigImage || product.productImage,
+              "/brand/logo-mark.png",
+            ),
+          ],
       videoUrl,
       categoryName:
-        typeof data.categoryName === "string" ? data.categoryName : undefined,
-      priceUsd: Number.isFinite(minPrice) && minPrice > 0
-        ? minPrice
-        : Number(data.sellPrice ?? data.nowPrice ?? 0) || 0,
+        typeof product.categoryName === "string"
+          ? product.categoryName
+          : undefined,
+      priceUsd:
+        Number.isFinite(minPrice) && minPrice > 0
+          ? minPrice
+          : Number(product.sellPrice ?? product.nowPrice ?? 0) || 0,
       stock,
-      sku: typeof data.productSku === "string" ? data.productSku : undefined,
+      sku: typeof product.productSku === "string" ? product.productSku : undefined,
       variants,
       specs,
       options,
-      raw: data,
+      raw: product,
     };
   }
 
