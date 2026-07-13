@@ -147,6 +147,7 @@ export default function AdminPage() {
   const [searching, setSearching] = useState(false);
   const [importing, setImporting] = useState(false);
   const [autoRunning, setAutoRunning] = useState(false);
+  const [reenrichRunning, setReenrichRunning] = useState(false);
   const [autoLog, setAutoLog] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -342,6 +343,51 @@ export default function AdminPage() {
       setMsg(`Export ${type} baixado`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Falha no export");
+    }
+  }
+
+  async function reenrichThinProducts() {
+    const ok = window.confirm(
+      "Reenricher produtos magros do CJ?\n\nRecarrega fotos, cores, tamanhos, medidas e descrição nos itens que ficaram com 1 foto / sem opções.",
+    );
+    if (!ok) return;
+    setReenrichRunning(true);
+    setError(null);
+    setAutoLog("Reenrich: buscando galeria e opções na CJ…");
+    try {
+      const res = await fetch("/api/admin/cj/reenrich", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-password": password,
+        },
+        body: JSON.stringify({ limit: 25, onlyThin: true }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        ok?: number;
+        fail?: number;
+        skipped?: number;
+        details?: { pid: string; slug?: string; status: string; error?: string }[];
+      };
+      if (!res.ok) throw new Error(data.error || "Falha no reenrich");
+      setMsg(
+        `Reenrich: ${data.ok ?? 0} ok · ${data.fail ?? 0} falhas · ${data.skipped ?? 0} já completos`,
+      );
+      setAutoLog(
+        (data.details || [])
+          .map((d) =>
+            d.error
+              ? `✗ ${d.slug || d.pid}: ${d.error}`
+              : `✓ ${d.slug || d.pid}: ${d.status}`,
+          )
+          .join("\n") || "Nada a reenricher",
+      );
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha no reenrich");
+    } finally {
+      setReenrichRunning(false);
     }
   }
 
@@ -965,6 +1011,16 @@ export default function AdminPage() {
                 : catalog?.slotsLeft === 0
                   ? "Teto cheio"
                   : "Forçar rodada agora (opcional)"}
+            </button>
+            <button
+              type="button"
+              disabled={reenrichRunning}
+              onClick={() => void reenrichThinProducts()}
+              className="mt-3 ml-0 rounded-md border border-gold/50 px-6 py-3 text-sm font-bold text-gold hover:bg-gold/10 disabled:opacity-50 sm:ml-3"
+            >
+              {reenrichRunning
+                ? "Reenrichendo…"
+                : "Restaurar fotos / cores / tamanhos"}
             </button>
             {autoLog ? (
               <pre className="mt-4 max-h-40 overflow-auto whitespace-pre-wrap rounded-md border border-[#333] bg-[#111] p-3 text-xs text-[#ccc]">

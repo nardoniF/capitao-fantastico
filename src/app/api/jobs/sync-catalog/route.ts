@@ -195,10 +195,11 @@ async function sync(request: Request) {
         const prevGallery = Array.isArray(sp.product.gallery)
           ? (sp.product.gallery as string[])
           : [];
+        // Sempre preferir galeria CJ quando for mais completa
         const nextGallery =
-          gallery.length >= prevGallery.length && gallery.length > 0
+          gallery.length > prevGallery.length
             ? gallery
-            : gallery.length > 0 && prevGallery.length === 0
+            : gallery.length > 1
               ? gallery
               : prevGallery.length
                 ? prevGallery

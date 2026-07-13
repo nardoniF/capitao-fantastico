@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AddToCartButtons } from "@/components/AddToCartButtons";
 import { ProductGallery } from "@/components/ProductGallery";
 import { formatBRL } from "@/data/products";
@@ -30,6 +30,11 @@ export function ProductPurchase({
   const [images, setImages] = useState(gallery);
   const [displayPrice, setDisplayPrice] = useState(price);
   const [displayCompare, setDisplayCompare] = useState(compareAt);
+
+  // Galeria atualiza quando o servidor manda fotos novas (reenrich)
+  useEffect(() => {
+    setImages(gallery);
+  }, [gallery]);
 
   const onVariantChange = useCallback(
     (v: StorefrontVariant | null) => {
