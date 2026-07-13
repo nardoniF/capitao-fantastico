@@ -6,7 +6,6 @@ import { formatBRL, type Product } from "@/data/products";
 import { CaptainStrip } from "@/components/CaptainStrip";
 import { useCart } from "@/components/CartProvider";
 import { ProductImage } from "@/components/ProductImage";
-import { siteConfig, whatsappUrl } from "@/lib/site-config";
 
 type UpsellProduct = Product & { complementaryIds?: string[] };
 
@@ -172,13 +171,6 @@ export default function CheckoutPage() {
       setLoading(false);
     }
   }
-
-  const orderText = lines
-    .map(
-      (l) =>
-        `${l.qty}x ${l.product.name}${l.size ? ` (${l.size})` : ""} — ${formatBRL(l.lineTotal)}`,
-    )
-    .join("\n");
 
   return (
     <div className="bg-bg py-10 md:py-14">
@@ -356,16 +348,10 @@ export default function CheckoutPage() {
               {loading ? "Abrindo pagamento…" : "Pagar com Mercado Pago"}
             </button>
 
-            <a
-              href={whatsappUrl(
-                `Pedido ${siteConfig.brand}\n${orderText}\nTotal: ${formatBRL(subtotal)}\nNome: ${name || "—"}\nCEP: ${cep || "—"}`,
-              )}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex w-full justify-center rounded-md border border-[#333] px-6 py-3.5 text-sm font-semibold text-white hover:border-gold hover:text-gold"
-            >
-              Ou finalizar no WhatsApp
-            </a>
+            <p className="text-center text-xs text-muted">
+              Pagamento 100% no site via Mercado Pago (Pix ou cartão). Dúvidas?
+              Fale com a gente pelo WhatsApp — mas o pedido é confirmado aqui.
+            </p>
           </form>
         </section>
 

@@ -40,7 +40,7 @@ export const faqItems = [
   },
   {
     q: "Quais formas de pagamento?",
-    a: "Pix e cartão via Mercado Pago no checkout do site. Também atendemos pedidos pelo WhatsApp.",
+    a: "Pix e cartão via Mercado Pago, direto no checkout do site. O WhatsApp é só para tirar dúvidas e acompanhar o pedido.",
   },
   {
     q: "A nota fiscal é emitida?",
