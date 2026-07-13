@@ -74,6 +74,8 @@ export async function autoImportTopCjProducts(opts?: {
   maxUsd?: number;
   dryRun?: boolean;
   source?: "cron" | "manual" | "force";
+  /** Quantas páginas da CJ varrer por busca (1–5). Mais páginas = pool maior. */
+  pages?: number;
 }): Promise<AutoImportResult> {
   const source = opts?.source ?? "cron";
   const cap = catalogCap();
@@ -83,6 +85,7 @@ export async function autoImportTopCjProducts(opts?: {
   // Lote pedido (máx 30) limitado às vagas do teto
   const batchAsk = Math.min(Math.max(opts?.limit ?? 30, 1), 30);
   const targetImports = Math.min(batchAsk, slotsLeft || 0);
+  const pages = Math.min(Math.max(opts?.pages ?? 1, 1), 5);
   const minUsd = opts?.minUsd ?? 1.5;
   const maxUsd = opts?.maxUsd ?? 35;
   const dryRun = opts?.dryRun === true;
@@ -130,67 +133,77 @@ export async function autoImportTopCjProducts(opts?: {
   const pause = (ms = 900) => new Promise((r) => setTimeout(r, ms));
 
   // 1) VIRALS / trending primeiro
-  try {
-    const trending = await cj.searchProducts({
-      searchType: 2,
-      orderBy: "listedNum",
-      sort: "desc",
-      page: 1,
-      pageSize: 50,
-      minPrice: minUsd,
-      maxPrice: maxUsd,
-      startInventory: 1,
-    });
-    for (const h of trending.list) {
-      if (!isGoodCandidate(h, minUsd, maxUsd)) continue;
-      if (already.has(h.pid)) continue;
-      const storeCategory = mapCjCategoryToStore(h.categoryName, h.title);
-      const score = candidateScore(h, true);
-      byPid.set(h.pid, { ...h, storeCategory, score, viral: true });
+  for (let pg = 1; pg <= pages; pg++) {
+    try {
+      if (pg > 1) await pause();
+      const trending = await cj.searchProducts({
+        searchType: 2,
+        orderBy: "listedNum",
+        sort: "desc",
+        page: pg,
+        pageSize: 50,
+        minPrice: minUsd,
+        maxPrice: maxUsd,
+        startInventory: 1,
+      });
+      if (!trending.list.length) break;
+      for (const h of trending.list) {
+        if (!isGoodCandidate(h, minUsd, maxUsd)) continue;
+        if (already.has(h.pid)) continue;
+        const storeCategory = mapCjCategoryToStore(h.categoryName, h.title);
+        const score = candidateScore(h, true);
+        byPid.set(h.pid, { ...h, storeCategory, score, viral: true });
+      }
+    } catch (e) {
+      console.warn("trending search failed", e);
+      break;
     }
-  } catch (e) {
-    console.warn("trending search failed", e);
   }
 
   await pause();
 
   // 2) Mais listados por nicho
   for (const niche of NICHES) {
-    try {
-      await pause();
-      const { list } = await cj.searchProducts({
-        keyword: niche.keyword,
-        orderBy: "listedNum",
-        sort: "desc",
-        page: 1,
-        pageSize: 40,
-        minPrice: minUsd,
-        maxPrice: maxUsd,
-        startInventory: 1,
-      });
-      let taken = 0;
-      for (const h of list) {
-        if (taken >= niche.quota * 3) break;
-        if (!isGoodCandidate(h, minUsd, maxUsd)) continue;
-        if (already.has(h.pid)) continue;
-        const catOk =
-          niche.catMatch.test(h.categoryName || "") ||
-          niche.catMatch.test(h.title);
-        if (!catOk) continue;
-        const score = candidateScore(h, false, 40 - taken);
-        const prev = byPid.get(h.pid);
-        if (!prev || score > prev.score) {
-          byPid.set(h.pid, {
-            ...h,
-            storeCategory: niche.storeCategory,
-            score,
-            viral: prev?.viral ?? false,
-          });
+    let taken = 0;
+    for (let pg = 1; pg <= pages; pg++) {
+      try {
+        await pause();
+        const { list } = await cj.searchProducts({
+          keyword: niche.keyword,
+          orderBy: "listedNum",
+          sort: "desc",
+          page: pg,
+          pageSize: 40,
+          minPrice: minUsd,
+          maxPrice: maxUsd,
+          startInventory: 1,
+        });
+        if (!list.length) break;
+        for (const h of list) {
+          if (taken >= niche.quota * 3 * pages) break;
+          if (!isGoodCandidate(h, minUsd, maxUsd)) continue;
+          if (already.has(h.pid)) continue;
+          const catOk =
+            niche.catMatch.test(h.categoryName || "") ||
+            niche.catMatch.test(h.title);
+          if (!catOk) continue;
+          const score = candidateScore(h, false, 40 - taken);
+          const prev = byPid.get(h.pid);
+          if (!prev || score > prev.score) {
+            byPid.set(h.pid, {
+              ...h,
+              storeCategory: niche.storeCategory,
+              score,
+              viral: prev?.viral ?? false,
+            });
+          }
+          taken += 1;
         }
-        taken += 1;
+        if (taken >= niche.quota * 3 * pages) break;
+      } catch (e) {
+        console.warn(`niche ${niche.keyword} failed`, e);
+        break;
       }
-    } catch (e) {
-      console.warn(`niche ${niche.keyword} failed`, e);
     }
   }
 
