@@ -75,6 +75,26 @@ type CatalogInfo = {
   slotsLeft: number;
 };
 
+type ImportSummary = {
+  lastRunAt: string | null;
+  lastRunSource: string | null;
+  lastSuccessAt: string | null;
+  lastSuccessName: string | null;
+  last24h: { ok: number; skip: number; error: number; cap: number };
+  lastRoundMessage: string | null;
+};
+
+type Kpis = {
+  ordersTotal: number;
+  ordersPaid: number;
+  revenue: number;
+  commission: number;
+  clicksTotal: number;
+  clicksWhatsapp: number;
+  activeProducts: number;
+  catalogCap: number;
+};
+
 type Tab = "vendas" | "produtos" | "importar" | "markup" | "cliques" | "sugestoes" | "api";
 
 type SearchHit = {
@@ -103,9 +123,11 @@ export default function AdminPage() {
   const [api, setApi] = useState<ApiCheck[]>([]);
   const [importLogs, setImportLogs] = useState<ImportLogRow[]>([]);
   const [catalog, setCatalog] = useState<CatalogInfo | null>(null);
+  const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
+  const [kpis, setKpis] = useState<Kpis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const [markupDraft, setMarkupDraft] = useState("2.3");
+  const [markupDraft, setMarkupDraft] = useState("2.0");
   const [fxDraft, setFxDraft] = useState("5.6");
   const [feeDraft, setFeeDraft] = useState("5");
   const [searchQ, setSearchQ] = useState("");
@@ -135,6 +157,8 @@ export default function AdminPage() {
       api: ApiCheck[];
       importLogs?: ImportLogRow[];
       catalog?: CatalogInfo;
+      kpis?: Kpis;
+      importSummary?: ImportSummary;
     };
     setPricing(data.pricing);
     setProducts(data.products);
@@ -144,6 +168,8 @@ export default function AdminPage() {
     setApi(data.api);
     setImportLogs(data.importLogs || []);
     setCatalog(data.catalog || null);
+    setImportSummary(data.importSummary || null);
+    setKpis(data.kpis || null);
     setMarkupDraft(String(data.pricing.markup));
     setFxDraft(String(data.pricing.fxBrl));
     setFeeDraft(String(Number((data.pricing.feePct * 100).toFixed(2))));
@@ -289,9 +315,28 @@ export default function AdminPage() {
     }
   }
 
+  async function exportCsv(type: "orders" | "clicks" | "products") {
+    try {
+      const res = await fetch(`/api/admin/export?type=${type}`, {
+        headers: { "x-admin-password": password },
+      });
+      if (!res.ok) throw new Error("Falha no export");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${type}-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setMsg(`Export ${type} baixado`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Falha no export");
+    }
+  }
+
   async function autoImportTop30() {
     const ok = window.confirm(
-      "Forçar uma rodada agora? (o cron já faz isso sozinho a cada 2h)\n\nImporta só o que ainda não existe — trending/top CJ.",
+      "Forçar uma rodada agora? (o cron já importa 1× por dia, só com estoque e margem)\n\nImporta só o que ainda não está ativo.",
     );
     if (!ok) return;
     setAutoRunning(true);
@@ -407,13 +452,27 @@ export default function AdminPage() {
             Admin · Capitão Fantástico
           </h1>
           <p className="mt-1 text-sm text-muted">
-            Custo · venda · taxa MP · comissão líquida
+            Só olhar: lucros, pedidos, cliques · a loja vende e envia sozinha
             {pricing
               ? ` · markup ${pricing.markup}× · FX ${pricing.fxBrl} · MP ${(pricing.feePct * 100).toFixed(0)}%`
               : ""}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => void exportCsv("orders")}
+            className="rounded-md border border-line px-4 py-2 text-sm text-white hover:border-gold"
+          >
+            Export vendas
+          </button>
+          <button
+            type="button"
+            onClick={() => void exportCsv("clicks")}
+            className="rounded-md border border-line px-4 py-2 text-sm text-white hover:border-gold"
+          >
+            Export cliques
+          </button>
           <a
             href="https://cjdropshipping.com"
             target="_blank"
@@ -431,6 +490,46 @@ export default function AdminPage() {
           </button>
         </div>
       </div>
+
+      {kpis ? (
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            {
+              label: "Comissão (líquida)",
+              value: formatBRL(kpis.commission),
+              hint: `${kpis.ordersPaid} pedidos pagos+`,
+            },
+            {
+              label: "Faturamento",
+              value: formatBRL(kpis.revenue),
+              hint: `${kpis.ordersTotal} pedidos no total`,
+            },
+            {
+              label: "Cliques",
+              value: String(kpis.clicksTotal),
+              hint: `${kpis.clicksWhatsapp} WhatsApp`,
+            },
+            {
+              label: "Catálogo ativo",
+              value: `${kpis.activeProducts}/${kpis.catalogCap}`,
+              hint: "import 1×/dia · só com estoque",
+            },
+          ].map((c) => (
+            <div
+              key={c.label}
+              className="rounded-[14px] border border-[#333] bg-[#141414] px-4 py-4"
+            >
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+                {c.label}
+              </p>
+              <p className="mt-2 font-[family-name:var(--font-syne)] text-2xl font-bold text-gold">
+                {c.value}
+              </p>
+              <p className="mt-1 text-xs text-muted">{c.hint}</p>
+            </div>
+          ))}
+        </div>
+      ) : null}
 
       <div className="mt-6 flex flex-wrap gap-2">
         {tabs.map((t) => (
@@ -660,9 +759,44 @@ export default function AdminPage() {
             </h2>
             <p className="mt-1 text-sm text-muted">
               Descobre sozinho → publica direto. Prioriza{" "}
-              <strong className="text-white">virais/novos</strong>. Para no teto
-              de ~{catalog?.cap ?? 150} ativos.
+              <strong className="text-white">virais/novos</strong>. Só com
+              estoque e margem. Para no teto de ~{catalog?.cap ?? 150} ativos.
             </p>
+            {importSummary ? (
+              <div className="mt-4 rounded-md border border-[#333] bg-[#111] p-4 text-sm">
+                <p className="text-xs font-semibold uppercase tracking-wider text-gold">
+                  Última atividade do import
+                </p>
+                <p className="mt-2 text-white">
+                  {importSummary.lastRunAt
+                    ? `Rodou ${new Date(importSummary.lastRunAt).toLocaleString("pt-BR")} (${importSummary.lastRunSource || "?"})`
+                    : "Ainda sem rodada registrada"}
+                </p>
+                {importSummary.lastRoundMessage ? (
+                  <p className="mt-1 text-muted">{importSummary.lastRoundMessage}</p>
+                ) : null}
+                <p className="mt-2 text-muted">
+                  Últimas 24h:{" "}
+                  <span className="text-emerald-400">
+                    {importSummary.last24h.ok} ok
+                  </span>
+                  {" · "}
+                  <span className="text-gold">
+                    {importSummary.last24h.skip} skip
+                  </span>
+                  {" · "}
+                  <span className="text-red-400">
+                    {importSummary.last24h.error} erro
+                  </span>
+                </p>
+                <p className="mt-1 text-muted">
+                  Último produto publicado:{" "}
+                  {importSummary.lastSuccessName && importSummary.lastSuccessAt
+                    ? `${importSummary.lastSuccessName} · ${new Date(importSummary.lastSuccessAt).toLocaleString("pt-BR")}`
+                    : "nenhum recente (só skips / sem estoque)"}
+                </p>
+              </div>
+            ) : null}
             {catalog ? (
               <p className="mt-2 text-sm text-white">
                 Catálogo:{" "}
@@ -672,10 +806,15 @@ export default function AdminPage() {
                 {catalog.slotsLeft > 0
                   ? ` · ${catalog.slotsLeft} vagas`
                   : " · teto cheio"}
+                {catalog.activeCount === 0 ? (
+                  <span className="ml-2 text-red-400">
+                    · vitrine vazia (tudo sem estoque CJ)
+                  </span>
+                ) : null}
               </p>
             ) : null}
             <p className="mt-2 text-xs text-muted">
-              Cron a cada 2h · lote ~{5} · botão só força agora
+              Cron 1×/dia · lote ~{12} · botão só força agora
             </p>
             <button
               type="button"

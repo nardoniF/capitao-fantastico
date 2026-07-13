@@ -5,6 +5,7 @@ import { listFeedback } from "@/lib/feedback";
 import {
   catalogCap,
   countActiveProducts,
+  getImportSummary,
   listImportLogs,
 } from "@/lib/import-log";
 
@@ -62,7 +63,7 @@ export type AdminOrderEconomics = {
 async function getPricing(): Promise<PricingSnapshot> {
   if (!process.env.DATABASE_URL) {
     return {
-      markup: Number(process.env.PRICING_MARKUP || 2.3),
+      markup: Number(process.env.PRICING_MARKUP || 2.0),
       fxBrl: Number(process.env.PRICING_FX_BRL || 5.6),
       feePct: 0.05,
     };
@@ -70,7 +71,7 @@ async function getPricing(): Promise<PricingSnapshot> {
   const rule = await prisma.pricingRule.findFirst({ where: { active: true } });
   if (!rule) {
     return {
-      markup: Number(process.env.PRICING_MARKUP || 2.3),
+      markup: Number(process.env.PRICING_MARKUP || 2.0),
       fxBrl: Number(process.env.PRICING_FX_BRL || 5.6),
       feePct: 0.05,
     };
@@ -244,16 +245,60 @@ export async function getAdminApiStatus() {
     name: "CRON auto-import CJ",
     ok: Boolean(process.env.CRON_SECRET?.trim()),
     detail: process.env.CRON_SECRET?.trim()
-      ? `Ativo · lote ${process.env.AUTO_IMPORT_BATCH || 5} / 2h · teto ${catalogCap()}`
+      ? `1×/dia · lote ${process.env.AUTO_IMPORT_BATCH || 12} · teto ${catalogCap()}`
       : "Precisa CRON_SECRET",
+  });
+
+  checks.push({
+    name: "RESEND (e-mails)",
+    ok: Boolean(process.env.RESEND_API_KEY?.trim()),
+    detail: process.env.RESEND_API_KEY?.trim()
+      ? "Configurado"
+      : "Opcional — sem chave os e-mails só logam",
   });
 
   return checks;
 }
 
+export type AdminKpis = {
+  ordersTotal: number;
+  ordersPaid: number;
+  revenue: number;
+  commission: number;
+  clicksTotal: number;
+  clicksWhatsapp: number;
+  activeProducts: number;
+  catalogCap: number;
+};
+
+export function buildAdminKpis(
+  orders: AdminOrderEconomics[],
+  clicks: { tipo: string }[],
+  activeCount: number,
+  cap: number,
+): AdminKpis {
+  const paidLike = orders.filter((o) =>
+    ["paid", "fulfilling", "shipped", "fulfilled"].includes(o.status),
+  );
+  return {
+    ordersTotal: orders.length,
+    ordersPaid: paidLike.length,
+    revenue: Number(
+      paidLike.reduce((s, o) => s + o.charged, 0).toFixed(2),
+    ),
+    commission: Number(
+      paidLike.reduce((s, o) => s + o.commission, 0).toFixed(2),
+    ),
+    clicksTotal: clicks.length,
+    clicksWhatsapp: clicks.filter((c) => c.tipo === "whatsapp").length,
+    activeProducts: activeCount,
+    catalogCap: cap,
+  };
+}
+
 export async function getAdminBundle() {
   const pricing = await getPricing();
-  const [products, orders, clicks, feedback, api, importLogs, activeCount] =
+  const [products, orders, clicks, feedback, api, importLogs, activeCount, importSummary] =
     await Promise.all([
       listAdminProducts(),
       listAdminOrders(),
@@ -262,9 +307,11 @@ export async function getAdminBundle() {
       getAdminApiStatus(),
       listImportLogs(40),
       countActiveProducts(),
+      getImportSummary(),
     ]);
 
   const cap = catalogCap();
+  const kpis = buildAdminKpis(orders, clicks, activeCount, cap);
 
   return {
     pricing,
@@ -273,6 +320,8 @@ export async function getAdminBundle() {
     clicks: clicks.slice(0, 300),
     feedback,
     api,
+    kpis,
+    importSummary,
     importLogs: importLogs.map((l) => ({
       id: l.id,
       source: l.source,

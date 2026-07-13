@@ -42,6 +42,64 @@ export async function listImportLogs(limit = 40) {
   }
 }
 
+export type ImportSummary = {
+  lastRunAt: string | null;
+  lastRunSource: string | null;
+  lastSuccessAt: string | null;
+  lastSuccessName: string | null;
+  last24h: { ok: number; skip: number; error: number; cap: number };
+  lastRoundMessage: string | null;
+};
+
+/** Resumo legível da última atividade de import (admin). */
+export async function getImportSummary(): Promise<ImportSummary> {
+  const empty: ImportSummary = {
+    lastRunAt: null,
+    lastRunSource: null,
+    lastSuccessAt: null,
+    lastSuccessName: null,
+    last24h: { ok: 0, skip: 0, error: 0, cap: 0 },
+    lastRoundMessage: null,
+  };
+  if (!process.env.DATABASE_URL) return empty;
+  try {
+    const since = new Date(Date.now() - 24 * 3600 * 1000);
+    const [last, lastOk, lastRound, groups] = await Promise.all([
+      prisma.importLog.findFirst({ orderBy: { createdAt: "desc" } }),
+      prisma.importLog.findFirst({
+        where: { status: "ok", name: { not: null } },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.importLog.findFirst({
+        where: { status: "ok", message: { startsWith: "Rodada:" } },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.importLog.groupBy({
+        by: ["status"],
+        where: { createdAt: { gte: since } },
+        _count: true,
+      }),
+    ]);
+    const last24h = { ok: 0, skip: 0, error: 0, cap: 0 };
+    for (const g of groups) {
+      if (g.status === "ok") last24h.ok = g._count;
+      else if (g.status === "skip") last24h.skip = g._count;
+      else if (g.status === "error") last24h.error = g._count;
+      else if (g.status === "cap") last24h.cap = g._count;
+    }
+    return {
+      lastRunAt: last?.createdAt.toISOString() ?? null,
+      lastRunSource: last?.source ?? null,
+      lastSuccessAt: lastOk?.createdAt.toISOString() ?? null,
+      lastSuccessName: lastOk?.name ?? null,
+      last24h,
+      lastRoundMessage: lastRound?.message ?? null,
+    };
+  } catch {
+    return empty;
+  }
+}
+
 /** Teto de catálogo ativo (filosofia Capitão: 100–200). */
 export function catalogCap() {
   return Math.min(
