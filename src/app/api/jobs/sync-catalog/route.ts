@@ -112,8 +112,10 @@ async function sync(request: Request) {
       });
 
       if (sp.product) {
+        // Preferir variantes já hidratadas do getProductFull (stock via queryByVid).
+        // variantsFromCjRaw(raw) sozinho vem com stock 0 e derruba a vitrine.
         const allVariants =
-          parsedVariants.length ? parsedVariants : full.variants;
+          full.variants.length > 0 ? full.variants : parsedVariants;
         const seen = new Set<string>();
         let inStockCount = 0;
         const liveOpts: Record<string, string[]> = {};
