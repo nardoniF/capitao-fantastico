@@ -513,13 +513,19 @@ export function OrderHubClient({ orderId }: { orderId: string }) {
             <span className="font-mono text-white">{data.orderId}</span>.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              href={`/central?pedido=${encodeURIComponent(data.orderId)}`}
+              className="rounded-md bg-gold px-5 py-3 text-sm font-bold text-black hover:bg-gold-deep"
+            >
+              🎩 Central do Capitão
+            </Link>
             <a
               href={whatsappUrl(
                 `Olá! Preciso de suporte no pedido ${data.orderId} (${siteConfig.brand}).`,
               )}
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-md bg-gold px-5 py-3 text-sm font-bold text-black hover:bg-gold-deep"
+              className="rounded-md border border-white/25 px-5 py-3 text-sm font-semibold text-white hover:border-gold hover:text-gold"
             >
               WhatsApp
             </a>

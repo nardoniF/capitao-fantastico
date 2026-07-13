@@ -57,6 +57,9 @@ export function SiteFooter() {
               <Link href="/faq" className="hover:text-gold">
                 FAQ
               </Link>
+              <Link href="/central" className="hover:text-gold">
+                Central do Capitão
+              </Link>
               <Link href="/pedido/rastreio" className="hover:text-gold">
                 Meu pedido
               </Link>

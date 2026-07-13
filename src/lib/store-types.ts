@@ -84,6 +84,10 @@ export type Order = {
   }[];
   returnStatus?: "none" | "requested" | "in_progress" | "done" | "denied";
   warrantyStatus?: "none" | "requested" | "in_progress" | "done" | "denied";
+  exchangeStatus?: "none" | "requested" | "in_progress" | "done" | "denied";
+  cancelStatus?: "none" | "requested" | "in_progress" | "done" | "denied";
+  addressChangeStatus?: "none" | "requested" | "in_progress" | "done" | "denied";
+  addressChangeNote?: string;
   /** Índice de Missão — e-mail pós-entrega */
   missionToken?: string;
   missionAskedAt?: string;

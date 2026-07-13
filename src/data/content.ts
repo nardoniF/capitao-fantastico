@@ -23,8 +23,8 @@ export const faqItems = [
     a: "Varia conforme o produto e a sua região. Confirmamos o prazo após a compra e você acompanha tudo na página do pedido.",
   },
   {
-    q: "Como acompanho o pedido?",
-    a: "Use a página do pedido (capitaofantastico.com.br/pedido/SEUCODIGO). Lá estão rastreio, nota fiscal, conversa, devolução, garantia e suporte — sem caçar e-mail. Dúvidas: contato@capitaofantastico.com.br.",
+    q: "Como acompanho meu pedido ou peço troca/devolução?",
+    a: "Use a Central do Capitão (capitaofantastico.com.br/central): onde está o pedido, troca, devolução, garantia, cancelar, alterar endereço e falar com o Capitão. Ou abra a página do pedido /pedido/SEUCODIGO.",
   },
   {
     q: "O suporte é em português?",
@@ -36,7 +36,7 @@ export const faqItems = [
   },
   {
     q: "Posso trocar ou devolver?",
-    a: "Sim, dentro do prazo do CDC (7 dias para arrependimento), com produto sem uso e na embalagem. Fale conosco pelo WhatsApp ou e-mail.",
+    a: "Sim, dentro do prazo do CDC (7 dias para arrependimento), com produto sem uso e na embalagem. Use a Central do Capitão ou fale pelo WhatsApp.",
   },
   {
     q: "Quais formas de pagamento?",

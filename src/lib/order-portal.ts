@@ -66,6 +66,9 @@ export type OrderHubPublic = {
   messages: OrderMessage[];
   returnStatus: ServiceRequestStatus;
   warrantyStatus: ServiceRequestStatus;
+  exchangeStatus: ServiceRequestStatus;
+  cancelStatus: ServiceRequestStatus;
+  addressChangeStatus: ServiceRequestStatus;
   missionToken: string | null;
   missionResponse: "ok" | "help" | null;
 };
@@ -156,6 +159,9 @@ export function toOrderHubPublic(order: Order): OrderHubPublic {
     messages: order.messages || [],
     returnStatus: order.returnStatus || "none",
     warrantyStatus: order.warrantyStatus || "none",
+    exchangeStatus: order.exchangeStatus || "none",
+    cancelStatus: order.cancelStatus || "none",
+    addressChangeStatus: order.addressChangeStatus || "none",
     missionToken:
       order.status === "fulfilled" &&
       !order.missionResponse &&

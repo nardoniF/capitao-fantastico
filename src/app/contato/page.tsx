@@ -23,6 +23,21 @@ export default function ContatoPage() {
           pedido chegar · {siteConfig.company}
         </p>
 
+        <a
+          href="/central"
+          className="mt-8 flex items-center justify-between rounded-xl border border-gold/40 bg-gold/5 px-5 py-4 transition hover:border-gold"
+        >
+          <span>
+            <span className="block text-sm font-semibold uppercase tracking-wider text-gold">
+              🎩 Central do Capitão
+            </span>
+            <span className="mt-1 block text-sm text-muted">
+              Pedido · troca · devolução · garantia · cancelar · endereço
+            </span>
+          </span>
+          <span className="text-gold">→</span>
+        </a>
+
         <div className="mt-10 grid gap-4 sm:grid-cols-2">
           <a
             href={whatsappUrl()}
