@@ -231,31 +231,180 @@ export async function translateToPt(text: string, maxLen = 450): Promise<string>
   }
 }
 
-/** Título comercial: limpa spam + traduz. */
+/**
+ * Título comercial em PT — composto por regras (confiável),
+ * MyMemory só como reforço quando o tipo do produto é desconhecido.
+ */
 export async function localizeProductTitle(titleEn: string): Promise<string> {
-  let t = titleEn
+  let en = titleEn
     .replace(
       /\b(wholesale|dropshipping|cross-border|hot sale|new arrival|free shipping|factory|oem|odm)\b/gi,
       "",
     )
+    .replace(/[|]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 
-  // Atalho: troca palavras conhecidas antes da API
-  for (const [en, pt] of Object.entries(WORD_MAP)) {
-    const re = new RegExp(`\\b${en}\\b`, "gi");
-    t = t.replace(re, pt);
-  }
-
-  if (t.length > 90) {
-    const cut = t.slice(0, 90);
+  if (en.length > 100) {
+    const cut = en.slice(0, 100);
     const sp = cut.lastIndexOf(" ");
-    t = (sp > 40 ? cut.slice(0, sp) : cut).trim();
+    en = (sp > 40 ? cut.slice(0, sp) : cut).trim();
   }
 
-  const translated = await translateToPt(t, 80);
-  // Se a API devolver inglês igual, mantém o com WORD_MAP
-  return (translated || t).slice(0, 90);
+  // 1) Título composto em PT (prioridade — evita mistureba da API)
+  const composed = composeProductTitlePt(en);
+  if (composed) return composed.slice(0, 90);
+
+  // 2) Fallback: traduz frase EN inteira (sem WORD_MAP antes)
+  let pt = await translateToPt(en.slice(0, 80), 100);
+  if (!pt || looksMostlyEnglish(pt) || mixedLanguageJunk(pt)) {
+    pt = dictionaryTitleFallback(en);
+  }
+  return polishPtTitle(pt).slice(0, 90);
+}
+
+/** Detecta título quebrado tipo "portátil Air Cooler ventilador with". */
+function mixedLanguageJunk(text: string): boolean {
+  const hasPt = /[áàâãéêíóôõúç]|portátil|ventilador|jaqueta|teclado|comedouro|vestido/i.test(
+    text,
+  );
+  const hasEn =
+    /\b(with|for|air|cooler|fan|dress|night|light|jacket|heater|board|message|cooling|portable|wireless|electric|mini)\b/i.test(
+      text,
+    );
+  return hasPt && hasEn;
+}
+
+/**
+ * Monta nome de vitrine em português legível a partir do título EN da CJ.
+ */
+export function composeProductTitlePt(titleEn: string): string | null {
+  const t = titleEn.toLowerCase();
+
+  type Rule = { test: RegExp; name: string };
+  const rules: Rule[] = [
+    {
+      test: /heated\s+jacket|heating\s+vest|usb.*jacket|jacket.*usb|thermal.*coat/,
+      name: "Jaqueta térmica aquecida USB",
+    },
+    {
+      test: /gaming.+keyboard|keyboard.+gaming|luminous.+keyboard|wired\s+keyboard/,
+      name: "Teclado gamer USB luminoso",
+    },
+    {
+      test: /pet\s+feeder|food\s+dispenser|auto.+feed|automatic.+feeder/,
+      name: "Comedouro automático inteligente para pets",
+    },
+    {
+      test: /pet\s+water\s+bottle|dog\s+water\s+bottle|feeder\s+bowl.+bag|3\s*in\s*1.+dog\s+water/,
+      name: "Garrafa comedouro pet 3 em 1",
+    },
+    {
+      test: /mandoline|vegetable\s+slicer|potato\s+peeler|onion\s+grater|8\s*in\s*1.+slicer/,
+      name: "Fatiador de legumes 8 em 1",
+    },
+    {
+      test: /cup\s+washer|faucet.+wash|bar\s+counter.+washer|sink.+spray/,
+      name: "Lavador de copos com spray de pressão",
+    },
+    {
+      test: /note\s+board|message\s+board|led\s+night\s+light.+board|message.+night\s+light/,
+      name: "Luminária LED placa de recados",
+    },
+    {
+      test: /starry\s+night|galaxy\s+star|star\s+projection|night\s+light\s+projector/,
+      name: "Projetor de luz estrelada para quarto",
+    },
+    {
+      test: /air\s+conditioner|air\s+cooler|cooling\s+fan|leafless.+fan|water\s+cooling\s+fan|personal\s+air\s+circulator|mini\s+cooling\s+fan/,
+      name: "Climatizador portátil USB / cooler de ar",
+    },
+    {
+      test: /neck\s+fan|hands?\s*free.+fan/,
+      name: "Ventilador de pescoço USB sem fio",
+    },
+    {
+      test: /car\s+vacuum|vacuum\s+cleaner.+car|handheld.+vacuum/,
+      name: "Aspirador portátil para carro",
+    },
+    {
+      test: /spray\s+fan|mist\s+fan|handheld\s+spray/,
+      name: "Ventilador spray portátil com névoa",
+    },
+    {
+      test: /cat\s+toy|interactive\s+cat|cat\s+ball/,
+      name: "Brinquedo interativo para gatos",
+    },
+    {
+      test: /maxi\s+dress|evening\s+dress|party\s+dress|halter\s+neck.+dress|sleeveless\s+dress|satin\s+maxi|summer\s+sleeveless\s+dress|ruffle\s+sleeveless.+dress|long\s+dress/,
+      name: "Vestido longo feminino",
+    },
+    {
+      test: /magnetic\s+charger|3\s*in\s*1.+charg|wireless\s+charg/,
+      name: "Carregador magnético 3 em 1",
+    },
+    {
+      test: /usb.?c?\s+hub|multiport|hdmi.+usb/,
+      name: "Hub USB-C multiporta",
+    },
+    {
+      test: /massage|massager/,
+      name: "Massageador elétrico",
+    },
+    {
+      test: /blender|juicer/,
+      name: "Liquidificador / espremedor portátil USB",
+    },
+  ];
+
+  for (const rule of rules) {
+    if (rule.test.test(t)) return rule.name;
+  }
+  return null;
+}
+
+function looksMostlyEnglish(text: string): boolean {
+  const words = text.toLowerCase().split(/\s+/).filter(Boolean);
+  if (words.length < 2) {
+    return /[a-z]{4,}/i.test(text) && !looksPortuguese(text);
+  }
+  const enHits = words.filter((w) =>
+    /^(the|and|with|for|from|portable|wireless|electric|mini|usb|led|air|cooler|fan|dress|night|light|jacket|heater|board|message|kitchen|pet|dog|cat|cooling|pieces|sets|straps|sleeveless)$/i.test(
+      w,
+    ),
+  ).length;
+  return enHits >= Math.max(2, Math.ceil(words.length * 0.3));
+}
+
+function dictionaryTitleFallback(en: string): string {
+  let t = en;
+  // Ordem: palavras longas primeiro
+  const entries = Object.entries(WORD_MAP).sort((a, b) => b[0].length - a[0].length);
+  for (const [eng, pt] of entries) {
+    t = t.replace(new RegExp(`\\b${eng}\\b`, "gi"), pt);
+  }
+  return t;
+}
+
+/** Capitaliza e limpa resto de inglês óbvio no título PT. */
+function polishPtTitle(raw: string): string {
+  let t = raw
+    .replace(/\s+/g, " ")
+    .replace(/\b(For|With|And|The|Of)\b/g, (m) => {
+      const map: Record<string, string> = {
+        For: "para",
+        With: "com",
+        And: "e",
+        The: "",
+        Of: "de",
+      };
+      return map[m] ?? m;
+    })
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (t) t = t.charAt(0).toUpperCase() + t.slice(1);
+  return t.replace(/\s{2,}/g, " ").trim();
 }
 
 export async function localizeOptions(
