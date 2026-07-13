@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
 import { WhatsAppFloat } from "@/components/WhatsAppFloat";
 import { SuggestionsFab } from "@/components/SuggestionsFab";
+import { SiteClickAnalytics } from "@/components/SiteClickAnalytics";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -13,6 +14,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      {!isAdmin ? <SiteClickAnalytics /> : null}
       {!isHome && !isAdmin ? <SiteHeader variant="solid" /> : null}
       {children}
       {!isAdmin ? <SiteFooter /> : null}

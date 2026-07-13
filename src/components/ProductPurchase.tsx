@@ -54,7 +54,7 @@ export function ProductPurchase({
   );
 
   return (
-    <div className="grid gap-8 md:grid-cols-2 md:gap-12">
+    <div className="grid gap-10 md:grid-cols-2 md:gap-14 lg:gap-16">
       <ProductGallery images={images} alt={name} />
       <div className="flex flex-col">
         <div className="mt-0 flex items-baseline gap-3">
@@ -67,7 +67,7 @@ export function ProductPurchase({
             </span>
           ) : null}
         </div>
-        <p className="mt-1 text-xs text-muted">
+        <p className="mt-2 text-xs text-muted">
           Preço da unidade · frete calculado após o pedido
         </p>
 
@@ -81,7 +81,7 @@ export function ProductPurchase({
           onVariantChange={onVariantChange}
         />
 
-        <p className="mt-5 text-sm text-[#666]">
+        <p className="mt-6 text-sm leading-relaxed text-[#666]">
           Frete após o pedido · Pix/cartão via Mercado Pago · Suporte em
           português até chegar ·{" "}
           <a href="/pedido/rastreio" className="text-gold hover:underline">

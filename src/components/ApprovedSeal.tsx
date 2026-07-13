@@ -18,7 +18,7 @@ export function ApprovedSeal({
   }
 
   return (
-    <div className="inline-flex max-w-xl flex-col gap-3 rounded-[14px] border border-gold/40 bg-gold/10 px-4 py-3">
+    <div className="inline-flex max-w-xl flex-col gap-3.5 rounded-[14px] border border-gold/40 bg-gold/10 px-5 py-4">
       <div className="flex flex-wrap items-center gap-3">
         <span className="text-sm font-bold uppercase tracking-wide text-gold">
           Aprovado pelo Capitão

@@ -239,6 +239,20 @@ model Feedback {
   @@index([kind])
 }
 
+/// Log de cliques / pageviews (estilo Sensor Tattoo Fix)
+model ClickEvent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  tipo      String
+  rotulo    String?
+  pagina    String?
+  href      String?
+  secao     String?
+
+  @@index([createdAt])
+  @@index([tipo])
+}
+
 /// Log simplificado de imports CJ (cron / manual)
 model ImportLog {
   id        String   @id @default(cuid())

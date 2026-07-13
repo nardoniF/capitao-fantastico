@@ -28,6 +28,9 @@ export function SiteFooter() {
           <div className="flex flex-wrap gap-3">
             <Link
               href="/produtos"
+              data-evento="clique_produtos"
+              data-rotulo="Footer Ver Produtos"
+              data-secao="footer"
               className="rounded-md bg-gold px-5 py-2.5 text-sm font-bold text-black hover:bg-gold-deep"
             >
               Ver Produtos Aprovados
@@ -36,6 +39,9 @@ export function SiteFooter() {
               href={whatsappUrl()}
               target="_blank"
               rel="noopener noreferrer"
+              data-evento="clique_whatsapp"
+              data-rotulo="Footer WhatsApp"
+              data-secao="footer"
               className="rounded-md border border-white/20 px-5 py-2.5 text-sm font-semibold hover:border-gold hover:text-gold"
             >
               WhatsApp

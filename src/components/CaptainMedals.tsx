@@ -7,7 +7,7 @@ export function CaptainMedals({
 }) {
   if (!medals.length) return null;
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-2.5">
       {medals.map((m) => (
         <span
           key={m}

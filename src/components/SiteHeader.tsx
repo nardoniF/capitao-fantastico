@@ -59,6 +59,9 @@ export function SiteHeader({ variant = "solid" }: { variant?: "solid" | "hero" }
           </Link>
           <Link
             href="/carrinho"
+            data-evento="clique_carrinho"
+            data-rotulo="Header Carrinho"
+            data-secao="header"
             className="relative rounded-md bg-gold px-3 py-2 font-semibold text-black transition hover:bg-gold-deep"
           >
             Carrinho

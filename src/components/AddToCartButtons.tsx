@@ -138,18 +138,11 @@ export function AddToCartButtons({
       unitPrice: matchedVariant?.salePrice,
       sku: matchedVariant?.sku || undefined,
     });
-    void import("@/lib/track-click").then(({ trackClick }) =>
-      trackClick({
-        tipo: goCart ? "buy_now" : "add_to_cart",
-        rotulo: productId,
-        secao: "pdp",
-      }),
-    );
     if (goCart) window.location.href = "/carrinho";
   }
 
   return (
-    <div className="mt-8 space-y-4">
+    <div className="mt-10 space-y-5">
       {liveColors.length > 0 ? (
         <div>
           <p className="text-sm font-semibold text-white">
@@ -225,6 +218,9 @@ export function AddToCartButtons({
         <button
           type="button"
           disabled={outOfStock}
+          data-evento="add_to_cart"
+          data-rotulo={productId}
+          data-secao="pdp"
           onClick={() => addWithOptions(false)}
           className="rounded-md bg-gold px-6 py-3.5 text-sm font-bold text-black transition hover:bg-gold-deep disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -233,6 +229,9 @@ export function AddToCartButtons({
         <button
           type="button"
           disabled={outOfStock}
+          data-evento="buy_now"
+          data-rotulo={productId}
+          data-secao="pdp"
           onClick={() => addWithOptions(true)}
           className="rounded-md border border-white/25 px-6 py-3.5 text-sm font-bold text-white transition hover:border-gold hover:text-gold disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -240,6 +239,9 @@ export function AddToCartButtons({
         </button>
         <Link
           href="/sugestoes"
+          data-evento="clique_sugestoes"
+          data-rotulo="Fale com o Capitão"
+          data-secao="pdp"
           className="rounded-md px-3 py-3.5 text-sm text-muted hover:text-gold"
         >
           Ainda com dúvida? Fale com o Capitão

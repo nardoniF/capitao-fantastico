@@ -216,6 +216,32 @@ export async function listOrders() {
 }
 
 export async function logClick(input: Omit<ClickEvent, "id" | "createdAt">) {
+  // Neon = fonte de verdade (Vercel não persiste JSON em disco)
+  if (process.env.DATABASE_URL) {
+    try {
+      const row = await prisma.clickEvent.create({
+        data: {
+          tipo: input.tipo.slice(0, 64),
+          rotulo: input.rotulo?.slice(0, 200) || null,
+          pagina: input.pagina?.slice(0, 200) || null,
+          href: input.href?.slice(0, 500) || null,
+          secao: input.secao?.slice(0, 80) || null,
+        },
+      });
+      return {
+        id: row.id,
+        createdAt: row.createdAt.toISOString(),
+        tipo: row.tipo,
+        rotulo: row.rotulo || undefined,
+        pagina: row.pagina || undefined,
+        href: row.href || undefined,
+        secao: row.secao || undefined,
+      } satisfies ClickEvent;
+    } catch (e) {
+      console.error("logClick prisma", e);
+    }
+  }
+
   const store = await getStore();
   const click: ClickEvent = {
     ...input,
@@ -229,6 +255,27 @@ export async function logClick(input: Omit<ClickEvent, "id" | "createdAt">) {
 }
 
 export async function listClicks() {
+  if (process.env.DATABASE_URL) {
+    try {
+      const rows = await prisma.clickEvent.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 500,
+      });
+      return rows.map(
+        (row): ClickEvent => ({
+          id: row.id,
+          createdAt: row.createdAt.toISOString(),
+          tipo: row.tipo,
+          rotulo: row.rotulo || undefined,
+          pagina: row.pagina || undefined,
+          href: row.href || undefined,
+          secao: row.secao || undefined,
+        }),
+      );
+    } catch (e) {
+      console.error("listClicks prisma", e);
+    }
+  }
   const store = await getStore();
   return store.clicks;
 }

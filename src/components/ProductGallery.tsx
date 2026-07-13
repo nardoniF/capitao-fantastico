@@ -15,7 +15,7 @@ export function ProductGallery({
   const current = gallery[Math.min(active, gallery.length - 1)];
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="overflow-hidden rounded-[14px] border border-[#333] bg-[#1a1a1a]">
         <ProductImage
           src={current}
@@ -24,7 +24,7 @@ export function ProductGallery({
         />
       </div>
       {gallery.length > 1 ? (
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex gap-2.5 overflow-x-auto pb-1">
           {gallery.map((src, i) => (
             <button
               key={`${src}-${i}`}

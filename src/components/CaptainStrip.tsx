@@ -9,7 +9,7 @@ export function CaptainStrip({
   message?: string;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-[14px] border border-gold/30 bg-gold/5 px-4 py-3">
+    <div className="flex items-center gap-4 rounded-[14px] border border-gold/30 bg-gold/5 px-5 py-4">
       <Image
         src="/brand/logo-mark.png"
         alt=""

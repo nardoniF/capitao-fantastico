@@ -75,13 +75,13 @@ export default async function ProductDetailPage({ params }: Props) {
   });
 
   return (
-    <div className="bg-bg py-8 md:py-12">
-      <div className="mx-auto max-w-[1200px] px-5 md:px-6">
-        <div className="mb-6">
+    <div className="bg-bg py-10 md:py-14">
+      <div className="mx-auto max-w-[1100px] px-6 md:px-10 lg:px-12">
+        <div className="mb-8">
           <CaptainStrip message="Produto curado pelo Capitão — suporte em português e rastreio no site até chegar." />
         </div>
 
-        <p className="mb-6 text-sm text-muted">
+        <p className="mb-8 text-sm text-muted">
           <Link href="/produtos" className="hover:text-gold">
             Produtos
           </Link>
@@ -89,31 +89,31 @@ export default async function ProductDetailPage({ params }: Props) {
           <span className="text-white/80">{product.name}</span>
         </p>
 
-        <div className="mb-8">
+        <div className="mb-10 md:mb-12">
           <p className="text-sm font-semibold uppercase tracking-[0.16em] text-gold">
             {categoryLabels[product.category]}
           </p>
-          <h1 className="mt-2 font-[family-name:var(--font-syne)] text-3xl font-bold text-white md:text-4xl">
+          <h1 className="mt-3 font-[family-name:var(--font-syne)] text-3xl font-bold text-white md:text-4xl">
             {product.name}
           </h1>
           {product.approved ? (
-            <div className="mt-4 space-y-3">
+            <div className="mt-5 space-y-4">
               <ApprovedSeal score={siteConfig.captainScore} />
               <CaptainMedals medals={medals} />
             </div>
           ) : null}
-          <p className="mt-4 max-w-2xl text-lg font-medium leading-relaxed text-white">
+          <p className="mt-6 max-w-2xl text-lg font-medium leading-relaxed text-white">
             {product.blurb}
           </p>
           {product.description &&
           product.description.trim() !== product.blurb.trim() ? (
-            <p className="mt-3 max-w-2xl text-base leading-relaxed text-[#bbb]">
+            <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#bbb]">
               {product.description}
             </p>
           ) : null}
 
           {details.highlights?.length ? (
-            <ul className="mt-5 max-w-2xl space-y-2">
+            <ul className="mt-6 max-w-2xl space-y-2.5">
               {details.highlights
                 .filter(
                   (h) =>
@@ -146,8 +146,8 @@ export default async function ProductDetailPage({ params }: Props) {
         />
 
         {videoUrl ? (
-          <div id="video-capitao" className="mt-10">
-            <h2 className="mb-3 font-[family-name:var(--font-syne)] text-xl font-bold text-white">
+          <div id="video-capitao" className="mt-12 md:mt-14">
+            <h2 className="mb-4 font-[family-name:var(--font-syne)] text-xl font-bold text-white">
               Veja funcionando
             </h2>
             <div className="overflow-hidden rounded-[14px] border border-[#333] bg-black">

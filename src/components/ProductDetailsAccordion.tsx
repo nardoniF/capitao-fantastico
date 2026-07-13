@@ -162,7 +162,7 @@ export function ProductDetailsAccordion({
   }
 
   return (
-    <div className="mt-8 divide-y divide-[#333] rounded-[14px] border border-[#333] bg-[#1a1a1a]">
+    <div className="mt-12 divide-y divide-[#333] rounded-[14px] border border-[#333] bg-[#1a1a1a] md:mt-14">
       {sections.map((section, index) => (
         <AccordionItem
           key={section.id}
@@ -192,7 +192,7 @@ function AccordionItem({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left md:px-5"
+        className="flex w-full items-center justify-between gap-3 px-5 py-5 text-left md:px-6 md:py-5"
         aria-expanded={open}
       >
         <span className="font-semibold text-white">{title}</span>
@@ -203,7 +203,9 @@ function AccordionItem({
           ▾
         </span>
       </button>
-      {open ? <div className="px-4 pb-5 md:px-5">{children}</div> : null}
+      {open ? (
+        <div className="px-5 pb-6 md:px-6 md:pb-7">{children}</div>
+      ) : null}
     </div>
   );
 }
