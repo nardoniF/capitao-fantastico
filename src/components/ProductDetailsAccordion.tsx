@@ -12,16 +12,31 @@ type Section = {
 export function ProductDetailsAccordion({
   description,
   details,
+  productName,
 }: {
   description: string;
   details: ProductDetails;
+  productName?: string;
 }) {
   const sections: Section[] = [];
 
+  sections.push({
+    id: "capitao",
+    title: "O que o Capitão achou",
+    body: (
+      <p className="text-sm leading-relaxed text-[#aaa]">
+        {productName
+          ? `${productName} passou pelo filtro do Capitão: resolve de verdade, vale o preço e merece o selo.`
+          : "Passou pelo filtro do Capitão: resolve de verdade, vale o preço e merece o selo."}{" "}
+        Avaliação com nota alta e suporte em português até o pedido chegar.
+      </p>
+    ),
+  });
+
   if (details.useCases?.length) {
     sections.push({
-      id: "casos",
-      title: "Para que serve (casos de uso)",
+      id: "problema",
+      title: "Qual problema resolve?",
       body: (
         <ul className="space-y-2">
           {details.useCases.map((u) => (
@@ -31,6 +46,32 @@ export function ProductDetailsAccordion({
               </span>
               <span>{u}</span>
             </li>
+          ))}
+        </ul>
+      ),
+    });
+  }
+
+  if (details.howToUse) {
+    sections.push({
+      id: "como",
+      title: "Como funciona?",
+      body: (
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#aaa]">
+          {details.howToUse}
+        </p>
+      ),
+    });
+  }
+
+  if (details.includes?.length) {
+    sections.push({
+      id: "incluso",
+      title: "O que acompanha",
+      body: (
+        <ul className="list-disc space-y-1 pl-5 text-sm text-[#aaa]">
+          {details.includes.map((item) => (
+            <li key={item}>{item}</li>
           ))}
         </ul>
       ),
@@ -49,7 +90,11 @@ export function ProductDetailsAccordion({
     });
   }
 
-  if (details.measurements?.length || details.colors?.length || details.sizes?.length) {
+  if (
+    details.measurements?.length ||
+    details.colors?.length ||
+    details.sizes?.length
+  ) {
     sections.push({
       id: "medidas",
       title: "Medidas, cores e tamanhos",
@@ -75,26 +120,32 @@ export function ProductDetailsAccordion({
                   className="flex justify-between gap-4 border-b border-[#2a2a2a] pb-2 text-sm"
                 >
                   <span className="text-muted">{m.label}</span>
-                  <span className="text-right font-medium text-white">{m.value}</span>
+                  <span className="text-right font-medium text-white">
+                    {m.value}
+                  </span>
                 </li>
               ))}
             </ul>
-          ) : null}
-          {details.sizeNote ? (
-            <p className="text-sm text-[#888]">{details.sizeNote}</p>
-          ) : null}
-          {details.adjustable ? (
-            <p className="text-sm text-gold">Ajustável — adapta ao uso.</p>
           ) : null}
         </div>
       ),
     });
   }
 
+  sections.push({
+    id: "avaliacao",
+    title: "Avaliação do Capitão",
+    body: (
+      <p className="text-sm text-[#aaa]">
+        Nota 9,8 · ★★★★★ — curadoria própria. Se não resolve, não entra.
+      </p>
+    ),
+  });
+
   if (details.faqs?.length) {
     sections.push({
       id: "faq",
-      title: "Dúvidas frequentes",
+      title: "Perguntas frequentes",
       body: (
         <ul className="space-y-4">
           {details.faqs.map((f) => (
@@ -107,47 +158,6 @@ export function ProductDetailsAccordion({
       ),
     });
   }
-
-  if (details.includes?.length) {
-    sections.push({
-      id: "incluso",
-      title: "O que vem na caixa",
-      body: (
-        <ul className="list-disc space-y-1 pl-5 text-sm text-[#aaa]">
-          {details.includes.map((item) => (
-            <li key={item}>{item}</li>
-          ))}
-        </ul>
-      ),
-    });
-  }
-
-  if (details.howToUse) {
-    sections.push({
-      id: "uso",
-      title: "Como usar",
-      body: (
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#aaa]">
-          {details.howToUse}
-        </p>
-      ),
-    });
-  }
-
-  if (details.materials || details.care) {
-    sections.push({
-      id: "material",
-      title: "Material e cuidados",
-      body: (
-        <div className="space-y-2 text-sm text-[#aaa]">
-          {details.materials ? <p>{details.materials}</p> : null}
-          {details.care ? <p>{details.care}</p> : null}
-        </div>
-      ),
-    });
-  }
-
-  if (!sections.length) return null;
 
   return (
     <div className="mt-8 divide-y divide-[#333] rounded-[14px] border border-[#333] bg-[#1a1a1a]">

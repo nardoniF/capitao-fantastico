@@ -1,13 +1,13 @@
 /**
- * Configuração da marca Capitão Fantástico.
- * Checkout: Mercado Pago (MP_ACCESS_TOKEN no .env.local).
+ * Tom de voz e presença do Capitão Fantástico na loja.
  */
 export const siteConfig = {
   brand: "Capitão Fantástico",
   slogan: "Só entra aqui o que o Capitão aprova.",
-  tagline: "Produtos incríveis. Soluções inteligentes.",
+  tagline: "Descobrimos os produtos mais inteligentes do mundo.",
   positioning:
-    "O Capitão Fantástico testa e seleciona os produtos mais incríveis. Só entra na loja aquilo que realmente resolve um problema.",
+    "Tecnologia, casa, carro, pets e muito mais — com curadoria, suporte em português e rastreio no site.",
+  heroSupport: "Só entra aqui o que o Capitão aprova.",
   company: "3N20 Soluções Tecnológicas Ltda",
   cnpj: "29.321.223/0001-32",
   email: "contato@capitaofantastico.com.br",
@@ -15,6 +15,8 @@ export const siteConfig = {
   social: {
     instagram: "https://instagram.com/capitaofantastico",
   },
+  captainQuote: "Esse é um dos meus favoritos. Uso e recomendo.",
+  captainScore: 9.8,
 } as const;
 
 export function whatsappUrl(text?: string) {

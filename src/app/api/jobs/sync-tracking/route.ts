@@ -1,4 +1,9 @@
 import { NextResponse } from "next/server";
+import {
+  emailDelivered,
+  emailShipped,
+  emailTrackingUpdate,
+} from "@/lib/email";
 import { listOrders, updateOrder } from "@/lib/store-db";
 import {
   appendTrackingEvent,
@@ -14,10 +19,6 @@ function authorized(request: Request) {
   return header === `Bearer ${secret}`;
 }
 
-/**
- * Cron: puxa rastreio/status da CJ e atualiza o sensor do pedido no site.
- * GET/POST /api/jobs/sync-tracking
- */
 export async function GET(request: Request) {
   return run(request);
 }
@@ -54,6 +55,7 @@ async function run(request: Request) {
       const carrier = track.carrier || order.trackingCarrier || undefined;
       const mapped = mapCjStatusToOrder(track.status, Boolean(code));
 
+      const prevStatus = order.status;
       let nextStatus = order.status;
       if (mapped === "fulfilled") nextStatus = "fulfilled";
       else if (mapped === "shipped" && order.status !== "fulfilled") {
@@ -63,21 +65,22 @@ async function run(request: Request) {
         (order.status === "paid" || order.status === "fulfilling")
       ) {
         nextStatus = "fulfilling";
-      } else if (code && order.status === "paid") {
+      } else if (code && (order.status === "paid" || order.status === "fulfilling")) {
         nextStatus = "shipped";
       }
+
+      const detail = [
+        code ? `Rastreio ${code}` : null,
+        carrier,
+        track.status ? `CJ: ${track.status}` : null,
+      ]
+        .filter(Boolean)
+        .join(" · ");
 
       const events = appendTrackingEvent(order.trackingEvents, {
         at: new Date().toISOString(),
         label: statusLabel(nextStatus),
-        detail:
-          [
-            code ? `Rastreio ${code}` : null,
-            carrier,
-            track.status ? `CJ: ${track.status}` : null,
-          ]
-            .filter(Boolean)
-            .join(" · ") || undefined,
+        detail: detail || undefined,
       });
 
       const changed =
@@ -94,6 +97,43 @@ async function run(request: Request) {
           trackingEvents: events,
         });
         updated += 1;
+
+        // E-mails só quando o status “sobe”
+        if (nextStatus === "shipped" && prevStatus !== "shipped") {
+          await emailShipped({
+            orderId: order.orderId,
+            email: order.email,
+            nome: order.nome,
+            trackingCode: code,
+            carrier,
+          });
+        } else if (nextStatus === "fulfilled" && prevStatus !== "fulfilled") {
+          await emailDelivered({
+            orderId: order.orderId,
+            email: order.email,
+            nome: order.nome,
+          });
+        } else if (
+          nextStatus === prevStatus &&
+          code &&
+          code !== order.supplierTracking
+        ) {
+          await emailTrackingUpdate({
+            orderId: order.orderId,
+            email: order.email,
+            nome: order.nome,
+            label: "Atualização de rastreio",
+            detail: detail || undefined,
+          });
+        } else if (events.length > (order.trackingEvents?.length || 0)) {
+          await emailTrackingUpdate({
+            orderId: order.orderId,
+            email: order.email,
+            nome: order.nome,
+            label: statusLabel(nextStatus),
+            detail: detail || undefined,
+          });
+        }
       }
     } catch (e) {
       errors.push(

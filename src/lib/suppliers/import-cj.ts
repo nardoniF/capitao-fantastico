@@ -56,7 +56,7 @@ export async function importCJProductFull(opts: {
     (await prisma.pricingRule.create({
       data: {
         name: "default",
-        markup: Number(process.env.PRICING_MARKUP || 2.3),
+        markup: Number(process.env.PRICING_MARKUP || 2.0),
         fxBrl: Number(process.env.PRICING_FX_BRL || 5.6),
         feePct: 0.05,
       },

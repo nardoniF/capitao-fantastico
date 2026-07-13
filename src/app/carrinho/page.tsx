@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { formatBRL } from "@/data/products";
+import { CaptainStrip } from "@/components/CaptainStrip";
 import { useCart } from "@/components/CartProvider";
 import { ProductImage } from "@/components/ProductImage";
 
@@ -31,7 +32,10 @@ export default function CartPage() {
         <h1 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-white md:text-4xl">
           Carrinho
         </h1>
-        <ul className="mt-10 divide-y divide-line rounded-[14px] border border-[#333] bg-[#1a1a1a]">
+        <div className="mt-4">
+          <CaptainStrip message="Você está no carrinho do Capitão. Compra segura, suporte em português e rastreio no site." />
+        </div>
+        <ul className="mt-8 divide-y divide-line rounded-[14px] border border-[#333] bg-[#1a1a1a]">
           {lines.map(({ product, qty, lineTotal, size }) => (
             <li
               key={`${product.id}-${size || ""}`}

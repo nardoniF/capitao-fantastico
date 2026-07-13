@@ -1,9 +1,13 @@
 import { NextResponse } from "next/server";
 import { findOrderById, updateOrder } from "@/lib/store-db";
+import { afterPaymentApproved } from "@/lib/fulfill-order";
+import {
+  appendTrackingEvent,
+  statusLabel,
+} from "@/lib/order-tracking";
 
 /**
- * Webhook Mercado Pago — marca pedido como pago quando payment.status === approved.
- * Configure a URL pública: https://seu-dominio/api/webhooks/mercadopago
+ * Webhook Mercado Pago — marca pago, e-mail, fulfill CJ automático.
  */
 export async function POST(request: Request) {
   try {
@@ -25,7 +29,7 @@ export async function POST(request: Request) {
       topic = topic || body.type || body.action || null;
       id = id || body.data?.id || null;
     } catch {
-      /* query-only notification */
+      /* query-only */
     }
 
     if (!id) {
@@ -33,10 +37,7 @@ export async function POST(request: Request) {
     }
 
     const isPayment =
-      !topic ||
-      topic === "payment" ||
-      topic.includes("payment");
-
+      !topic || topic === "payment" || topic.includes("payment");
     if (!isPayment) {
       return NextResponse.json({ ok: true, skipped: topic });
     }
@@ -69,9 +70,6 @@ export async function POST(request: Request) {
 
     if (payment.status === "approved") {
       if (order.status === "pending_payment" || order.status === "cancelled") {
-        const { appendTrackingEvent, statusLabel } = await import(
-          "@/lib/order-tracking"
-        );
         await updateOrder(orderId, {
           status: "paid",
           paymentRef: String(payment.id),
@@ -81,8 +79,16 @@ export async function POST(request: Request) {
             detail: "Pagamento aprovado via Mercado Pago",
           }),
         });
+        const refreshed = await findOrderById(orderId);
+        if (refreshed) {
+          // fire-and-forget safe: await so Vercel doesn't kill
+          await afterPaymentApproved(refreshed);
+        }
       } else if (!order.paymentRef) {
         await updateOrder(orderId, { paymentRef: String(payment.id) });
+        if (!order.supplierOrderId && order.status === "paid") {
+          await afterPaymentApproved(order);
+        }
       }
     }
 
@@ -93,7 +99,6 @@ export async function POST(request: Request) {
   }
 }
 
-/** MP também pode bater GET em alguns fluxos */
 export async function GET(request: Request) {
   return POST(request);
 }

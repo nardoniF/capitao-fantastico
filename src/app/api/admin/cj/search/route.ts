@@ -56,7 +56,7 @@ export async function POST(request: Request) {
     );
 
     const rule = await prisma.pricingRule.findFirst({ where: { active: true } });
-    const markup = Number(rule?.markup ?? process.env.PRICING_MARKUP ?? 2.3);
+    const markup = Number(rule?.markup ?? process.env.PRICING_MARKUP ?? 2.0);
     const fxBrl = Number(rule?.fxBrl ?? process.env.PRICING_FX_BRL ?? 5.6);
     const feePct = Number(rule?.feePct ?? 0.05);
 

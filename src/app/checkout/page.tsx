@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { formatBRL, type Product } from "@/data/products";
+import { CaptainStrip } from "@/components/CaptainStrip";
 import { useCart } from "@/components/CartProvider";
 import { ProductImage } from "@/components/ProductImage";
 import { siteConfig, whatsappUrl } from "@/lib/site-config";
@@ -125,6 +126,14 @@ export default function CheckoutPage() {
       const orderId = orderData.order?.orderId;
       if (!orderId) throw new Error("Pedido sem ID");
 
+      void import("@/lib/track-click").then(({ trackClick }) =>
+        trackClick({
+          tipo: "checkout_start",
+          rotulo: orderId,
+          secao: "checkout",
+        }),
+      );
+
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -202,6 +211,9 @@ export default function CheckoutPage() {
           <p className="mt-2 text-muted">
             Preencha seus dados e o endereço. Pagamento seguro no Mercado Pago.
           </p>
+          <div className="mt-4">
+            <CaptainStrip message="Checkout do Capitão: Pix/cartão via Mercado Pago, suporte em português e rastreio no site." />
+          </div>
 
           <form
             className="mt-8 space-y-5 rounded-[14px] border border-[#333] bg-[#1a1a1a] p-5 md:p-7"

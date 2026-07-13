@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 import { siteConfig } from "@/lib/site-config";
 
@@ -24,23 +23,26 @@ export function Hero() {
             {siteConfig.brand}
           </p>
           <h1 className="mt-3 max-w-xl font-[family-name:var(--font-syne)] text-3xl font-bold leading-tight md:text-5xl">
-            {siteConfig.slogan}
+            {siteConfig.tagline}
           </h1>
-          <p className="mt-4 max-w-lg text-base text-muted md:text-lg">
+          <p className="mt-4 max-w-lg text-lg font-semibold text-gold md:text-xl">
+            {siteConfig.heroSupport}
+          </p>
+          <p className="mt-3 max-w-lg text-base text-muted md:text-lg">
             {siteConfig.positioning}
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <Link
               href="/produtos"
-              className="inline-flex rounded-md bg-gold px-6 py-3 text-sm font-bold text-black hover:bg-gold-deep"
+              className="inline-flex rounded-md bg-gold px-6 py-3.5 text-sm font-bold text-black hover:bg-gold-deep"
             >
-              Ver aprovados
+              Ver Produtos Aprovados
             </Link>
             <Link
-              href="/#novidades"
-              className="inline-flex rounded-md border border-white/25 px-6 py-3 text-sm font-semibold text-white hover:border-gold hover:text-gold"
+              href="/#quiz-capitao"
+              className="inline-flex rounded-md border border-white/25 px-6 py-3.5 text-sm font-semibold text-white hover:border-gold hover:text-gold"
             >
-              Novidades
+              Descobrir para mim
             </Link>
           </div>
         </div>
@@ -50,14 +52,13 @@ export function Hero() {
             aria-hidden
             className="pointer-events-none absolute left-1/2 top-1/2 h-[78%] w-[78%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gold/25 blur-3xl"
           />
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src="/brand/logo.png"
             alt="Capitão Fantástico"
             width={1024}
             height={1024}
-            priority
             className="relative h-auto w-full drop-shadow-[0_0_48px_rgba(255,193,7,0.28)]"
-            sizes="(max-width: 768px) 392px, 504px"
           />
         </div>
       </div>

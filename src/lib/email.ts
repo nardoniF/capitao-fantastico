@@ -62,11 +62,13 @@ function wrap(title: string, bodyHtml: string) {
   return `<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;background:#0a0a0a;color:#eee;padding:24px">
   <div style="max-width:560px;margin:0 auto;background:#141414;border:1px solid #333;border-radius:12px;padding:28px">
     <p style="color:#ffc107;font-size:12px;letter-spacing:.12em;text-transform:uppercase;margin:0">${siteConfig.brand}</p>
-    <h1 style="color:#fff;font-size:22px;margin:12px 0 16px">${title}</h1>
+    <p style="color:#aaa;font-size:13px;margin:8px 0 0">${siteConfig.slogan}</p>
+    <h1 style="color:#fff;font-size:22px;margin:16px 0">${title}</h1>
     <div style="color:#ccc;font-size:15px;line-height:1.55">${bodyHtml}</div>
     <p style="margin-top:28px;font-size:13px;color:#888">
-      Suporte em português: WhatsApp no site · ${siteConfig.email}<br/>
-      Produtos aprovados pelo Capitão — acompanhamos até chegar.
+      Mensagem do Capitão: acompanhamos em português até chegar.<br/>
+      WhatsApp no site · ${siteConfig.email}<br/>
+      ${siteConfig.tagline}
     </p>
   </div></body></html>`;
 }

@@ -1,4 +1,6 @@
 import { ApprovedSeal } from "@/components/ApprovedSeal";
+import { CaptainMedals, medalsForProduct } from "@/components/CaptainMedals";
+import { CaptainStrip } from "@/components/CaptainStrip";
 import { ProductDetailsAccordion } from "@/components/ProductDetailsAccordion";
 import { ProductPurchase } from "@/components/ProductPurchase";
 import {
@@ -7,6 +9,7 @@ import {
 } from "@/data/products";
 import { getStorefrontBySlug, type StorefrontVariant } from "@/lib/catalog";
 import type { ProductDetails } from "@/lib/product-details";
+import { siteConfig } from "@/lib/site-config";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -64,10 +67,20 @@ export default async function ProductDetailPage({ params }: Props) {
   const variants: StorefrontVariant[] =
     "variants" in product ? [...product.variants] : [];
   const videoUrl = "videoUrl" in product ? product.videoUrl : null;
+  const medals = medalsForProduct({
+    approved: product.approved,
+    isNew: product.isNew,
+    rating: product.rating,
+    price: product.price,
+  });
 
   return (
     <div className="bg-bg py-8 md:py-12">
       <div className="mx-auto max-w-[1200px] px-5 md:px-6">
+        <div className="mb-6">
+          <CaptainStrip message="Produto curado pelo Capitão — suporte em português e rastreio no site até chegar." />
+        </div>
+
         <p className="mb-6 text-sm text-muted">
           <Link href="/produtos" className="hover:text-gold">
             Produtos
@@ -84,35 +97,18 @@ export default async function ProductDetailPage({ params }: Props) {
             {product.name}
           </h1>
           {product.approved ? (
-            <div className="mt-4">
-              <ApprovedSeal />
+            <div className="mt-4 space-y-3">
+              <ApprovedSeal score={siteConfig.captainScore} />
+              <CaptainMedals medals={medals} />
             </div>
           ) : null}
           <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#aaa]">
             {product.blurb}
           </p>
 
-          {details.useCases?.length ? (
-            <div className="mt-5 max-w-2xl rounded-[14px] border border-[#333] bg-[#141414] p-4">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gold">
-                Casos de uso
-              </p>
-              <ul className="mt-2 space-y-1.5">
-                {details.useCases.slice(0, 4).map((u) => (
-                  <li key={u} className="flex gap-2 text-sm text-[#ccc]">
-                    <span className="text-gold" aria-hidden>
-                      →
-                    </span>
-                    <span>{u}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
           {details.highlights?.length ? (
             <ul className="mt-5 max-w-2xl space-y-2">
-              {details.highlights.map((h) => (
+              {details.highlights.slice(0, 4).map((h) => (
                 <li key={h} className="flex gap-2 text-sm text-[#ccc]">
                   <span className="text-gold" aria-hidden>
                     ✓
@@ -137,9 +133,9 @@ export default async function ProductDetailPage({ params }: Props) {
         />
 
         {videoUrl ? (
-          <div className="mt-10">
+          <div id="video-capitao" className="mt-10">
             <h2 className="mb-3 font-[family-name:var(--font-syne)] text-xl font-bold text-white">
-              Vídeo do produto
+              Veja funcionando
             </h2>
             <div className="overflow-hidden rounded-[14px] border border-[#333] bg-black">
               <video
@@ -158,6 +154,7 @@ export default async function ProductDetailPage({ params }: Props) {
         <ProductDetailsAccordion
           description={product.description}
           details={details}
+          productName={product.name}
         />
       </div>
     </div>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
   TRACKING_STEPS,
+  externalTrackingUrl,
   stepIndex,
   statusLabel,
   type TrackingPublic,
@@ -122,6 +123,27 @@ export function OrderTrackingClient({
                 {data.trackingCarrier
                   ? ` · ${data.trackingCarrier}`
                   : null}
+                {externalTrackingUrl(
+                  data.trackingCode,
+                  data.trackingCarrier,
+                ) ? (
+                  <>
+                    {" · "}
+                    <a
+                      href={
+                        externalTrackingUrl(
+                          data.trackingCode,
+                          data.trackingCarrier,
+                        )!
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-gold hover:underline"
+                    >
+                      Abrir rastreio externo
+                    </a>
+                  </>
+                ) : null}
               </p>
             ) : (
               <p className="mt-2 text-sm text-muted">

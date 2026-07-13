@@ -94,8 +94,20 @@ export async function POST(request: Request) {
       subtotal,
       total: subtotal,
       status: "pending_payment",
-      notes: "Pedido loja — processar envio e colar rastreio no admin",
+      notes: "Pedido loja — fulfill automático após pagamento",
     });
+
+    try {
+      const { emailOrderCreated } = await import("@/lib/email");
+      await emailOrderCreated({
+        orderId: order.orderId,
+        email: order.email,
+        nome: order.nome,
+        total: order.total,
+      });
+    } catch {
+      /* e-mail opcional */
+    }
 
     return NextResponse.json({ order });
   } catch {

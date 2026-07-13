@@ -27,7 +27,7 @@ export async function ProductShowcase() {
       <section id="novidades" className="bg-bg py-14 md:py-16">
         <div className="mx-auto max-w-[1200px] px-5 md:px-6">
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold">
-            Lançamentos da semana
+            Acabaram de chegar
           </p>
           <h2 className="mt-2 font-[family-name:var(--font-syne)] text-2xl font-bold text-white md:text-3xl">
             Novidades do Capitão
@@ -49,6 +49,39 @@ export async function ProductShowcase() {
 
       <section id="vitrine" className="border-t border-line bg-card py-14 md:py-16">
         <div className="mx-auto max-w-[1200px] space-y-14 px-5 md:px-6">
+          <div id="mais-vendidos" className="scroll-mt-24">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold">
+              Mais vendidos
+            </p>
+            <h2 className="mt-2 font-[family-name:var(--font-syne)] text-2xl font-bold text-white md:text-3xl">
+              O que o Capitão mais indica
+            </h2>
+            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {products
+                .filter((p) => p.approved)
+                .slice(0, 8)
+                .map((product) => (
+                  <ProductCard key={`mv-${product.id}`} product={product} />
+                ))}
+            </div>
+          </div>
+
+          <div id="recomenda" className="scroll-mt-24">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold">
+              O Capitão recomenda
+            </p>
+            <h2 className="mt-2 font-[family-name:var(--font-syne)] text-2xl font-bold text-white md:text-3xl">
+              Escolha do Capitão
+            </h2>
+            <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {(novidades.length ? novidades : products)
+                .slice(0, 4)
+                .map((product) => (
+                  <ProductCard key={`rec-${product.id}`} product={product} />
+                ))}
+            </div>
+          </div>
+
           {byCat.map(({ cat, items }) => (
             <div key={cat} id={cat}>
               <div className="flex flex-wrap items-end justify-between gap-4">

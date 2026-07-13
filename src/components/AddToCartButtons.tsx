@@ -138,6 +138,13 @@ export function AddToCartButtons({
       unitPrice: matchedVariant?.salePrice,
       sku: matchedVariant?.sku || undefined,
     });
+    void import("@/lib/track-click").then(({ trackClick }) =>
+      trackClick({
+        tipo: goCart ? "buy_now" : "add_to_cart",
+        rotulo: productId,
+        secao: "pdp",
+      }),
+    );
     if (goCart) window.location.href = "/carrinho";
   }
 

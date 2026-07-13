@@ -41,6 +41,22 @@ export function statusLabel(status: string) {
   return STATUS_LABEL[status as OrderTrackStatus] || status;
 }
 
+/** Link público Correios / 17track quando o código parece BR. */
+export function externalTrackingUrl(code?: string | null, carrier?: string | null) {
+  if (!code) return null;
+  const c = code.trim();
+  if (!c) return null;
+  // Padrão Correios BR: AA123456789BR
+  if (/^[A-Z]{2}\d{9}BR$/i.test(c)) {
+    return `https://www.linkcorreios.com.br/?id=${encodeURIComponent(c)}`;
+  }
+  const q = encodeURIComponent(c);
+  if (carrier && /correios/i.test(carrier)) {
+    return `https://www.linkcorreios.com.br/?id=${q}`;
+  }
+  return `https://t.17track.net/en#nums=${q}`;
+}
+
 /** Passos do “sensor” de status na UI. */
 export const TRACKING_STEPS: {
   key: OrderTrackStatus | "transit";
