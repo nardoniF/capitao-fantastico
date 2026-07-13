@@ -50,8 +50,17 @@ type CartContextValue = {
       sku?: string;
     },
   ) => void;
-  setQty: (productId: string, qty: number, size?: string) => void;
-  remove: (productId: string, size?: string) => void;
+  setQty: (
+    productId: string,
+    qty: number,
+    size?: string,
+    supplierVariantId?: string,
+  ) => void;
+  remove: (
+    productId: string,
+    size?: string,
+    supplierVariantId?: string,
+  ) => void;
   clear: () => void;
 };
 
@@ -146,18 +155,37 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const setQty = useCallback((productId: string, qty: number, size?: string) => {
-    setItems((prev) => {
-      if (qty <= 0) return prev.filter((i) => !sameLine(i, productId, size));
-      return prev.map((i) =>
-        sameLine(i, productId, size) ? { ...i, qty } : i,
-      );
-    });
-  }, []);
+  const setQty = useCallback(
+    (
+      productId: string,
+      qty: number,
+      size?: string,
+      supplierVariantId?: string,
+    ) => {
+      setItems((prev) => {
+        if (qty <= 0) {
+          return prev.filter(
+            (i) => !sameLine(i, productId, size, supplierVariantId),
+          );
+        }
+        return prev.map((i) =>
+          sameLine(i, productId, size, supplierVariantId)
+            ? { ...i, qty }
+            : i,
+        );
+      });
+    },
+    [],
+  );
 
-  const remove = useCallback((productId: string, size?: string) => {
-    setItems((prev) => prev.filter((i) => !sameLine(i, productId, size)));
-  }, []);
+  const remove = useCallback(
+    (productId: string, size?: string, supplierVariantId?: string) => {
+      setItems((prev) =>
+        prev.filter((i) => !sameLine(i, productId, size, supplierVariantId)),
+      );
+    },
+    [],
+  );
 
   const clear = useCallback(() => setItems([]), []);
 

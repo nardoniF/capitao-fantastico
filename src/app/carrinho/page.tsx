@@ -36,9 +36,9 @@ export default function CartPage() {
           <CaptainStrip message="Você está no carrinho do Capitão. Compra segura, suporte em português e rastreio no site." />
         </div>
         <ul className="mt-8 divide-y divide-line rounded-[14px] border border-[#333] bg-[#1a1a1a]">
-          {lines.map(({ product, qty, lineTotal, size }) => (
+          {lines.map(({ key, product, qty, lineTotal, size, supplierVariantId, unitPrice }) => (
             <li
-              key={`${product.id}-${size || ""}`}
+              key={key}
               className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center"
             >
               <div className="h-24 w-24 shrink-0 overflow-hidden rounded-lg border border-[#333] bg-[#111]">
@@ -56,9 +56,9 @@ export default function CartPage() {
                   {product.name}
                 </Link>
                 {size ? (
-                  <p className="mt-1 text-sm text-gold">Tamanho: {size}</p>
+                  <p className="mt-1 text-sm text-gold">Opção: {size}</p>
                 ) : null}
-                <p className="mt-1 text-sm text-muted">{formatBRL(product.price)}</p>
+                <p className="mt-1 text-sm text-muted">{formatBRL(unitPrice)}</p>
                 <div className="mt-3 flex items-center gap-3">
                   <label className="text-sm text-muted">
                     Qtd{" "}
@@ -67,14 +67,21 @@ export default function CartPage() {
                       min={1}
                       value={qty}
                       onChange={(e) =>
-                        setQty(product.id, Number(e.target.value), size)
+                        setQty(
+                          product.id,
+                          Number(e.target.value),
+                          size,
+                          supplierVariantId,
+                        )
                       }
                       className="ml-2 w-16 rounded border border-[#333] bg-[#111] px-2 py-1 text-white"
                     />
                   </label>
                   <button
                     type="button"
-                    onClick={() => remove(product.id, size)}
+                    data-evento="remove_cart"
+                    data-rotulo={product.id}
+                    onClick={() => remove(product.id, size, supplierVariantId)}
                     className="text-sm text-gold underline-offset-2 hover:underline"
                   >
                     Remover
