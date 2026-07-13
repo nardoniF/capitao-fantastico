@@ -61,6 +61,11 @@ export type AdminOrderEconomics = {
   supplierTracking?: string;
   missionResponse?: "ok" | "help" | null;
   missionAskedAt?: string | null;
+  invoiceNumber?: string | null;
+  invoiceUrl?: string | null;
+  messageCount?: number;
+  returnStatus?: string | null;
+  warrantyStatus?: string | null;
 };
 
 async function getPricing(): Promise<PricingSnapshot> {
@@ -174,6 +179,11 @@ export async function listAdminOrders(): Promise<AdminOrderEconomics[]> {
       supplierTracking: o.supplierTracking,
       missionResponse: o.missionResponse ?? null,
       missionAskedAt: o.missionAskedAt ?? null,
+      invoiceNumber: o.invoiceNumber ?? null,
+      invoiceUrl: o.invoiceUrl ?? null,
+      messageCount: o.messages?.length ?? 0,
+      returnStatus: o.returnStatus ?? null,
+      warrantyStatus: o.warrantyStatus ?? null,
     };
   });
 }

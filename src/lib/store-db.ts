@@ -20,6 +20,7 @@ import {
   redisGetStoreJson,
   redisSetStoreJson,
 } from "@/lib/redis-store";
+import { generateOrderId } from "@/lib/order-id";
 
 function toStoreProduct(p: StorefrontProduct): StoreProduct {
   return {
@@ -160,12 +161,21 @@ export async function createOrder(
 ) {
   const store = await getStore();
   const now = new Date().toISOString();
+  let orderId = generateOrderId();
+  for (let i = 0; i < 5; i++) {
+    if (!store.orders.some((o) => o.orderId === orderId)) break;
+    orderId = generateOrderId();
+  }
   const order: Order = {
     ...input,
-    orderId: `CF${Date.now().toString(36).toUpperCase()}`,
+    orderId,
     createdAt: now,
     updatedAt: now,
     status: input.status ?? "pending_payment",
+    messages: input.messages || [],
+    documents: input.documents || [],
+    returnStatus: input.returnStatus || "none",
+    warrantyStatus: input.warrantyStatus || "none",
     trackingEvents: input.trackingEvents?.length
       ? input.trackingEvents
       : [

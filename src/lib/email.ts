@@ -3,6 +3,7 @@
  * Sem RESEND_API_KEY → só loga (não quebra o fluxo).
  */
 import { siteConfig } from "@/lib/site-config";
+import { orderPortalUrl } from "@/lib/order-portal";
 
 const FROM =
   process.env.EMAIL_FROM?.trim() ||
@@ -13,6 +14,10 @@ function siteOrigin() {
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
     "https://www.capitaofantastico.com.br"
   );
+}
+
+function portalLink(orderId: string) {
+  return orderPortalUrl(orderId, siteOrigin());
 }
 
 export async function sendEmail(opts: {
@@ -79,7 +84,7 @@ export async function emailOrderCreated(order: {
   nome: string;
   total: number;
 }) {
-  const track = `${siteOrigin()}/pedido/rastreio?pedido=${encodeURIComponent(order.orderId)}`;
+  const portal = portalLink(order.orderId);
   return sendEmail({
     to: order.email,
     subject: `Pedido ${order.orderId} recebido — ${siteConfig.brand}`,
@@ -87,8 +92,8 @@ export async function emailOrderCreated(order: {
       "Pedido recebido",
       `<p>Olá, <strong>${order.nome}</strong>!</p>
        <p>Seu pedido <strong>${order.orderId}</strong> foi registrado (total R$ ${order.total.toFixed(2)}).</p>
-       <p>Assim que o pagamento confirmar, preparamos o envio. Acompanhe em:<br/>
-       <a href="${track}" style="color:#ffc107">${track}</a></p>
+       <p>Sua página do pedido (rastreio, NF, conversa, suporte):<br/>
+       <a href="${portal}" style="color:#ffc107">${portal}</a></p>
        <p>Fale conosco em português pelo WhatsApp se precisar de qualquer coisa.</p>`,
     ),
   });
@@ -99,7 +104,7 @@ export async function emailPaymentConfirmed(order: {
   email: string;
   nome: string;
 }) {
-  const track = `${siteOrigin()}/pedido/rastreio?pedido=${encodeURIComponent(order.orderId)}`;
+  const portal = portalLink(order.orderId);
   return sendEmail({
     to: order.email,
     subject: `Pagamento confirmado — pedido ${order.orderId}`,
@@ -107,8 +112,8 @@ export async function emailPaymentConfirmed(order: {
       "Pagamento confirmado",
       `<p>Olá, <strong>${order.nome}</strong>!</p>
        <p>Identificamos o pagamento do pedido <strong>${order.orderId}</strong>.</p>
-       <p>Estamos preparando o envio. Você receberá o código de rastreio e pode seguir tudo aqui:<br/>
-       <a href="${track}" style="color:#ffc107">${track}</a></p>`,
+       <p>Estamos preparando o envio. Acompanhe tudo na página do pedido:<br/>
+       <a href="${portal}" style="color:#ffc107">${portal}</a></p>`,
     ),
   });
 }
@@ -118,7 +123,7 @@ export async function emailFulfilling(order: {
   email: string;
   nome: string;
 }) {
-  const track = `${siteOrigin()}/pedido/rastreio?pedido=${encodeURIComponent(order.orderId)}`;
+  const portal = portalLink(order.orderId);
   return sendEmail({
     to: order.email,
     subject: `Preparando envio — pedido ${order.orderId}`,
@@ -126,8 +131,8 @@ export async function emailFulfilling(order: {
       "Preparando o seu envio",
       `<p>Olá, <strong>${order.nome}</strong>!</p>
        <p>Seu pedido <strong>${order.orderId}</strong> entrou na fila de envio.</p>
-       <p>Em breve o rastreio aparece no site:<br/>
-       <a href="${track}" style="color:#ffc107">${track}</a></p>`,
+       <p>Rastreio e documentos na página do pedido:<br/>
+       <a href="${portal}" style="color:#ffc107">${portal}</a></p>`,
     ),
   });
 }
@@ -139,7 +144,7 @@ export async function emailShipped(order: {
   trackingCode?: string;
   carrier?: string;
 }) {
-  const track = `${siteOrigin()}/pedido/rastreio?pedido=${encodeURIComponent(order.orderId)}`;
+  const portal = portalLink(order.orderId);
   const code = order.trackingCode
     ? `<p>Código: <strong style="color:#ffc107">${order.trackingCode}</strong>${
         order.carrier ? ` · ${order.carrier}` : ""
@@ -147,14 +152,14 @@ export async function emailShipped(order: {
     : "";
   return sendEmail({
     to: order.email,
-    subject: `Pedido enviado — rastreio ${order.orderId}`,
+    subject: `Pedido enviado — ${order.orderId}`,
     html: wrap(
       "Seu pedido foi enviado",
       `<p>Olá, <strong>${order.nome}</strong>!</p>
        <p>O pedido <strong>${order.orderId}</strong> saiu para entrega.</p>
        ${code}
-       <p>Acompanhe cada movimento aqui (atualizamos sozinho):<br/>
-       <a href="${track}" style="color:#ffc107">${track}</a></p>
+       <p>Acompanhe na página do pedido (atualizamos sozinho):<br/>
+       <a href="${portal}" style="color:#ffc107">${portal}</a></p>
        <p>Suporte em português até chegar — é só chamar no WhatsApp.</p>`,
     ),
   });
@@ -167,7 +172,7 @@ export async function emailTrackingUpdate(order: {
   label: string;
   detail?: string;
 }) {
-  const track = `${siteOrigin()}/pedido/rastreio?pedido=${encodeURIComponent(order.orderId)}`;
+  const portal = portalLink(order.orderId);
   return sendEmail({
     to: order.email,
     subject: `Atualização do pedido ${order.orderId}: ${order.label}`,
@@ -178,7 +183,7 @@ export async function emailTrackingUpdate(order: {
        <p><strong>${order.label}</strong>${
          order.detail ? `<br/>${order.detail}` : ""
        }</p>
-       <p><a href="${track}" style="color:#ffc107">Ver rastreio ao vivo</a></p>`,
+       <p><a href="${portal}" style="color:#ffc107">Abrir página do pedido</a></p>`,
     ),
   });
 }
@@ -193,7 +198,7 @@ export async function emailDelivered(order: {
   const base = `${origin}/api/missao?pedido=${encodeURIComponent(order.orderId)}&t=${encodeURIComponent(order.missionToken)}`;
   const okUrl = `${base}&r=ok`;
   const helpUrl = `${base}&r=help`;
-  const track = `${origin}/pedido/rastreio?pedido=${encodeURIComponent(order.orderId)}`;
+  const portal = portalLink(order.orderId);
 
   const btn = (href: string, label: string, bg: string, color: string) =>
     `<a href="${href}" style="display:inline-block;margin:6px 8px 6px 0;padding:14px 20px;background:${bg};color:${color};text-decoration:none;border-radius:10px;font-weight:700;font-size:15px">${label}</a>`;
@@ -210,7 +215,7 @@ export async function emailDelivered(order: {
          ${btn(okUrl, "👍 Sim, deu tudo certo", "#ffc107", "#111")}
          ${btn(helpUrl, "👎 Não, preciso de ajuda", "#2a2a2a", "#fff")}
        </p>
-       <p style="font-size:13px;color:#888"><a href="${track}" style="color:#ffc107">Ver pedido no site</a></p>`,
+       <p style="font-size:13px;color:#888"><a href="${portal}" style="color:#ffc107">Abrir página do pedido</a></p>`,
     ),
     text: `Missão concluída?\n\nPedido ${order.orderId}\n\nSim: ${okUrl}\nPreciso de ajuda: ${helpUrl}`,
   });

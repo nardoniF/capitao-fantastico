@@ -58,7 +58,7 @@ export function SiteFooter() {
                 FAQ
               </Link>
               <Link href="/pedido/rastreio" className="hover:text-gold">
-                Rastreio
+                Meu pedido
               </Link>
               <Link href="/sugestoes" className="hover:text-gold">
                 Sugestões

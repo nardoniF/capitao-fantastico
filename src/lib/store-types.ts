@@ -64,6 +64,26 @@ export type Order = {
     label: string;
     detail?: string;
   }[];
+  /** Nota fiscal (quando emitida) */
+  invoiceNumber?: string;
+  invoiceUrl?: string;
+  /** Documentos do pedido (NF, comprovante, garantia…) */
+  documents?: {
+    id: string;
+    title: string;
+    url: string;
+    kind: "invoice" | "receipt" | "warranty" | "other";
+    at: string;
+  }[];
+  /** Conversa na página do pedido */
+  messages?: {
+    id: string;
+    at: string;
+    from: "customer" | "captain";
+    text: string;
+  }[];
+  returnStatus?: "none" | "requested" | "in_progress" | "done" | "denied";
+  warrantyStatus?: "none" | "requested" | "in_progress" | "done" | "denied";
   /** Índice de Missão — e-mail pós-entrega */
   missionToken?: string;
   missionAskedAt?: string;

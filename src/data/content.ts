@@ -20,11 +20,11 @@ export const faqItems = [
   },
   {
     q: "Qual o prazo de entrega?",
-    a: "Varia conforme o produto e a sua região. Confirmamos o prazo após a compra e você acompanha tudo pelo rastreio no site.",
+    a: "Varia conforme o produto e a sua região. Confirmamos o prazo após a compra e você acompanha tudo na página do pedido.",
   },
   {
     q: "Como acompanho o pedido?",
-    a: "Use a página de rastreio do site com o número do pedido. O status atualiza sozinho quando o envio avança. Também avisamos por WhatsApp/e-mail. Dúvidas: contato@capitaofantastico.com.br.",
+    a: "Use a página do pedido (capitaofantastico.com.br/pedido/SEUCODIGO). Lá estão rastreio, nota fiscal, conversa, devolução, garantia e suporte — sem caçar e-mail. Dúvidas: contato@capitaofantastico.com.br.",
   },
   {
     q: "O suporte é em português?",

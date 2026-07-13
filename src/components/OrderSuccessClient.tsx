@@ -32,16 +32,16 @@ export function OrderSuccessClient() {
         {demo
           ? "Modo demo: configure MP_ACCESS_TOKEN para receber de verdade via Mercado Pago."
           : pending
-            ? "Assim que o Pix/cartão confirmar, preparamos o envio. Acompanhe o status no rastreio do site — suporte em português até chegar."
-            : "Obrigado! Estamos preparando o seu pedido. Acompanhe o status ao vivo no site; o código de rastreio aparece assim que despacharmos."}
+            ? "Assim que o Pix/cartão confirmar, preparamos o envio. Tudo fica na página do pedido — rastreio, NF, conversa e suporte."
+            : "Obrigado! Estamos preparando o seu pedido. Abra a página do pedido para acompanhar tudo sem caçar e-mail."}
       </p>
       <div className="mt-10 flex flex-wrap justify-center gap-3">
         {pedido ? (
           <Link
-            href={`/pedido/rastreio?pedido=${encodeURIComponent(pedido)}`}
+            href={`/pedido/${encodeURIComponent(pedido)}`}
             className="inline-flex rounded-md bg-gold px-6 py-3.5 text-sm font-bold text-black hover:bg-gold-deep"
           >
-            Acompanhar pedido
+            Abrir página do pedido
           </Link>
         ) : null}
         <Link

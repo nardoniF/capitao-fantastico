@@ -425,7 +425,7 @@ export default function CheckoutPage() {
               </span>
             </div>
             <p className="mt-3 text-center text-xs text-muted">
-              Compra segura · rastreio no site até chegar ·{" "}
+              Compra segura · página do pedido com rastreio ·{" "}
               <Link href="/pedido/rastreio" className="text-gold hover:underline">
                 Acompanhar pedido
               </Link>

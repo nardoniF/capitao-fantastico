@@ -38,6 +38,11 @@ type OrderRow = {
   supplierTracking?: string;
   missionResponse?: "ok" | "help" | null;
   missionAskedAt?: string | null;
+  invoiceNumber?: string | null;
+  invoiceUrl?: string | null;
+  messageCount?: number;
+  returnStatus?: string | null;
+  warrantyStatus?: string | null;
 };
 
 type ClickRow = {
@@ -611,6 +616,29 @@ export default function AdminPage() {
                         ) : o.missionAskedAt ? (
                           <p className="text-xs text-muted">Missão: aguardando</p>
                         ) : null}
+                        {(o.messageCount || 0) > 0 ? (
+                          <p className="text-xs text-gold">
+                            {o.messageCount} msg na página
+                          </p>
+                        ) : null}
+                        {o.returnStatus && o.returnStatus !== "none" ? (
+                          <p className="text-xs text-amber-300">
+                            Devolução: {o.returnStatus}
+                          </p>
+                        ) : null}
+                        {o.warrantyStatus && o.warrantyStatus !== "none" ? (
+                          <p className="text-xs text-amber-300">
+                            Garantia: {o.warrantyStatus}
+                          </p>
+                        ) : null}
+                        <a
+                          href={`/pedido/${encodeURIComponent(o.orderId)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-1 inline-block text-xs text-gold hover:underline"
+                        >
+                          Abrir página do cliente
+                        </a>
                         <ul className="mt-1 text-xs text-muted">
                           {o.items.map((it, i) => (
                             <li key={`${o.orderId}-${i}`}>
@@ -679,6 +707,42 @@ export default function AdminPage() {
                               Entregue + missão
                             </button>
                           ) : null}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const url = window.prompt(
+                                "URL da nota fiscal (PDF/link)",
+                                o.invoiceUrl || "",
+                              );
+                              if (url == null) return;
+                              const num = window.prompt(
+                                "Número da NF (opcional)",
+                                o.invoiceNumber || "",
+                              );
+                              void patchOrder(o.orderId, {
+                                invoiceUrl: url.trim() || undefined,
+                                invoiceNumber: (num || "").trim() || undefined,
+                              });
+                            }}
+                            className="rounded border border-line px-2 py-1 text-xs"
+                          >
+                            Anexar NF
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const text = window.prompt(
+                                "Resposta do Capitão na conversa do pedido",
+                              );
+                              if (!text?.trim()) return;
+                              void patchOrder(o.orderId, {
+                                _captainReply: text.trim(),
+                              });
+                            }}
+                            className="rounded border border-line px-2 py-1 text-xs"
+                          >
+                            Responder conversa
+                          </button>
                           <a
                             href={whatsappUrl(
                               `Olá ${o.nome}! Pedido ${o.orderId}${

@@ -80,7 +80,7 @@ export function ProductPurchase({
           Frete após o pedido · Pix/cartão via Mercado Pago · Suporte em
           português até chegar ·{" "}
           <a href="/pedido/rastreio" className="text-gold hover:underline">
-            Rastreio no site
+            Página do pedido
           </a>
         </p>
       </div>

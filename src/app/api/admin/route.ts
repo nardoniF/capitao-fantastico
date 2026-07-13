@@ -89,6 +89,24 @@ export async function PUT(request: Request) {
       const current = await findOrderById(body.orderId);
       const patch = { ...body.patch } as Record<string, unknown>;
       const wasFulfilled = current?.status === "fulfilled";
+
+      const captainReply =
+        typeof patch._captainReply === "string" ? patch._captainReply.trim() : "";
+      delete patch._captainReply;
+
+      if (current && captainReply) {
+        const messages = [
+          ...(current.messages || []),
+          {
+            id: `msg_${Date.now().toString(36)}`,
+            at: new Date().toISOString(),
+            from: "captain" as const,
+            text: captainReply.slice(0, 1200),
+          },
+        ].slice(-80);
+        patch.messages = messages;
+      }
+
       if (current && typeof patch.supplierTracking === "string") {
         const { appendTrackingEvent, statusLabel } = await import(
           "@/lib/order-tracking"
