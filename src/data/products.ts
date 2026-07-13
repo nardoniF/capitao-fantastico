@@ -45,7 +45,7 @@ export type Product = {
 };
 
 /** Bump para forçar refresh do catálogo no store */
-export const PRODUCTS_SEED_VERSION = 5;
+export const PRODUCTS_SEED_VERSION = 6;
 
 const img = (id: string) =>
   `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&q=80`;
@@ -87,9 +87,9 @@ const seed: Seed[] = [
     slug: "carregador-magnetico-3em1",
     name: "Carregador magnético 3 em 1",
     category: "gadgets",
-    blurb: "iPhone, Watch e fones juntos.",
+    blurb: "Os 3: iPhone + Apple Watch + fones — ao mesmo tempo.",
     description:
-      "Base magnética 3 em 1 para carregar celular, relógio e fones ao mesmo tempo.",
+      "Estação magnética 3 em 1: encaixa o celular, o relógio e os fones na mesma base. Um cabo na tomada, três dispositivos carregando juntos — sem trocar de carregador toda hora.",
     cost: 45,
     price: 199,
     compareAt: 279,

@@ -36,6 +36,57 @@ function slugify(text: string) {
     .slice(0, 80);
 }
 
+/** Blurb curto e útil a partir do nome — sem lero-lero de marca. */
+function blurbFromTitle(name: string): string {
+  const n = name.toLowerCase();
+  if (/carregador/.test(n) && /3\s*em\s*1|3-in-1|3in1/.test(n)) {
+    return "Os 3: celular + relógio + fones — carregando juntos.";
+  }
+  if (/hub/.test(n) && /usb/.test(n)) {
+    return "Várias portas em um hub só — notebook e tablet.";
+  }
+  if (/organizador/.test(n) && /cabo/.test(n)) {
+    return "Cabos no lugar — mesa e parede sem nó.";
+  }
+  if (/rastreador|airtag|tracker|localizador/.test(n)) {
+    return "Ache chave, bolsa ou mala pelo app.";
+  }
+  return "";
+}
+
+function fallbackDescriptionFromTitle(
+  name: string,
+  colors: string[],
+  sizes: string[],
+  measurements: { label: string; value: string }[],
+): string {
+  const n = name.toLowerCase();
+  const bits: string[] = [];
+
+  if (/carregador/.test(n) && /3\s*em\s*1|3-in-1|3in1/.test(n)) {
+    bits.push(
+      `${name}: estação para carregar celular, relógio e fones ao mesmo tempo — um cabo na tomada, três dispositivos.`,
+    );
+  } else if (/carregador|charger/.test(n)) {
+    bits.push(`${name}: carregamento prático no dia a dia.`);
+  } else {
+    bits.push(`${name}.`);
+  }
+
+  if (colors.length) bits.push(`Cores: ${colors.slice(0, 6).join(", ")}.`);
+  if (sizes.length) bits.push(`Tamanhos: ${sizes.slice(0, 6).join(", ")}.`);
+  if (measurements.length) {
+    bits.push(
+      measurements
+        .slice(0, 4)
+        .map((m) => `${m.label} ${m.value}`)
+        .join(" · ") + ".",
+    );
+  }
+
+  return bits.join(" ").slice(0, 1500);
+}
+
 /**
  * Gera anúncio pronto em PT: nome, descrição, SEO, cores, tamanhos, medidas.
  * Sem OpenAI — tradução gratuita + specs da CJ.
@@ -87,7 +138,7 @@ export async function generateProductCopy(
     descriptionPt =
       descSrc.length > 40
         ? `${name}. ${descSrc.slice(0, 700)}`
-        : `${name}. Produto selecionado pelo Capitão Fantástico — confira fotos, medidas e opções abaixo.`;
+        : fallbackDescriptionFromTitle(name, colors, sizes, measurements);
   } else {
     descriptionPt = `${name}. ${descriptionPt}`;
   }
@@ -97,21 +148,21 @@ export async function generateProductCopy(
     .map((s) => `${s.label}: ${s.value}`)
     .join(" · ");
 
-  const blurb = [
-    colors.length ? `Cores: ${colors.slice(0, 4).join(", ")}` : "",
-    sizes.length ? `Tamanhos: ${sizes.slice(0, 4).join(", ")}` : "",
-    specBits,
-    "Aprovado pelo Capitão.",
-  ]
-    .filter(Boolean)
-    .join(" · ")
-    .slice(0, 180);
+  const blurb = (
+    blurbFromTitle(name) ||
+    [
+      colors.length ? `Cores: ${colors.slice(0, 4).join(", ")}` : "",
+      sizes.length ? `Tamanhos: ${sizes.slice(0, 4).join(", ")}` : "",
+      specBits,
+    ]
+      .filter(Boolean)
+      .join(" · ")
+  ).slice(0, 180);
 
   const highlights = [
     ...measurements.slice(0, 4).map((s) => `${s.label}: ${s.value}`),
     colors.length ? `Cores disponíveis: ${colors.slice(0, 8).join(", ")}` : "",
     sizes.length ? `Tamanhos: ${sizes.slice(0, 8).join(", ")}` : "",
-    "Fotos e opções conforme o fornecedor",
   ].filter(Boolean);
 
   const cat = input.categoryHint || "utilidades";
@@ -140,15 +191,12 @@ export async function generateProductCopy(
     optionsPt,
     details: {
       highlights,
-      useCases: [
-        `Ideal para ${cat.toLowerCase()} no dia a dia`,
-        "Quem busca praticidade e bom custo-benefício",
-      ],
+      useCases: useCasesFromTitle(name, cat),
       colors: colors.length ? colors : undefined,
       sizes: sizes.length ? sizes : undefined,
       measurements: measurements.length ? measurements : undefined,
       includes: ["Produto conforme fotos e opções selecionadas"],
-      howToUse: "Siga as instruções do fabricante na embalagem.",
+      howToUse: howToUseFromTitle(name),
       faqs: [
         {
           q: "O preço já inclui frete?",
@@ -174,6 +222,37 @@ export async function generateProductCopy(
       longDescription: descriptionPt.slice(0, 2500),
     },
   };
+}
+
+function useCasesFromTitle(name: string, cat: string): string[] {
+  const n = name.toLowerCase();
+  if (/carregador/.test(n) && /3\s*em\s*1|3-in-1|3in1/.test(n)) {
+    return [
+      "Para quem cansa de plugar três carregadores na mesa",
+      "Mesa, cabeceira ou home office — celular, relógio e fones no mesmo lugar",
+    ];
+  }
+  if (/hub/.test(n) && /usb/.test(n)) {
+    return [
+      "Notebook sem portas suficientes",
+      "Quem precisa de HDMI, USB e cartão sem carregador de maleta",
+    ];
+  }
+  return [
+    `Uso no dia a dia em ${cat.toLowerCase()}`,
+    "Quem busca praticidade e bom custo-benefício",
+  ];
+}
+
+function howToUseFromTitle(name: string): string {
+  const n = name.toLowerCase();
+  if (/carregador/.test(n) && /3\s*em\s*1|3-in-1|3in1/.test(n)) {
+    return "Conecte a base na tomada. Encaixe o celular no pad magnético, o relógio no suporte e os fones na base. Os três carregam juntos.";
+  }
+  if (/magnet/.test(n) && /carregador|charger/.test(n)) {
+    return "Encaixe o aparelho compatível no pad magnético e deixe carregar. Use o cabo indicado na embalagem.";
+  }
+  return "Siga as instruções do fabricante na embalagem.";
 }
 
 export type AiProductCopyInput = ProductCopyInput;

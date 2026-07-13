@@ -102,13 +102,26 @@ export default async function ProductDetailPage({ params }: Props) {
               <CaptainMedals medals={medals} />
             </div>
           ) : null}
-          <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#aaa]">
+          <p className="mt-4 max-w-2xl text-lg font-medium leading-relaxed text-white">
             {product.blurb}
           </p>
+          {product.description &&
+          product.description.trim() !== product.blurb.trim() ? (
+            <p className="mt-3 max-w-2xl text-base leading-relaxed text-[#bbb]">
+              {product.description}
+            </p>
+          ) : null}
 
           {details.highlights?.length ? (
             <ul className="mt-5 max-w-2xl space-y-2">
-              {details.highlights.slice(0, 4).map((h) => (
+              {details.highlights
+                .filter(
+                  (h) =>
+                    !/fotos e opções conforme/i.test(h) &&
+                    !/aprovado pelo capitão/i.test(h),
+                )
+                .slice(0, 4)
+                .map((h) => (
                 <li key={h} className="flex gap-2 text-sm text-[#ccc]">
                   <span className="text-gold" aria-hidden>
                     ✓

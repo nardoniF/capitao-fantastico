@@ -9,37 +9,54 @@ type Section = {
   body: ReactNode;
 };
 
+function isGenericCaptainText(text: string) {
+  const t = text.toLowerCase();
+  return (
+    t.includes("passou pelo filtro do capitão") ||
+    t.includes("produto selecionado pelo capitão") ||
+    t.includes("confira fotos, medidas e opções") ||
+    t.includes("aprovado pelo capitão") && t.length < 80
+  );
+}
+
 export function ProductDetailsAccordion({
   description,
   details,
-  productName,
 }: {
   description: string;
   details: ProductDetails;
+  /** @deprecated Capitão já aparece no selo/medalhas — não repetir no acordeão */
   productName?: string;
 }) {
+  const longText = (details.longDescription || description || "").trim();
+  const showDescription =
+    longText.length > 0 && !isGenericCaptainText(longText);
+
+  const useCases = (details.useCases || []).filter(
+    (u) => !isGenericCaptainText(u) && !/^ideal para .+ no dia a dia$/i.test(u),
+  );
+
   const sections: Section[] = [];
 
-  sections.push({
-    id: "capitao",
-    title: "O que o Capitão achou",
-    body: (
-      <p className="text-sm leading-relaxed text-[#aaa]">
-        {productName
-          ? `${productName} passou pelo filtro do Capitão: resolve de verdade, vale o preço e merece o selo.`
-          : "Passou pelo filtro do Capitão: resolve de verdade, vale o preço e merece o selo."}{" "}
-        Avaliação com nota alta e suporte em português até o pedido chegar.
-      </p>
-    ),
-  });
+  if (showDescription) {
+    sections.push({
+      id: "desc",
+      title: "O que é este produto",
+      body: (
+        <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#ccc]">
+          {longText}
+        </p>
+      ),
+    });
+  }
 
-  if (details.useCases?.length) {
+  if (useCases.length) {
     sections.push({
       id: "problema",
-      title: "Qual problema resolve?",
+      title: "Para que serve",
       body: (
         <ul className="space-y-2">
-          {details.useCases.map((u) => (
+          {useCases.map((u) => (
             <li key={u} className="flex gap-2 text-sm text-[#aaa]">
               <span className="text-gold" aria-hidden>
                 →
@@ -52,10 +69,13 @@ export function ProductDetailsAccordion({
     });
   }
 
-  if (details.howToUse) {
+  if (
+    details.howToUse &&
+    !/^siga as instruções do fabricante/i.test(details.howToUse)
+  ) {
     sections.push({
       id: "como",
-      title: "Como funciona?",
+      title: "Como usar",
       body: (
         <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#aaa]">
           {details.howToUse}
@@ -74,18 +94,6 @@ export function ProductDetailsAccordion({
             <li key={item}>{item}</li>
           ))}
         </ul>
-      ),
-    });
-  }
-
-  if (details.longDescription || description) {
-    sections.push({
-      id: "desc",
-      title: "Descrição completa",
-      body: (
-        <p className="whitespace-pre-wrap leading-relaxed text-[#aaa]">
-          {details.longDescription || description}
-        </p>
       ),
     });
   }
@@ -132,16 +140,6 @@ export function ProductDetailsAccordion({
     });
   }
 
-  sections.push({
-    id: "avaliacao",
-    title: "Avaliação do Capitão",
-    body: (
-      <p className="text-sm text-[#aaa]">
-        Nota 9,8 · ★★★★★ — curadoria própria. Se não resolve, não entra.
-      </p>
-    ),
-  });
-
   if (details.faqs?.length) {
     sections.push({
       id: "faq",
@@ -157,6 +155,10 @@ export function ProductDetailsAccordion({
         </ul>
       ),
     });
+  }
+
+  if (sections.length === 0) {
+    return null;
   }
 
   return (
