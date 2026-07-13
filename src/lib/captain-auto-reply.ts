@@ -1,7 +1,7 @@
 /**
  * Respostas automáticas sem LLM pago — regras em português.
  */
-import type { OrderHubPublic } from "@/lib/order-portal";
+import type { OrderHubPublic } from "@/lib/order-portal-shared";
 import { pipelineLabel } from "@/lib/order-tracking";
 
 export function captainAutoReply(

@@ -1,80 +1,29 @@
+/**
+ * Portal do pedido — funções de servidor (store-db).
+ */
 import type { Order, OrderItem, ShippingAddress } from "@/lib/store-types";
 import { findOrderById, listOrders } from "@/lib/store-db";
 import {
   externalTrackingUrl,
   inferPipelineFromOrder,
   statusLabel,
-  type OrderTrackStatus,
   type TrackingEvent,
 } from "@/lib/order-tracking";
+import type {
+  OrderDocument,
+  OrderHubPublic,
+  OrderMessage,
+} from "@/lib/order-portal-shared";
 
-export function orderPortalPath(orderId: string) {
-  return `/pedido/${encodeURIComponent(orderId)}`;
-}
-
-export function orderPortalUrl(orderId: string, origin?: string) {
-  const base =
-    (origin || process.env.NEXT_PUBLIC_SITE_URL || "https://www.capitaofantastico.com.br").replace(
-      /\/$/,
-      "",
-    );
-  return `${base}${orderPortalPath(orderId)}`;
-}
-
-export type OrderMessage = {
-  id: string;
-  at: string;
-  from: "customer" | "captain";
-  text: string;
-};
-
-export type OrderDocument = {
-  id: string;
-  title: string;
-  url: string;
-  kind: "invoice" | "receipt" | "warranty" | "other";
-  at: string;
-};
-
-export type ServiceRequestStatus =
-  | "none"
-  | "requested"
-  | "in_progress"
-  | "done"
-  | "denied";
-
-export type OrderHubPublic = {
-  orderId: string;
-  createdAt: string;
-  updatedAt: string;
-  status: OrderTrackStatus;
-  statusLabel: string;
-  delivered: boolean;
-  nome: string;
-  emailMasked: string;
-  items: { name: string; qty: number; price: number; size?: string }[];
-  subtotal: number;
-  total: number;
-  trackingCode: string | null;
-  trackingCarrier: string | null;
-  trackingExternalUrl: string | null;
-  events: TrackingEvent[];
-  addressSummary: string | null;
-  invoiceNumber: string | null;
-  invoiceUrl: string | null;
-  invoiceReady: boolean;
-  documents: OrderDocument[];
-  messages: OrderMessage[];
-  returnStatus: ServiceRequestStatus;
-  warrantyStatus: ServiceRequestStatus;
-  exchangeStatus: ServiceRequestStatus;
-  cancelStatus: ServiceRequestStatus;
-  addressChangeStatus: ServiceRequestStatus;
-  pipelineStage: import("@/lib/order-tracking").PipelineStage | null;
-  returnTicket: Order["returnTicket"] | null;
-  missionToken: string | null;
-  missionResponse: "ok" | "help" | null;
-};
+export {
+  orderPortalPath,
+  orderPortalUrl,
+  SERVICE_STATUS_LABEL,
+  type OrderDocument,
+  type OrderHubPublic,
+  type OrderMessage,
+  type ServiceRequestStatus,
+} from "@/lib/order-portal-shared";
 
 function maskEmail(email: string) {
   const [user, domain] = email.split("@");
@@ -134,7 +83,7 @@ export function toOrderHubPublic(order: Order): OrderHubPublic {
     orderId: order.orderId,
     createdAt: order.createdAt,
     updatedAt: order.updatedAt || order.createdAt,
-    status: order.status as OrderTrackStatus,
+    status: order.status as OrderHubPublic["status"],
     statusLabel: statusLabel(order.status),
     delivered: order.status === "fulfilled",
     nome: order.nome.split(" ")[0] || order.nome,
@@ -159,7 +108,7 @@ export function toOrderHubPublic(order: Order): OrderHubPublic {
     invoiceUrl: order.invoiceUrl || null,
     invoiceReady: Boolean(order.invoiceUrl),
     documents: docs,
-    messages: order.messages || [],
+    messages: (order.messages || []) as OrderMessage[],
     returnStatus: order.returnStatus || "none",
     warrantyStatus: order.warrantyStatus || "none",
     exchangeStatus: order.exchangeStatus || "none",
@@ -182,11 +131,3 @@ export function toOrderHubPublic(order: Order): OrderHubPublic {
     missionResponse: order.missionResponse ?? null,
   };
 }
-
-export const SERVICE_STATUS_LABEL: Record<ServiceRequestStatus, string> = {
-  none: "Disponível",
-  requested: "Solicitado",
-  in_progress: "Em andamento",
-  done: "Concluído",
-  denied: "Não aplicável",
-};

@@ -9,7 +9,7 @@ import {
   SERVICE_STATUS_LABEL,
   type OrderHubPublic,
   type ServiceRequestStatus,
-} from "@/lib/order-portal";
+} from "@/lib/order-portal-shared";
 import { siteConfig, whatsappUrl } from "@/lib/site-config";
 
 const RETURN_REASONS = [

@@ -3,7 +3,7 @@
  * Sem RESEND_API_KEY → só loga (não quebra o fluxo).
  */
 import { siteConfig } from "@/lib/site-config";
-import { orderPortalUrl } from "@/lib/order-portal";
+import { orderPortalUrl } from "@/lib/order-portal-shared";
 
 const FROM =
   process.env.EMAIL_FROM?.trim() ||
