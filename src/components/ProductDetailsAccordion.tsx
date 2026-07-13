@@ -19,6 +19,71 @@ function isGenericCaptainText(text: string) {
   );
 }
 
+/**
+ * Quebra descrições de fornecedor (texto corrido, sem parágrafos) em blocos
+ * legíveis: separa marcadores de seção conhecidos, notas numeradas e limita o
+ * tamanho de cada parágrafo.
+ */
+function formatDescription(text: string): string[] {
+  let t = text.replace(/\s+/g, " ").trim();
+  t = t.replace(/imagem do produto:?\s*$/i, "").trim();
+
+  const markers = [
+    "Visão geral:",
+    "Informações do produto:",
+    "Especificações:",
+    "Especificação:",
+    "Nota:",
+    "Observações:",
+    "Lista de embalagem:",
+    "Como usar:",
+  ];
+  for (const m of markers) {
+    t = t.replace(
+      new RegExp(`\\s*(${m.replace(":", "\\s*:")})`, "gi"),
+      `\n\n${m} `,
+    );
+  }
+  // Notas numeradas ("1. ...", "2. ...") em linhas próprias
+  t = t.replace(/\s(\d)\s*\.\s*(?=[A-ZÀ-Ú])/g, "\n$1. ");
+
+  const blocks = t
+    .split(/\n{2,}/)
+    .map((b) => b.trim())
+    .filter(Boolean);
+
+  const out: string[] = [];
+  for (const block of blocks) {
+    const lines = block
+      .split(/\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    for (const line of lines) {
+      if (line.length <= 280) {
+        out.push(line);
+        continue;
+      }
+      const sentences = line.split(/(?<=[.!?])\s+(?=[A-ZÀ-Ú0-9])/);
+      let current = "";
+      for (const s of sentences) {
+        if (current && (current + " " + s).length > 260) {
+          out.push(current.trim());
+          current = s;
+        } else {
+          current = current ? `${current} ${s}` : s;
+        }
+      }
+      if (current.trim()) out.push(current.trim());
+    }
+  }
+  return out
+    .map((p) => p.replace(/\s{2,}/g, " ").trim())
+    .filter((p) => !(p.length < 25 && p.endsWith(":")));
+}
+
+const SECTION_MARKER =
+  /^(Visão geral|Informações do produto|Especificaç(?:ões|ão)|Nota|Observações|Lista de embalagem|Como usar):\s*/i;
+
 export function ProductDetailsAccordion({
   description,
   details,
@@ -39,13 +104,33 @@ export function ProductDetailsAccordion({
   const sections: Section[] = [];
 
   if (showDescription) {
+    const paragraphs = formatDescription(longText);
     sections.push({
       id: "desc",
       title: "O que é este produto",
       body: (
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#ccc]">
-          {longText}
-        </p>
+        <div className="space-y-3">
+          {paragraphs.map((p, i) => {
+            const marker = p.match(SECTION_MARKER);
+            return (
+              <p
+                key={`${i}-${p.slice(0, 24)}`}
+                className="text-sm leading-relaxed text-[#ccc]"
+              >
+                {marker ? (
+                  <>
+                    <strong className="text-white">
+                      {marker[0].trim()}
+                    </strong>{" "}
+                    {p.slice(marker[0].length)}
+                  </>
+                ) : (
+                  p
+                )}
+              </p>
+            );
+          })}
+        </div>
       ),
     });
   }

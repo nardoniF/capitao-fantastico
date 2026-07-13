@@ -32,3 +32,12 @@ export const resolveChecks = [
   "Durabilidade",
   "Facilidade",
 ] as const;
+
+/** Nota do Capitão por produto — estável (derivada do slug), entre 9,0 e 9,9. */
+export function captainScoreFor(seed: string): number {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) {
+    h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  }
+  return 9.0 + (h % 10) / 10;
+}
