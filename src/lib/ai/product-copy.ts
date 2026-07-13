@@ -2,6 +2,7 @@ import type { ProductDetails } from "@/lib/product-details";
 import {
   localizeOptions,
   localizeProductTitle,
+  openaiDescriptionPt,
   translateOptionKey,
   translateToPt,
 } from "@/lib/translate-free";
@@ -127,12 +128,15 @@ export async function generateProductCopy(
   const descSrc = input.descriptionText.replace(/\s+/g, " ").trim().slice(0, 2000);
   let descriptionPt = "";
   if (descSrc) {
-    // Traduz em 2 chunks para não perder o anúncio
-    const chunk1 = descSrc.slice(0, 450);
-    const chunk2 = descSrc.slice(450, 900);
-    const t1 = await translateToPt(chunk1, 500);
-    const t2 = chunk2 ? await translateToPt(chunk2, 500) : "";
-    descriptionPt = [t1, t2].filter(Boolean).join(" ").trim();
+    // OpenAI primeiro (qualidade); MyMemory em chunks como fallback
+    descriptionPt = (await openaiDescriptionPt(descSrc)) || "";
+    if (!descriptionPt) {
+      const chunk1 = descSrc.slice(0, 450);
+      const chunk2 = descSrc.slice(450, 900);
+      const t1 = await translateToPt(chunk1, 500);
+      const t2 = chunk2 ? await translateToPt(chunk2, 500) : "";
+      descriptionPt = [t1, t2].filter(Boolean).join(" ").trim();
+    }
   }
   if (!descriptionPt || descriptionPt.length < 40) {
     descriptionPt =

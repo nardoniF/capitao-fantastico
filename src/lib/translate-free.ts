@@ -157,6 +157,70 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/**
+ * Tradução via OpenAI quando OPENAI_API_KEY está configurada.
+ * Qualidade muito superior ao MyMemory para títulos/descrições de produto.
+ */
+async function openaiChat(
+  prompt: string,
+  maxTokens = 400,
+): Promise<string | null> {
+  const key = process.env.OPENAI_API_KEY?.trim();
+  if (!key) return null;
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_TRANSLATE_MODEL || "gpt-4o-mini",
+        temperature: 0.2,
+        max_tokens: maxTokens,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    const out = json.choices?.[0]?.message?.content?.trim();
+    return out || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Nome de vitrine em PT-BR via OpenAI (null se sem chave ou falha). */
+export async function openaiProductTitlePt(
+  titleEn: string,
+): Promise<string | null> {
+  const out = await openaiChat(
+    `Você é redator de e-commerce brasileiro. Reescreva o nome de produto abaixo em português do Brasil: curto (máximo 60 caracteres), natural, comercial e específico (mantenha o tipo do produto e o diferencial principal). Sem nome de marca, sem aspas, sem emojis, sem ponto final. Responda SÓ com o nome.\n\nProduto: ${titleEn.slice(0, 200)}`,
+    60,
+  );
+  if (!out) return null;
+  const clean = out.replace(/^["'\s]+|["'\s.]+$/g, "").trim();
+  if (!clean || clean.length < 8 || /\n/.test(clean)) return null;
+  return clean.slice(0, 90);
+}
+
+/** Descrição de produto em PT-BR via OpenAI (null se sem chave ou falha). */
+export async function openaiDescriptionPt(
+  text: string,
+  maxLen = 1200,
+): Promise<string | null> {
+  const src = text.replace(/\s+/g, " ").trim().slice(0, 2400);
+  if (!src) return null;
+  const out = await openaiChat(
+    `Traduza/adapte a descrição de produto abaixo para português do Brasil, tom comercial e claro. Mantenha os fatos (materiais, medidas, tamanhos, avisos do vendedor). Remova repetições e sobras de outros idiomas. Não invente características. Responda SÓ com a descrição.\n\n${src}`,
+    700,
+  );
+  if (!out || out.length < 40) return null;
+  return out.slice(0, maxLen);
+}
+
 function looksPortuguese(text: string): boolean {
   return /[áàâãéêíóôõúçÁÀÂÃÉÊÍÓÔÕÚÇ]/.test(text) ||
     /\b(para|com|sem|porta|kit|aspirador|ventilador|cozinha|banho)\b/i.test(text);
@@ -199,9 +263,28 @@ export function translateOptionValue(key: string, value: string): string {
   return value;
 }
 
+/** Google Translate (endpoint público, sem chave). */
+async function googleTranslateToPt(text: string): Promise<string | null> {
+  try {
+    const url =
+      "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=pt&dt=t&q=" +
+      encodeURIComponent(text);
+    const res = await fetch(url, { cache: "no-store" });
+    if (!res.ok) return null;
+    const json = (await res.json()) as [[string, string][]];
+    const out = (json?.[0] || [])
+      .map((seg) => seg?.[0] || "")
+      .join("")
+      .trim();
+    return out || null;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Tradução gratuita EN→PT via MyMemory (sem chave).
- * Fallback: devolve o texto original.
+ * Tradução gratuita EN→PT: Google (sem chave) primeiro, MyMemory de reserva.
+ * Fallback final: devolve o texto original.
  */
 export async function translateToPt(text: string, maxLen = 450): Promise<string> {
   const cleaned = text.replace(/\s+/g, " ").trim();
@@ -213,6 +296,10 @@ export async function translateToPt(text: string, maxLen = 450): Promise<string>
   lastTranslateAt = Date.now();
 
   const q = cleaned.slice(0, maxLen);
+
+  const g = await googleTranslateToPt(q);
+  if (g) return g.slice(0, maxLen + 50);
+
   try {
     const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(q)}&langpair=en|pt-BR`;
     const res = await fetch(url, { cache: "no-store" });
@@ -251,16 +338,34 @@ export async function localizeProductTitle(titleEn: string): Promise<string> {
     en = (sp > 40 ? cut.slice(0, sp) : cut).trim();
   }
 
-  // 1) Título composto em PT (prioridade — evita mistureba da API)
+  // 1) OpenAI (se configurada) — nome específico e natural em PT-BR
+  const ai = await openaiProductTitlePt(en);
+  if (ai && !looksMostlyEnglish(ai) && !mixedLanguageJunk(ai)) {
+    return truncateAtWord(polishPtTitle(ai), 90);
+  }
+
+  // 2) Tradução da frase inteira (Google → MyMemory)
+  let pt = await translateToPt(en.slice(0, 90), 110);
+  if (pt && !looksMostlyEnglish(pt) && !mixedLanguageJunk(pt)) {
+    return truncateAtWord(polishPtTitle(pt), 90);
+  }
+
+  // 3) Título composto em PT (regras — evita mistureba)
   const composed = composeProductTitlePt(en);
   if (composed) return composed.slice(0, 90);
 
-  // 2) Fallback: traduz frase EN inteira (sem WORD_MAP antes)
-  let pt = await translateToPt(en.slice(0, 80), 100);
-  if (!pt || looksMostlyEnglish(pt) || mixedLanguageJunk(pt)) {
-    pt = dictionaryTitleFallback(en);
-  }
-  return polishPtTitle(pt).slice(0, 90);
+  // 4) Último recurso: dicionário palavra a palavra
+  pt = dictionaryTitleFallback(en);
+  return truncateAtWord(polishPtTitle(pt), 90);
+}
+
+/** Corta no limite sem quebrar palavra. */
+function truncateAtWord(text: string, max: number): string {
+  const t = text.trim();
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const sp = cut.lastIndexOf(" ");
+  return (sp > max * 0.6 ? cut.slice(0, sp) : cut).replace(/[,;:\-–]$/, "").trim();
 }
 
 /** Detecta título quebrado tipo "portátil Air Cooler ventilador with". */
