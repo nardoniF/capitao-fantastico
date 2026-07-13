@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/jobs/sync-tracking",
-      "schedule": "45 */3 * * *"
+      "schedule": "*/30 * * * *"
     },
     {
       "path": "/api/jobs/fulfill-orders",

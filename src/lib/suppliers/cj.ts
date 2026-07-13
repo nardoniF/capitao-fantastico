@@ -383,22 +383,75 @@ export class CJSupplier implements SupplierAdapter {
         { token },
       );
 
-      const code = data?.trackingNumber || data?.trackNumber;
-      if (!code) {
-        return data
-          ? {
-              code: "",
-              carrier: data.logisticName,
-              status: String(data.status ?? data.orderStatus ?? ""),
-              raw: data,
+      const code = String(data?.trackingNumber || data?.trackNumber || "").trim();
+      let status = String(data?.status ?? data?.orderStatus ?? "");
+      let carrier = data?.logisticName;
+      let events: SupplierTracking["events"];
+
+      // Detalhe logístico CJ (incluído na conta — custo zero)
+      if (code) {
+        try {
+          const track = await cjFetch<
+            | {
+                trackingNumber?: string;
+                logisticName?: string;
+                trackingStatus?: string;
+                lastMileCarrier?: string;
+                lastTrackNumber?: string;
+                deliveryTime?: string;
+                trackingFrom?: string;
+                trackingTo?: string;
+              }[]
+            | {
+                trackingNumber?: string;
+                logisticName?: string;
+                trackingStatus?: string;
+                lastMileCarrier?: string;
+                lastTrackNumber?: string;
+                deliveryTime?: string;
+                trackingFrom?: string;
+                trackingTo?: string;
+              }
+          >(
+            `/logistic/trackInfo?trackNumber=${encodeURIComponent(code)}`,
+            { token },
+          );
+          const row = Array.isArray(track) ? track[0] : track;
+          if (row) {
+            if (row.trackingStatus) status = String(row.trackingStatus);
+            carrier = row.logisticName || row.lastMileCarrier || carrier;
+            events = [
+              {
+                at: row.deliveryTime || undefined,
+                description: String(row.trackingStatus || status || "Atualização"),
+                location: [row.trackingFrom, row.trackingTo]
+                  .filter(Boolean)
+                  .join(" → ") || undefined,
+              },
+            ];
+            if (row.lastTrackNumber && row.lastTrackNumber !== code) {
+              events.push({
+                description: `Última milha: ${row.lastTrackNumber}`,
+                location: row.lastMileCarrier,
+              });
             }
+          }
+        } catch {
+          // trackInfo opcional — orderDetail já basta
+        }
+      }
+
+      if (!code && !status) {
+        return data
+          ? { code: "", carrier, status, raw: data }
           : null;
       }
 
       return {
         code,
-        carrier: data?.logisticName,
-        status: String(data?.status ?? data?.orderStatus ?? ""),
+        carrier,
+        status,
+        events,
         raw: data,
       };
     } catch {

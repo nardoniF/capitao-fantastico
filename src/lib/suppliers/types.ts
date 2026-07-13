@@ -52,6 +52,8 @@ export type SupplierTracking = {
   code: string;
   carrier?: string;
   status?: string;
+  /** Eventos / textos brutos do fornecedor (quando existirem) */
+  events?: { at?: string; description: string; location?: string }[];
   raw?: unknown;
 };
 

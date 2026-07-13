@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { findOrderById, listOrders } from "@/lib/store-db";
 import {
+  inferPipelineFromOrder,
   statusLabel,
   type TrackingEvent,
   type TrackingPublic,
@@ -62,6 +63,13 @@ export async function GET(request: Request) {
         ? order.missionToken
         : null,
     missionResponse: order.missionResponse ?? null,
+    pipelineStage:
+      order.pipelineStage ||
+      inferPipelineFromOrder({
+        status: order.status,
+        trackingCode: order.supplierTracking,
+        events,
+      }),
   };
 
   return NextResponse.json(body, {

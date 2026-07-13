@@ -88,6 +88,34 @@ export type Order = {
   cancelStatus?: "none" | "requested" | "in_progress" | "done" | "denied";
   addressChangeStatus?: "none" | "requested" | "in_progress" | "done" | "denied";
   addressChangeNote?: string;
+  /** Estágio padronizado da timeline (Capitão) */
+  pipelineStage?: import("@/lib/order-tracking").PipelineStage;
+  /** Ticket de devolução estruturado */
+  returnTicket?: {
+    id: string;
+    reason:
+      | "broken"
+      | "dislike"
+      | "wrong"
+      | "late"
+      | "defect"
+      | "other";
+    description: string;
+    /** URLs ou data-URLs pequenas (sem storage pago) */
+    mediaNotes?: string[];
+    status:
+      | "analysis"
+      | "approved"
+      | "refund"
+      | "exchange"
+      | "coupon"
+      | "denied";
+    createdAt: string;
+    updatedAt: string;
+  };
+  refundStatus?: "none" | "pending" | "done" | "failed";
+  refundId?: string;
+  refundAt?: string;
   /** Índice de Missão — e-mail pós-entrega */
   missionToken?: string;
   missionAskedAt?: string;

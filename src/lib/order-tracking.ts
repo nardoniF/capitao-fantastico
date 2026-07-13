@@ -1,11 +1,24 @@
 /**
- * Status / timeline de rastreio (sensor ao vivo no site).
- * Fonte dos pedidos: store-db (Redis/JSON), alinhado ao checkout.
+ * Pipeline único do Capitão (qualquer fornecedor → mesma experiência).
+ * Fonte: API do CJ (incluída na conta) — sem 17TRACK/AfterShip (custo zero).
  */
+export type PipelineStage =
+  | "payment_approved"
+  | "sent_to_supplier"
+  | "picking"
+  | "in_transit"
+  | "arrived_brazil"
+  | "customs"
+  | "out_for_delivery"
+  | "delivered";
+
 export type TrackingEvent = {
-  at: string; // ISO
+  at: string;
   label: string;
   detail?: string;
+  /** Estágio padronizado (quando conhecido) */
+  stage?: PipelineStage;
+  location?: string;
 };
 
 export type OrderTrackStatus =
@@ -17,18 +30,20 @@ export type OrderTrackStatus =
   | "cancelled"
   | "failed";
 
-export type TrackingPublic = {
-  orderNumber: string;
-  status: OrderTrackStatus;
-  trackingCode: string | null;
-  trackingCarrier: string | null;
-  events: TrackingEvent[];
-  updatedAt: string;
-  delivered: boolean;
-  /** Token só se entregue e ainda sem resposta (para o quiz no rastreio) */
-  missionToken: string | null;
-  missionResponse: "ok" | "help" | null;
-};
+export const PIPELINE_STAGES: {
+  key: PipelineStage;
+  label: string;
+  emoji: string;
+}[] = [
+  { key: "payment_approved", label: "Pagamento aprovado", emoji: "🟢" },
+  { key: "sent_to_supplier", label: "Pedido enviado ao fornecedor", emoji: "🟢" },
+  { key: "picking", label: "Produto separado", emoji: "🟢" },
+  { key: "in_transit", label: "Em transporte", emoji: "🟢" },
+  { key: "arrived_brazil", label: "Chegou ao Brasil", emoji: "🟢" },
+  { key: "customs", label: "Em fiscalização", emoji: "🟢" },
+  { key: "out_for_delivery", label: "Saiu para entrega", emoji: "🟢" },
+  { key: "delivered", label: "Entregue", emoji: "🟢" },
+];
 
 const STATUS_LABEL: Record<OrderTrackStatus, string> = {
   pending_payment: "Aguardando pagamento",
@@ -44,12 +59,116 @@ export function statusLabel(status: string) {
   return STATUS_LABEL[status as OrderTrackStatus] || status;
 }
 
-/** Link público Correios / 17track quando o código parece BR. */
+export function pipelineLabel(stage: PipelineStage) {
+  return PIPELINE_STAGES.find((s) => s.key === stage)?.label || stage;
+}
+
+export function pipelineIndex(stage: PipelineStage | null | undefined): number {
+  if (!stage) return -1;
+  return PIPELINE_STAGES.findIndex((s) => s.key === stage);
+}
+
+/** Converte status bruto (CJ / texto livre) → estágio do Capitão. */
+export function mapRawToPipeline(
+  raw: string | undefined,
+  opts?: { orderStatus?: string; hasCode?: boolean },
+): PipelineStage | null {
+  const s = (raw || "").toLowerCase();
+  const order = (opts?.orderStatus || "").toLowerCase();
+
+  if (
+    /deliver|entregue|delivered|signed|completed|complete|pod/.test(s) ||
+    order === "fulfilled"
+  ) {
+    return "delivered";
+  }
+  if (
+    /out for delivery|saiu para entrega|out_for_delivery|em rota de entrega|last mile|courier/.test(
+      s,
+    )
+  ) {
+    return "out_for_delivery";
+  }
+  if (
+    /customs|receita|fiscaliza|clearance|alf[aâ]ndega|import|held by customs|anvisa/.test(
+      s,
+    )
+  ) {
+    return "customs";
+  }
+  if (
+    /brazil|brasil|arrived.*br|chegou ao brasil|s[aã]o paulo|curitiba|campinas|guarulhos|viracopos|infraero/.test(
+      s,
+    )
+  ) {
+    return "arrived_brazil";
+  }
+  if (
+    /airport|aeroporto|flight|voo|departed|left.*origin|international|in transit|em tr[aâ]nsito|shipped|enviado|posted|dispatch|logistics/.test(
+      s,
+    ) ||
+    (opts?.hasCode && order === "shipped")
+  ) {
+    return "in_transit";
+  }
+  if (
+    /pick|separad|warehouse|estoque|packing|embal|prepar|fulfill|process/.test(s) ||
+    order === "fulfilling"
+  ) {
+    return "picking";
+  }
+  if (/supplier|fornecedor|purchased|ordered|cj/.test(s)) {
+    return "sent_to_supplier";
+  }
+  if (/paid|aprovad|payment|pago/.test(s) || order === "paid") {
+    return "payment_approved";
+  }
+  if (opts?.hasCode) return "in_transit";
+  return null;
+}
+
+/** Ordem da loja a partir do estágio. */
+export function pipelineToOrderStatus(stage: PipelineStage): OrderTrackStatus {
+  switch (stage) {
+    case "delivered":
+      return "fulfilled";
+    case "out_for_delivery":
+    case "customs":
+    case "arrived_brazil":
+    case "in_transit":
+      return "shipped";
+    case "picking":
+    case "sent_to_supplier":
+      return "fulfilling";
+    case "payment_approved":
+      return "paid";
+  }
+}
+
+/** Estágio atual a partir do status da loja + último evento. */
+export function inferPipelineFromOrder(input: {
+  status: string;
+  trackingCode?: string | null;
+  events?: TrackingEvent[];
+}): PipelineStage | null {
+  const fromEvents = [...(input.events || [])]
+    .reverse()
+    .find((e) => e.stage)?.stage;
+  if (fromEvents) return fromEvents;
+
+  if (input.status === "fulfilled") return "delivered";
+  if (input.status === "shipped") {
+    return input.trackingCode ? "in_transit" : "picking";
+  }
+  if (input.status === "fulfilling") return "picking";
+  if (input.status === "paid") return "payment_approved";
+  return null;
+}
+
 export function externalTrackingUrl(code?: string | null, carrier?: string | null) {
   if (!code) return null;
   const c = code.trim();
   if (!c) return null;
-  // Padrão Correios BR: AA123456789BR
   if (/^[A-Z]{2}\d{9}BR$/i.test(c)) {
     return `https://www.linkcorreios.com.br/?id=${encodeURIComponent(c)}`;
   }
@@ -57,10 +176,11 @@ export function externalTrackingUrl(code?: string | null, carrier?: string | nul
   if (carrier && /correios/i.test(carrier)) {
     return `https://www.linkcorreios.com.br/?id=${q}`;
   }
-  return `https://t.17track.net/en#nums=${q}`;
+  // Link público gratuito (não é API — só página para o cliente)
+  return `https://t.17track.net/pt#nums=${q}`;
 }
 
-/** Passos do “sensor” de status na UI. */
+/** @deprecated use PIPELINE_STAGES — mantido para telas antigas */
 export const TRACKING_STEPS: {
   key: OrderTrackStatus | "transit";
   label: string;
@@ -96,21 +216,38 @@ export function appendTrackingEvent(
 ): TrackingEvent[] {
   const prev = Array.isArray(current) ? current : [];
   const last = prev[prev.length - 1];
-  if (last && last.label === event.label && last.detail === event.detail) {
+  if (
+    last &&
+    last.label === event.label &&
+    last.detail === event.detail &&
+    last.stage === event.stage
+  ) {
     return prev;
   }
-  return [...prev, event].slice(-40);
+  return [...prev, event].slice(-60);
 }
 
-/** Mapeia status bruto da CJ para status da loja. */
 export function mapCjStatusToOrder(
   rawStatus: string | undefined,
   hasTrackingCode: boolean,
 ): OrderTrackStatus | null {
-  const s = (rawStatus || "").toLowerCase();
-  if (/deliver|entregue|completed|complete|signed/.test(s)) return "fulfilled";
-  if (/ship|transit|dispatch|enviado|posted|logistics/.test(s)) return "shipped";
-  if (/fulfill|process|prepar|warehouse|picking/.test(s)) return "fulfilling";
-  if (hasTrackingCode) return "shipped";
-  return null;
+  const stage = mapRawToPipeline(rawStatus, { hasCode: hasTrackingCode });
+  if (!stage) {
+    if (hasTrackingCode) return "shipped";
+    return null;
+  }
+  return pipelineToOrderStatus(stage);
 }
+
+export type TrackingPublic = {
+  orderNumber: string;
+  status: OrderTrackStatus;
+  trackingCode: string | null;
+  trackingCarrier: string | null;
+  events: TrackingEvent[];
+  updatedAt: string;
+  delivered: boolean;
+  missionToken: string | null;
+  missionResponse: "ok" | "help" | null;
+  pipelineStage: PipelineStage | null;
+};

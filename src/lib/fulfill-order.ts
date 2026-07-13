@@ -8,7 +8,6 @@ import {
 } from "@/lib/email";
 import {
   appendTrackingEvent,
-  statusLabel,
 } from "@/lib/order-tracking";
 import { findOrderById, updateOrder } from "@/lib/store-db";
 import type { Order } from "@/lib/store-types";
@@ -80,15 +79,24 @@ export async function fulfillPaidOrder(orderId: string): Promise<FulfillResult> 
       lines,
     });
 
-    const events = appendTrackingEvent(order.trackingEvents, {
-      at: new Date().toISOString(),
-      label: statusLabel("fulfilling"),
-      detail: `Pedido enviado ao fornecedor (${result.supplierOrderId})`,
+    const now = new Date().toISOString();
+    let events = appendTrackingEvent(order.trackingEvents, {
+      at: now,
+      label: "Pedido enviado ao fornecedor",
+      detail: `Fornecedor (${result.supplierOrderId})`,
+      stage: "sent_to_supplier",
+    });
+    events = appendTrackingEvent(events, {
+      at: now,
+      label: "Produto separado",
+      detail: "Preparação no depósito",
+      stage: "picking",
     });
 
     await updateOrder(order.orderId, {
       status: "fulfilling",
       supplierOrderId: result.supplierOrderId,
+      pipelineStage: "picking",
       trackingEvents: events,
       notes: [order.notes, `CJ ${result.supplierOrderId}`]
         .filter(Boolean)

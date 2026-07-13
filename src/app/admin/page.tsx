@@ -743,6 +743,38 @@ export default function AdminPage() {
                           >
                             Responder conversa
                           </button>
+                          {o.paymentRef ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (
+                                  !window.confirm(
+                                    `Reembolsar ${o.orderId} via Mercado Pago?`,
+                                  )
+                                )
+                                  return;
+                                void (async () => {
+                                  try {
+                                    await put({
+                                      action: "refund_order",
+                                      orderId: o.orderId,
+                                    });
+                                    setMsg(`Reembolso ok · ${o.orderId}`);
+                                    await load();
+                                  } catch (e) {
+                                    setError(
+                                      e instanceof Error
+                                        ? e.message
+                                        : "Falha no reembolso",
+                                    );
+                                  }
+                                })();
+                              }}
+                              className="rounded border border-red-500/40 px-2 py-1 text-xs text-red-300"
+                            >
+                              Reembolsar MP
+                            </button>
+                          ) : null}
                           <a
                             href={whatsappUrl(
                               `Olá ${o.nome}! Pedido ${o.orderId}${

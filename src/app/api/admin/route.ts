@@ -84,6 +84,84 @@ export async function PUT(request: Request) {
       return NextResponse.json({ product });
     }
 
+    if (body.action === "refund_order" && body.orderId) {
+      const { findOrderById } = await import("@/lib/store-db");
+      const order = await findOrderById(body.orderId);
+      if (!order) {
+        return NextResponse.json({ error: "Pedido não encontrado" }, { status: 404 });
+      }
+      if (!order.paymentRef) {
+        return NextResponse.json(
+          { error: "Pedido sem paymentRef do Mercado Pago" },
+          { status: 400 },
+        );
+      }
+      const { refundMercadoPagoPayment } = await import("@/lib/mp-refund");
+      const result = await refundMercadoPagoPayment(order.paymentRef);
+      if (!result.ok) {
+        await updateOrder(order.orderId, {
+          refundStatus: "failed",
+          notes: [order.notes, `Refund falhou: ${result.error}`]
+            .filter(Boolean)
+            .join(" · "),
+        });
+        return NextResponse.json({ error: result.error }, { status: 502 });
+      }
+      const ticket = order.returnTicket
+        ? {
+            ...order.returnTicket,
+            status: "refund" as const,
+            updatedAt: new Date().toISOString(),
+          }
+        : undefined;
+      const updated = await updateOrder(order.orderId, {
+        refundStatus: "done",
+        refundId: result.refundId,
+        refundAt: new Date().toISOString(),
+        returnStatus: "done",
+        ...(ticket ? { returnTicket: ticket } : {}),
+        notes: [order.notes, `Reembolso MP ${result.refundId || "ok"}`]
+          .filter(Boolean)
+          .join(" · "),
+      });
+      return NextResponse.json({ ok: true, order: updated, refundId: result.refundId });
+    }
+
+    if (
+      body.action === "update_return_ticket" &&
+      body.orderId &&
+      body.patch &&
+      typeof (body.patch as { ticketStatus?: string }).ticketStatus === "string"
+    ) {
+      const { findOrderById } = await import("@/lib/store-db");
+      const order = await findOrderById(body.orderId);
+      if (!order?.returnTicket) {
+        return NextResponse.json({ error: "Sem ticket" }, { status: 404 });
+      }
+      const ticketStatus = (body.patch as { ticketStatus: string }).ticketStatus as
+        | "analysis"
+        | "approved"
+        | "refund"
+        | "exchange"
+        | "coupon"
+        | "denied";
+      const ticket = {
+        ...order.returnTicket,
+        status: ticketStatus,
+        updatedAt: new Date().toISOString(),
+      };
+      const updated = await updateOrder(order.orderId, {
+        returnTicket: ticket,
+        returnStatus:
+          ticketStatus === "denied"
+            ? "denied"
+            : ticketStatus === "analysis"
+              ? "requested"
+              : "in_progress",
+      });
+      return NextResponse.json({ ok: true, order: updated });
+    }
+
     if (body.action === "update_order" && body.orderId && body.patch) {
       const { findOrderById } = await import("@/lib/store-db");
       const current = await findOrderById(body.orderId);

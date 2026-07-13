@@ -3,17 +3,23 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { CaptainStrip } from "@/components/CaptainStrip";
+import { DeliveryTimeline } from "@/components/DeliveryTimeline";
 import { formatBRL } from "@/data/products";
 import {
   SERVICE_STATUS_LABEL,
   type OrderHubPublic,
   type ServiceRequestStatus,
 } from "@/lib/order-portal";
-import {
-  TRACKING_STEPS,
-  stepIndex,
-} from "@/lib/order-tracking";
 import { siteConfig, whatsappUrl } from "@/lib/site-config";
+
+const RETURN_REASONS = [
+  { value: "broken", label: "Produto chegou quebrado" },
+  { value: "dislike", label: "Não gostei" },
+  { value: "wrong", label: "Recebi errado" },
+  { value: "late", label: "Atrasou" },
+  { value: "defect", label: "Defeito" },
+  { value: "other", label: "Outro" },
+] as const;
 
 const NAV = [
   { id: "rastreio", label: "Rastreamento" },
@@ -40,6 +46,9 @@ export function OrderHubClient({ orderId }: { orderId: string }) {
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
+  const [returnReason, setReturnReason] = useState<string>("");
+  const [returnDesc, setReturnDesc] = useState("");
+  const [mediaNote, setMediaNote] = useState("");
 
   const load = useCallback(
     async (silent = false) => {
@@ -147,8 +156,6 @@ export function OrderHubClient({ orderId }: { orderId: string }) {
     );
   }
 
-  const active = stepIndex(data.status, Boolean(data.trackingCode));
-
   return (
     <div className="bg-bg pb-20">
       <div className="border-b border-line bg-card/40">
@@ -201,91 +208,29 @@ export function OrderHubClient({ orderId }: { orderId: string }) {
       <div className="mx-auto max-w-3xl space-y-14 px-5 py-10 md:px-8">
         <section id="rastreio" className="scroll-mt-24">
           <h2 className="font-[family-name:var(--font-syne)] text-2xl font-bold text-white">
-            Rastreamento
+            Status de entrega
           </h2>
           <p className="mt-2 text-sm text-muted">
-            Status ao vivo. Atualiza sozinho quando o envio avança.
+            Atualização automática a cada 30 minutos via fornecedor — você não
+            precisa perguntar “cadê meu pedido?”.
           </p>
-          {data.trackingCode ? (
-            <p className="mt-4 text-sm text-white">
-              Código:{" "}
-              <span className="font-mono text-gold">{data.trackingCode}</span>
-              {data.trackingCarrier ? ` · ${data.trackingCarrier}` : ""}
-              {data.trackingExternalUrl ? (
-                <>
-                  {" "}
-                  <a
-                    href={data.trackingExternalUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-gold hover:underline"
-                  >
-                    Abrir rastreio externo
-                  </a>
-                </>
-              ) : null}
-            </p>
-          ) : (
-            <p className="mt-4 text-sm text-muted">
-              O código aparece aqui assim que o pedido for despachado.
-            </p>
-          )}
-
-          <ol className="mt-8 space-y-0">
-            {TRACKING_STEPS.map((step, idx) => {
-              const done = idx <= active;
-              const current = idx === active;
-              return (
-                <li key={step.key} className="flex gap-4">
-                  <div className="flex flex-col items-center">
-                    <span
-                      className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold ${
-                        done
-                          ? "bg-gold text-black"
-                          : "border border-line text-muted"
-                      }`}
-                    >
-                      {done ? "✓" : idx + 1}
-                    </span>
-                    {idx < TRACKING_STEPS.length - 1 ? (
-                      <span
-                        className={`min-h-8 w-px flex-1 ${
-                          idx < active ? "bg-gold" : "bg-line"
-                        }`}
-                      />
-                    ) : null}
-                  </div>
-                  <p
-                    className={`pb-6 text-sm ${
-                      current
-                        ? "font-semibold text-gold"
-                        : done
-                          ? "text-white"
-                          : "text-muted"
-                    }`}
-                  >
-                    {step.label}
-                  </p>
-                </li>
-              );
-            })}
-          </ol>
-
-          {data.events.length ? (
-            <div className="mt-2 space-y-3 border-t border-line pt-6">
-              <p className="text-xs font-semibold uppercase tracking-wider text-gold">
-                Histórico
-              </p>
-              {[...data.events].reverse().map((ev, idx) => (
-                <div key={`${ev.at}-${idx}`} className="text-sm">
-                  <p className="font-medium text-white">{ev.label}</p>
-                  {ev.detail ? <p className="text-muted">{ev.detail}</p> : null}
-                  <p className="text-xs text-muted/80">
-                    {new Date(ev.at).toLocaleString("pt-BR")}
-                  </p>
-                </div>
-              ))}
-            </div>
+          <div className="mt-8">
+            <DeliveryTimeline
+              orderId={data.orderId}
+              currentStage={data.pipelineStage}
+              events={data.events}
+              trackingCode={data.trackingCode}
+            />
+          </div>
+          {data.trackingExternalUrl ? (
+            <a
+              href={data.trackingExternalUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-6 inline-block text-sm font-semibold text-gold hover:underline"
+            >
+              Abrir rastreio externo (página pública)
+            </a>
           ) : null}
 
           {data.delivered && data.missionToken && !data.missionResponse ? (
@@ -417,30 +362,125 @@ export function OrderHubClient({ orderId }: { orderId: string }) {
           <h2 className="font-[family-name:var(--font-syne)] text-2xl font-bold text-white">
             Devolução
           </h2>
-          <p className="mt-2 text-sm text-muted">
-            Até 7 dias após o recebimento (CDC), produto sem uso e na embalagem
-            original.
-          </p>
-          <p className={`mt-4 text-sm font-semibold ${statusTone(data.returnStatus)}`}>
-            Status: {SERVICE_STATUS_LABEL[data.returnStatus]}
-          </p>
-          {data.returnStatus === "none" || data.returnStatus === "denied" ? (
-            <button
-              type="button"
-              disabled={busy || !email}
-              onClick={() => void postAction("return")}
-              className="mt-4 rounded-md border border-white/25 px-5 py-3 text-sm font-semibold text-white hover:border-gold hover:text-gold disabled:opacity-50"
-            >
-              Solicitar devolução / troca
-            </button>
-          ) : (
-            <p className="mt-4 text-sm text-muted">
-              Já registramos sua solicitação. Acompanhe pela conversa ou WhatsApp.
+          <div className="mt-3 space-y-2 text-sm text-muted">
+            <p>
+              <strong className="text-white">Defeito:</strong> troca ou reembolso.
             </p>
+            <p>
+              <strong className="text-white">Produto diferente:</strong> troca
+              imediata.
+            </p>
+            <p>
+              <strong className="text-white">Arrependimento:</strong> até 7 dias
+              após o recebimento (CDC), nas condições aplicáveis.
+            </p>
+            <p>Estorno via Mercado Pago quando o admin aprovar o reembolso.</p>
+          </div>
+
+          {data.returnTicket ? (
+            <div className="mt-6 rounded-lg border border-gold/30 bg-gold/5 p-4 text-sm">
+              <p className="font-semibold text-gold">
+                Ticket {data.returnTicket.id} · {data.returnTicket.status}
+              </p>
+              <p className="mt-2 text-white">
+                Motivo:{" "}
+                {RETURN_REASONS.find((r) => r.value === data.returnTicket?.reason)
+                  ?.label || data.returnTicket.reason}
+              </p>
+              <p className="mt-1 text-muted">{data.returnTicket.description}</p>
+              <p className="mt-3 text-xs text-muted">
+                Fluxo: Análise → Aprovado → Reembolso / Troca / Cupom
+              </p>
+            </div>
+          ) : (
+            <div className="mt-6 space-y-4">
+              <p className="text-sm text-muted">
+                Escolha o motivo e descreva. Foto/vídeo: cole um link (sem custo
+                de storage).
+              </p>
+              <div className="space-y-2">
+                {RETURN_REASONS.map((r) => (
+                  <label
+                    key={r.value}
+                    className="flex cursor-pointer items-center gap-3 text-sm text-white"
+                  >
+                    <input
+                      type="radio"
+                      name="returnReason"
+                      value={r.value}
+                      checked={returnReason === r.value}
+                      onChange={() => setReturnReason(r.value)}
+                      className="accent-gold"
+                    />
+                    {r.label}
+                  </label>
+                ))}
+              </div>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="E-mail da compra"
+                className="w-full rounded-md border border-[#333] bg-[#141414] px-4 py-3 text-sm text-white outline-none focus:border-gold"
+              />
+              <textarea
+                value={returnDesc}
+                onChange={(e) => setReturnDesc(e.target.value)}
+                rows={3}
+                placeholder="Descrição…"
+                className="w-full rounded-md border border-[#333] bg-[#141414] px-4 py-3 text-sm text-white outline-none focus:border-gold"
+              />
+              <input
+                value={mediaNote}
+                onChange={(e) => setMediaNote(e.target.value)}
+                placeholder="Link de foto/vídeo (opcional)"
+                className="w-full rounded-md border border-[#333] bg-[#141414] px-4 py-3 text-sm text-white outline-none focus:border-gold"
+              />
+              <button
+                type="button"
+                disabled={busy || !email || !returnReason}
+                onClick={() => {
+                  void (async () => {
+                    setBusy(true);
+                    setFlash(null);
+                    try {
+                      const res = await fetch(
+                        `/api/orders/${encodeURIComponent(orderId)}`,
+                        {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            action: "return_ticket",
+                            email,
+                            reason: returnReason,
+                            text: returnDesc,
+                            mediaNotes: mediaNote.trim()
+                              ? [mediaNote.trim()]
+                              : [],
+                          }),
+                        },
+                      );
+                      const json = await res.json();
+                      if (!res.ok) {
+                        setFlash(json.error || "Falha ao abrir ticket.");
+                        return;
+                      }
+                      if (json.hub) setData(json.hub as OrderHubPublic);
+                      setFlash("Ticket criado · em análise.");
+                    } catch {
+                      setFlash("Falha de rede.");
+                    } finally {
+                      setBusy(false);
+                    }
+                  })();
+                }}
+                className="rounded-md bg-gold px-5 py-3 text-sm font-bold text-black hover:bg-gold-deep disabled:opacity-50"
+              >
+                Enviar solicitação
+              </button>
+              {flash ? <p className="text-sm text-gold">{flash}</p> : null}
+            </div>
           )}
-          <p className="mt-3 text-xs text-muted">
-            Confirme o e-mail da compra no campo da conversa antes de solicitar.
-          </p>
         </section>
 
         <section id="garantia" className="scroll-mt-24 border-t border-line pt-14">

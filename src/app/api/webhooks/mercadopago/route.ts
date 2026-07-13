@@ -3,7 +3,6 @@ import { findOrderById, updateOrder } from "@/lib/store-db";
 import { afterPaymentApproved } from "@/lib/fulfill-order";
 import {
   appendTrackingEvent,
-  statusLabel,
 } from "@/lib/order-tracking";
 
 /**
@@ -73,10 +72,12 @@ export async function POST(request: Request) {
         await updateOrder(orderId, {
           status: "paid",
           paymentRef: String(payment.id),
+          pipelineStage: "payment_approved",
           trackingEvents: appendTrackingEvent(order.trackingEvents, {
             at: new Date().toISOString(),
-            label: statusLabel("paid"),
+            label: "Pagamento aprovado",
             detail: "Pagamento aprovado via Mercado Pago",
+            stage: "payment_approved",
           }),
         });
         const refreshed = await findOrderById(orderId);

@@ -2,6 +2,7 @@ import type { Order, OrderItem, ShippingAddress } from "@/lib/store-types";
 import { findOrderById, listOrders } from "@/lib/store-db";
 import {
   externalTrackingUrl,
+  inferPipelineFromOrder,
   statusLabel,
   type OrderTrackStatus,
   type TrackingEvent,
@@ -69,6 +70,8 @@ export type OrderHubPublic = {
   exchangeStatus: ServiceRequestStatus;
   cancelStatus: ServiceRequestStatus;
   addressChangeStatus: ServiceRequestStatus;
+  pipelineStage: import("@/lib/order-tracking").PipelineStage | null;
+  returnTicket: Order["returnTicket"] | null;
   missionToken: string | null;
   missionResponse: "ok" | "help" | null;
 };
@@ -162,6 +165,14 @@ export function toOrderHubPublic(order: Order): OrderHubPublic {
     exchangeStatus: order.exchangeStatus || "none",
     cancelStatus: order.cancelStatus || "none",
     addressChangeStatus: order.addressChangeStatus || "none",
+    pipelineStage:
+      order.pipelineStage ||
+      inferPipelineFromOrder({
+        status: order.status,
+        trackingCode: order.supplierTracking,
+        events: order.trackingEvents,
+      }),
+    returnTicket: order.returnTicket || null,
     missionToken:
       order.status === "fulfilled" &&
       !order.missionResponse &&

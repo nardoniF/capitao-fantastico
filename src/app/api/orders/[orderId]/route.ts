@@ -86,6 +86,8 @@ export async function POST(request: Request, ctx: Ctx) {
       action?: string;
       email?: string;
       text?: string;
+      reason?: string;
+      mediaNotes?: string[];
     };
 
     const email = (body.email || "").trim().toLowerCase();
@@ -107,19 +109,110 @@ export async function POST(request: Request, ctx: Ctx) {
         from: "customer",
         text,
       };
-      const messages = [...(order.messages || []), msg].slice(-80);
+      let messages = [...(order.messages || []), msg].slice(-80);
+
+      const hubPreview = toOrderHubPublic({ ...order, messages });
+      const { captainAutoReply } = await import("@/lib/captain-auto-reply");
+      const auto = captainAutoReply(text, hubPreview);
+      if (auto) {
+        messages = [
+          ...messages,
+          {
+            id: `msg_${Date.now().toString(36)}_cap`,
+            at: new Date().toISOString(),
+            from: "captain" as const,
+            text: auto,
+          },
+        ].slice(-80);
+      }
+
       await updateOrder(order.orderId, { messages });
 
       void sendEmail({
         to: siteConfig.email,
         subject: `Conversa no pedido ${order.orderId}`,
-        html: `<p>Cliente <strong>${order.nome}</strong> (${order.email}) no pedido <strong>${order.orderId}</strong>:</p><p>${text}</p>`,
+        html: `<p>Cliente <strong>${order.nome}</strong> (${order.email}) no pedido <strong>${order.orderId}</strong>:</p><p>${text}</p>${auto ? `<p><em>Auto-resposta:</em> ${auto}</p>` : ""}`,
         replyTo: order.email,
       });
 
       return NextResponse.json({
         ok: true,
         hub: toOrderHubPublic({ ...order, messages }),
+      });
+    }
+
+    if (body.action === "return_ticket") {
+      const reasons = [
+        "broken",
+        "dislike",
+        "wrong",
+        "late",
+        "defect",
+        "other",
+      ] as const;
+      const reason = reasons.includes(body.reason as (typeof reasons)[number])
+        ? (body.reason as (typeof reasons)[number])
+        : null;
+      if (!reason) {
+        return NextResponse.json({ error: "Escolha o motivo." }, { status: 400 });
+      }
+      const description = (body.text || "").trim().slice(0, 1500);
+      if (description.length < 3) {
+        return NextResponse.json(
+          { error: "Descreva o que aconteceu." },
+          { status: 400 },
+        );
+      }
+      if (order.returnTicket && order.returnTicket.status !== "denied") {
+        return NextResponse.json({
+          ok: true,
+          already: true,
+          hub: toOrderHubPublic(order),
+        });
+      }
+
+      const mediaNotes = Array.isArray(body.mediaNotes)
+        ? body.mediaNotes
+            .filter((x) => typeof x === "string")
+            .map((x) => x.slice(0, 120))
+            .slice(0, 5)
+        : [];
+
+      const now = new Date().toISOString();
+      const ticket: NonNullable<Order["returnTicket"]> = {
+        id: `ret_${Date.now().toString(36)}`,
+        reason,
+        description,
+        mediaNotes,
+        status: "analysis",
+        createdAt: now,
+        updatedAt: now,
+      };
+      const msg: OrderMessage = {
+        id: `msg_${Date.now().toString(36)}`,
+        at: now,
+        from: "customer",
+        text: `Devolução (${reason}): ${description}`,
+      };
+      const messages = [...(order.messages || []), msg].slice(-80);
+      const updated = await updateOrder(order.orderId, {
+        returnTicket: ticket,
+        returnStatus: "requested",
+        messages,
+      });
+
+      void sendEmail({
+        to: siteConfig.email,
+        subject: `Ticket devolução — ${order.orderId}`,
+        html: `<p>Motivo: <strong>${reason}</strong></p><p>${description}</p><p>Pedido ${order.orderId} · ${order.email}</p>`,
+        replyTo: order.email,
+      });
+
+      return NextResponse.json({
+        ok: true,
+        hub: toOrderHubPublic(
+          updated || { ...order, returnTicket: ticket, returnStatus: "requested", messages },
+        ),
       });
     }
 
