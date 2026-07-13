@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
-import {
-  emailDelivered,
-  emailShipped,
-  emailTrackingUpdate,
-} from "@/lib/email";
+import { emailShipped, emailTrackingUpdate } from "@/lib/email";
+import { askMissionOnDelivery } from "@/lib/mission";
 import { listOrders, updateOrder } from "@/lib/store-db";
 import {
   appendTrackingEvent,
@@ -90,7 +87,7 @@ async function run(request: Request) {
         events.length !== (order.trackingEvents?.length || 0);
 
       if (changed) {
-        await updateOrder(order.orderId, {
+        const saved = await updateOrder(order.orderId, {
           status: nextStatus,
           supplierTracking: code,
           trackingCarrier: carrier,
@@ -108,11 +105,7 @@ async function run(request: Request) {
             carrier,
           });
         } else if (nextStatus === "fulfilled" && prevStatus !== "fulfilled") {
-          await emailDelivered({
-            orderId: order.orderId,
-            email: order.email,
-            nome: order.nome,
-          });
+          if (saved) await askMissionOnDelivery(saved);
         } else if (
           nextStatus === prevStatus &&
           code &&

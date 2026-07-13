@@ -218,6 +218,37 @@ export function OrderTrackingClient({
             </div>
           ) : null}
 
+          {data.delivered && data.missionToken && !data.missionResponse ? (
+            <div className="mt-6 rounded-[14px] border border-gold/40 bg-card p-5">
+              <p className="font-[family-name:var(--font-syne)] text-lg font-bold text-white">
+                Missão concluída?
+              </p>
+              <p className="mt-1 text-sm text-muted">
+                O Capitão quer saber se deu tudo certo.
+              </p>
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href={`/missao?pedido=${encodeURIComponent(data.orderNumber)}&t=${encodeURIComponent(data.missionToken)}&r=ok`}
+                  className="rounded-md bg-gold px-5 py-3 text-center text-sm font-bold text-black hover:bg-gold-deep"
+                >
+                  👍 Sim, deu tudo certo
+                </Link>
+                <Link
+                  href={`/missao?pedido=${encodeURIComponent(data.orderNumber)}&t=${encodeURIComponent(data.missionToken)}&r=help`}
+                  className="rounded-md border border-white/25 px-5 py-3 text-center text-sm font-semibold text-white hover:border-gold hover:text-gold"
+                >
+                  👎 Não, preciso de ajuda
+                </Link>
+              </div>
+            </div>
+          ) : null}
+
+          {data.delivered && data.missionResponse === "ok" ? (
+            <p className="mt-6 text-sm text-gold">
+              Missão concluída 👍 — obrigado pelo retorno.
+            </p>
+          ) : null}
+
           <div className="mt-8 flex flex-wrap gap-3">
             <a
               href={whatsappUrl(

@@ -25,6 +25,9 @@ export type TrackingPublic = {
   events: TrackingEvent[];
   updatedAt: string;
   delivered: boolean;
+  /** Token só se entregue e ainda sem resposta (para o quiz no rastreio) */
+  missionToken: string | null;
+  missionResponse: "ok" | "help" | null;
 };
 
 const STATUS_LABEL: Record<OrderTrackStatus, string> = {

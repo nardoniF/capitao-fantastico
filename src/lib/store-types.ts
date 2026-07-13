@@ -64,6 +64,11 @@ export type Order = {
     label: string;
     detail?: string;
   }[];
+  /** Índice de Missão — e-mail pós-entrega */
+  missionToken?: string;
+  missionAskedAt?: string;
+  missionResponse?: "ok" | "help";
+  missionRespondedAt?: string;
   updatedAt?: string;
 };
 

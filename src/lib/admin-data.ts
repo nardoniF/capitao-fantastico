@@ -2,6 +2,7 @@ import { prisma } from "@/lib/db";
 import { calculateSalePrice } from "@/lib/pricing";
 import { listClicks, listOrders } from "@/lib/store-db";
 import { listFeedback } from "@/lib/feedback";
+import { computeMissionIndex, type MissionIndex } from "@/lib/mission";
 import {
   catalogCap,
   countActiveProducts,
@@ -58,6 +59,8 @@ export type AdminOrderEconomics = {
   items: { name: string; qty: number; unitPrice: number; unitCostBrl: number }[];
   paymentRef?: string;
   supplierTracking?: string;
+  missionResponse?: "ok" | "help" | null;
+  missionAskedAt?: string | null;
 };
 
 async function getPricing(): Promise<PricingSnapshot> {
@@ -169,6 +172,8 @@ export async function listAdminOrders(): Promise<AdminOrderEconomics[]> {
       items,
       paymentRef: o.paymentRef,
       supplierTracking: o.supplierTracking,
+      missionResponse: o.missionResponse ?? null,
+      missionAskedAt: o.missionAskedAt ?? null,
     };
   });
 }
@@ -269,6 +274,11 @@ export type AdminKpis = {
   clicksWhatsapp: number;
   activeProducts: number;
   catalogCap: number;
+  /** % 👍 entre respostas (null = sem respostas ainda) */
+  missionIndex: number | null;
+  missionAsked: number;
+  missionOk: number;
+  missionHelp: number;
 };
 
 export function buildAdminKpis(
@@ -276,6 +286,7 @@ export function buildAdminKpis(
   clicks: { tipo: string }[],
   activeCount: number,
   cap: number,
+  mission: MissionIndex,
 ): AdminKpis {
   const paidLike = orders.filter((o) =>
     ["paid", "fulfilling", "shipped", "fulfilled"].includes(o.status),
@@ -293,11 +304,17 @@ export function buildAdminKpis(
     clicksWhatsapp: clicks.filter((c) => c.tipo === "whatsapp").length,
     activeProducts: activeCount,
     catalogCap: cap,
+    missionIndex: mission.index,
+    missionAsked: mission.asked,
+    missionOk: mission.ok,
+    missionHelp: mission.help,
   };
 }
 
 export async function getAdminBundle() {
   const pricing = await getPricing();
+  const rawOrders = await listOrders();
+  const mission = computeMissionIndex(rawOrders);
   const [products, orders, clicks, feedback, api, importLogs, activeCount, importSummary] =
     await Promise.all([
       listAdminProducts(),
@@ -311,7 +328,7 @@ export async function getAdminBundle() {
     ]);
 
   const cap = catalogCap();
-  const kpis = buildAdminKpis(orders, clicks, activeCount, cap);
+  const kpis = buildAdminKpis(orders, clicks, activeCount, cap, mission);
 
   return {
     pricing,

@@ -36,6 +36,8 @@ type OrderRow = {
   items: { name: string; qty: number; unitPrice: number; unitCostBrl: number }[];
   paymentRef?: string;
   supplierTracking?: string;
+  missionResponse?: "ok" | "help" | null;
+  missionAskedAt?: string | null;
 };
 
 type ClickRow = {
@@ -93,6 +95,10 @@ type Kpis = {
   clicksWhatsapp: number;
   activeProducts: number;
   catalogCap: number;
+  missionIndex: number | null;
+  missionAsked: number;
+  missionOk: number;
+  missionHelp: number;
 };
 
 type Tab = "vendas" | "produtos" | "importar" | "markup" | "cliques" | "sugestoes" | "api";
@@ -492,7 +498,7 @@ export default function AdminPage() {
       </div>
 
       {kpis ? (
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {[
             {
               label: "Comissão (líquida)",
@@ -503,6 +509,17 @@ export default function AdminPage() {
               label: "Faturamento",
               value: formatBRL(kpis.revenue),
               hint: `${kpis.ordersTotal} pedidos no total`,
+            },
+            {
+              label: "Índice de Missão",
+              value:
+                kpis.missionIndex == null
+                  ? "—"
+                  : `${kpis.missionIndex.toFixed(0)}%`,
+              hint:
+                kpis.missionAsked === 0
+                  ? "Aguardando entregas"
+                  : `👍 ${kpis.missionOk} · 👎 ${kpis.missionHelp} · ${kpis.missionAsked} perguntados`,
             },
             {
               label: "Cliques",
@@ -587,6 +604,13 @@ export default function AdminPage() {
                           {new Date(o.createdAt).toLocaleString("pt-BR")}
                         </p>
                         <p className="text-xs text-gold">{o.status}</p>
+                        {o.missionResponse === "ok" ? (
+                          <p className="text-xs text-emerald-400">Missão 👍</p>
+                        ) : o.missionResponse === "help" ? (
+                          <p className="text-xs text-amber-400">Missão 👎 ajuda</p>
+                        ) : o.missionAskedAt ? (
+                          <p className="text-xs text-muted">Missão: aguardando</p>
+                        ) : null}
                         <ul className="mt-1 text-xs text-muted">
                           {o.items.map((it, i) => (
                             <li key={`${o.orderId}-${i}`}>
@@ -637,6 +661,24 @@ export default function AdminPage() {
                           >
                             Rastreio
                           </button>
+                          {o.status !== "fulfilled" &&
+                          o.status !== "cancelled" &&
+                          o.status !== "failed" ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                void patchOrder(o.orderId, {
+                                  status: "fulfilled",
+                                  ...(o.supplierTracking
+                                    ? { supplierTracking: o.supplierTracking }
+                                    : {}),
+                                })
+                              }
+                              className="rounded border border-gold/50 px-2 py-1 text-xs text-gold"
+                            >
+                              Entregue + missão
+                            </button>
+                          ) : null}
                           <a
                             href={whatsappUrl(
                               `Olá ${o.nome}! Pedido ${o.orderId}${

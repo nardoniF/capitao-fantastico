@@ -187,15 +187,31 @@ export async function emailDelivered(order: {
   orderId: string;
   email: string;
   nome: string;
+  missionToken: string;
 }) {
+  const origin = siteOrigin();
+  const base = `${origin}/api/missao?pedido=${encodeURIComponent(order.orderId)}&t=${encodeURIComponent(order.missionToken)}`;
+  const okUrl = `${base}&r=ok`;
+  const helpUrl = `${base}&r=help`;
+  const track = `${origin}/pedido/rastreio?pedido=${encodeURIComponent(order.orderId)}`;
+
+  const btn = (href: string, label: string, bg: string, color: string) =>
+    `<a href="${href}" style="display:inline-block;margin:6px 8px 6px 0;padding:14px 20px;background:${bg};color:${color};text-decoration:none;border-radius:10px;font-weight:700;font-size:15px">${label}</a>`;
+
   return sendEmail({
     to: order.email,
-    subject: `Pedido entregue — ${order.orderId}`,
+    subject: `Missão concluída? — ${order.orderId}`,
     html: wrap(
-      "Pedido entregue",
+      "Missão concluída?",
       `<p>Olá, <strong>${order.nome}</strong>!</p>
-       <p>Marcamos o pedido <strong>${order.orderId}</strong> como entregue.</p>
-       <p>Qualquer imprevisto, fale conosco em português — estamos aqui para ajudar.</p>`,
+       <p>Seu pedido <strong>${order.orderId}</strong> chegou. O Capitão quer saber se deu tudo certo.</p>
+       <p style="margin:22px 0 8px;font-size:18px;color:#fff"><strong>Missão concluída?</strong></p>
+       <p style="margin:0 0 18px">
+         ${btn(okUrl, "👍 Sim, deu tudo certo", "#ffc107", "#111")}
+         ${btn(helpUrl, "👎 Não, preciso de ajuda", "#2a2a2a", "#fff")}
+       </p>
+       <p style="font-size:13px;color:#888"><a href="${track}" style="color:#ffc107">Ver pedido no site</a></p>`,
     ),
+    text: `Missão concluída?\n\nPedido ${order.orderId}\n\nSim: ${okUrl}\nPreciso de ajuda: ${helpUrl}`,
   });
 }

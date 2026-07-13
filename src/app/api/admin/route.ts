@@ -88,6 +88,7 @@ export async function PUT(request: Request) {
       const { findOrderById } = await import("@/lib/store-db");
       const current = await findOrderById(body.orderId);
       const patch = { ...body.patch } as Record<string, unknown>;
+      const wasFulfilled = current?.status === "fulfilled";
       if (current && typeof patch.supplierTracking === "string") {
         const { appendTrackingEvent, statusLabel } = await import(
           "@/lib/order-tracking"
@@ -100,6 +101,19 @@ export async function PUT(request: Request) {
           label: statusLabel(String(nextStatus)),
           detail: `Rastreio ${patch.supplierTracking}`,
         });
+      } else if (
+        current &&
+        patch.status === "fulfilled" &&
+        current.status !== "fulfilled"
+      ) {
+        const { appendTrackingEvent, statusLabel } = await import(
+          "@/lib/order-tracking"
+        );
+        patch.trackingEvents = appendTrackingEvent(current.trackingEvents, {
+          at: new Date().toISOString(),
+          label: statusLabel("fulfilled"),
+          detail: "Entrega confirmada",
+        });
       }
       const order = await updateOrder(
         body.orderId,
@@ -110,6 +124,10 @@ export async function PUT(request: Request) {
           { error: "Pedido não encontrado" },
           { status: 404 },
         );
+      }
+      if (order.status === "fulfilled" && !wasFulfilled) {
+        const { askMissionOnDelivery } = await import("@/lib/mission");
+        await askMissionOnDelivery(order);
       }
       return NextResponse.json({ order });
     }

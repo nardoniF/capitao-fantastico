@@ -55,6 +55,13 @@ export async function GET(request: Request) {
     events,
     updatedAt: order.updatedAt || order.createdAt,
     delivered: order.status === "fulfilled",
+    missionToken:
+      order.status === "fulfilled" &&
+      !order.missionResponse &&
+      order.missionToken
+        ? order.missionToken
+        : null,
+    missionResponse: order.missionResponse ?? null,
   };
 
   return NextResponse.json(body, {
