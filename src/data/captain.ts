@@ -1,5 +1,7 @@
 /** Navegação editorial logo abaixo do banner. */
 export const captainSections = [
+  { id: "ate-50", label: "Até R$50", href: "/produtos?preco=50" },
+  { id: "ate-100", label: "Até R$100", href: "/produtos?preco=100" },
   { id: "virais", label: "Produtos Virais", href: "/produtos?tag=viral" },
   { id: "pet", label: "Escolhas para Pets", href: "/produtos?cat=pet" },
   { id: "auto", label: "Gadgets para Carro", href: "/produtos?cat=auto" },

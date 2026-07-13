@@ -36,8 +36,14 @@ export function Hero() {
               href="/produtos"
               className="inline-flex rounded-md bg-gold px-6 py-3.5 text-sm font-bold text-black hover:bg-gold-deep"
             >
-              Ver Produtos Aprovados
-            </Link>
+            Ver os 200 aprovados
+          </Link>
+          <Link
+            href="/produtos?preco=50"
+            className="inline-flex rounded-md border border-gold/50 px-6 py-3.5 text-sm font-bold text-gold hover:bg-gold hover:text-black"
+          >
+            Achados até R$50
+          </Link>
             <Link
               href="/#quiz-capitao"
               className="inline-flex rounded-md border border-white/25 px-6 py-3.5 text-sm font-semibold text-white hover:border-gold hover:text-gold"

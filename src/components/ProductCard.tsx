@@ -5,6 +5,7 @@ import { categoryLabels, formatBRL, type Product } from "@/data/products";
 import { useCart } from "@/components/CartProvider";
 import { ApprovedSeal } from "@/components/ApprovedSeal";
 import { ProductImage } from "@/components/ProductImage";
+import { captainScoreFor } from "@/data/captain";
 
 export function ProductCard({ product }: { product: Product }) {
   const { add } = useCart();
@@ -31,9 +32,17 @@ export function ProductCard({ product }: { product: Product }) {
         ) : null}
       </Link>
       <div className="flex flex-1 flex-col gap-2 p-4">
-        <p className="m-0 text-[0.7rem] font-semibold uppercase tracking-wider text-gold/80">
-          {categoryLabels[product.category]}
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="m-0 text-[0.7rem] font-semibold uppercase tracking-wider text-gold/80">
+            {categoryLabels[product.category]}
+          </p>
+          <span className="flex items-center gap-1 text-xs font-bold text-white">
+            <span className="text-gold" aria-hidden>
+              ★
+            </span>
+            {captainScoreFor(product.slug).toFixed(1).replace(".", ",")}
+          </span>
+        </div>
         <Link href={`/produtos/${product.slug}`}>
           <h3 className="m-0 line-clamp-2 min-h-[2.5rem] text-[1.05rem] font-bold leading-snug text-gold">
             {product.name}

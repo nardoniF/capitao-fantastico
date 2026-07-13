@@ -4,9 +4,9 @@
 export const siteConfig = {
   brand: "Capitão Fantástico",
   slogan: "Só entra aqui o que o Capitão aprova.",
-  tagline: "Descobrimos os produtos mais inteligentes do mundo.",
+  tagline: "Os 200 produtos mais bem avaliados da internet.",
   positioning:
-    "Tecnologia, casa, carro, pets e muito mais — com curadoria, suporte em português e rastreio no site.",
+    "O Capitão garimpou a internet inteira e selecionou só os 200 melhores — tecnologia, casa, carro, pets e mais, com estoque real, suporte em português e rastreio no site.",
   heroSupport: "Só entra aqui o que o Capitão aprova.",
   company: "3N20 Soluções Tecnológicas Ltda",
   cnpj: "29.321.223/0001-32",
