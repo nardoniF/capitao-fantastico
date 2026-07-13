@@ -168,6 +168,8 @@ export class CJSupplier implements SupplierAdapter {
     sort?: "asc" | "desc";
     minPrice?: number;
     maxPrice?: number;
+    /** Estoque mínimo na CJ (ex.: 1 = só com estoque) */
+    startInventory?: number;
   }): Promise<{ list: CjSearchHit[]; total: number }> {
     const token = await this.token();
     const page = opts.page ?? 1;
@@ -189,6 +191,9 @@ export class CJSupplier implements SupplierAdapter {
     }
     if (opts.minPrice != null) params.set("minPrice", String(opts.minPrice));
     if (opts.maxPrice != null) params.set("maxPrice", String(opts.maxPrice));
+    if (opts.startInventory != null) {
+      params.set("startInventory", String(opts.startInventory));
+    }
 
     const data = await cjFetch<{
       list?: {
@@ -248,6 +253,13 @@ export class CJSupplier implements SupplierAdapter {
           : data;
 
     const variants = variantsFromCjRaw(product);
+    // product/query costuma vir sem inventories — busca estoque real por VID
+    if (variants.length && variants.every((v) => v.stock <= 0)) {
+      await this.hydrateVariantStocks(variants, {
+        maxVariants: 8,
+        stopAfterInStock: 3,
+      });
+    }
     const gallery = galleryFromCjRaw(
       product,
       String(product.bigImage || product.productImage || ""),
@@ -330,18 +342,86 @@ export class CJSupplier implements SupplierAdapter {
   async getStock(variantIdOrSku: string): Promise<number> {
     const token = await this.token();
     try {
-      const data = await cjFetch<{ inventory?: number; totalInventory?: number }>(
-        `/product/stock/queryByVid?vid=${encodeURIComponent(variantIdOrSku)}`,
-        { token },
+      const data = await cjFetch<
+        | Array<{
+            totalInventoryNum?: number;
+            cjInventoryNum?: number;
+            storageNum?: number;
+            factoryInventoryNum?: number;
+          }>
+        | {
+            inventory?: number;
+            totalInventory?: number;
+            totalInventoryNum?: number;
+          }
+      >(`/product/stock/queryByVid?vid=${encodeURIComponent(variantIdOrSku)}`, {
+        token,
+      });
+      if (Array.isArray(data)) {
+        return data.reduce((sum, row) => {
+          const n = Number(
+            row.totalInventoryNum ??
+              row.storageNum ??
+              row.cjInventoryNum ??
+              row.factoryInventoryNum ??
+              0,
+          );
+          return sum + (Number.isFinite(n) ? Math.max(0, n) : 0);
+        }, 0);
+      }
+      return Number(
+        data?.totalInventoryNum ??
+          data?.totalInventory ??
+          data?.inventory ??
+          0,
       );
-      return Number(data?.totalInventory ?? data?.inventory ?? 0);
     } catch {
-      const data = await cjFetch<{ inventory?: number }>(
-        `/product/stock/queryBySku?sku=${encodeURIComponent(variantIdOrSku)}`,
-        { token },
-      );
-      return Number(data?.inventory ?? 0);
+      const data = await cjFetch<
+        | Array<{ totalInventoryNum?: number; inventory?: number }>
+        | { inventory?: number; totalInventoryNum?: number }
+      >(`/product/stock/queryBySku?sku=${encodeURIComponent(variantIdOrSku)}`, {
+        token,
+      });
+      if (Array.isArray(data)) {
+        return data.reduce(
+          (sum, row) =>
+            sum + Number(row.totalInventoryNum ?? row.inventory ?? 0),
+          0,
+        );
+      }
+      return Number(data?.totalInventoryNum ?? data?.inventory ?? 0);
     }
+  }
+
+  /**
+   * product/query muitas vezes vem sem inventories — hidrata via stock/queryByVid.
+   */
+  async hydrateVariantStocks(
+    variants: import("@/lib/media").CjParsedVariant[],
+    opts?: { maxVariants?: number; stopAfterInStock?: number },
+  ) {
+    const max = Math.min(opts?.maxVariants ?? 8, variants.length);
+    const stopAfter = opts?.stopAfterInStock ?? 3;
+    let found = 0;
+    for (let i = 0; i < max; i++) {
+      const v = variants[i];
+      if (v.stock > 0) {
+        found += 1;
+        if (found >= stopAfter) break;
+        continue;
+      }
+      try {
+        const n = await this.getStock(v.vid);
+        v.stock = Number.isFinite(n) ? Math.max(0, n) : 0;
+        if (v.stock > 0) {
+          found += 1;
+          if (found >= stopAfter) break;
+        }
+      } catch {
+        /* segue */
+      }
+    }
+    return found > 0;
   }
 
   async getPrice(variantIdOrSku: string): Promise<SupplierMoney | null> {

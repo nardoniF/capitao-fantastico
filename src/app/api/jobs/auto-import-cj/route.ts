@@ -24,8 +24,8 @@ async function run(request: Request) {
   }
 
   const limit = Math.min(
-    Math.max(Number(process.env.AUTO_IMPORT_BATCH || 12) || 12, 1),
-    15,
+    Math.max(Number(process.env.AUTO_IMPORT_BATCH || 30) || 30, 1),
+    30,
   );
 
   try {

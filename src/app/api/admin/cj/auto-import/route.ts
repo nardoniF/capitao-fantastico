@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     };
 
     const result = await autoImportTopCjProducts({
-      limit: body.limit ?? 10,
+      limit: body.limit ?? 30,
       dryRun: body.dryRun,
       minUsd: body.minUsd,
       maxUsd: body.maxUsd,

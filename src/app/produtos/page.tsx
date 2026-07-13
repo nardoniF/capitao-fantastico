@@ -4,7 +4,6 @@ import { ProductCard } from "@/components/ProductCard";
 import {
   categoryLabels,
   categoryOrder,
-  products as seedProducts,
   type ProductCategory,
 } from "@/data/products";
 import { listStorefrontProducts } from "@/lib/catalog";
@@ -26,7 +25,8 @@ function isCategory(v: string | undefined): v is ProductCategory {
 export default async function ProductsPage({ searchParams }: Props) {
   const q = await searchParams;
   const fromDb = await listStorefrontProducts();
-  const products = fromDb.length > 0 ? fromDb : seedProducts;
+  // Com banco ligado, nunca mascara vitrine com seed demo (sem estoque ≠ fake catalog)
+  const products = fromDb;
   const onlyNew = q.novidades === "1";
   const cat = isCategory(q.cat) ? q.cat : null;
 
@@ -94,10 +94,12 @@ export default async function ProductsPage({ searchParams }: Props) {
 
         {filtered.length === 0 ? (
           <p className="mt-10 text-center text-muted">
-            Em breve mais produtos nesta categoria.{" "}
-            <Link href="/produtos" className="text-gold hover:underline">
-              Ver todos
+            O Capitão está repondo a vitrine com itens que têm estoque agora.
+            Volte em breve — ou{" "}
+            <Link href="/sugestoes" className="text-gold hover:underline">
+              sugira um produto
             </Link>
+            .
           </p>
         ) : null}
       </div>

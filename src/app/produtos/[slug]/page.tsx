@@ -3,10 +3,7 @@ import { CaptainMedals, medalsForProduct } from "@/components/CaptainMedals";
 import { CaptainStrip } from "@/components/CaptainStrip";
 import { ProductDetailsAccordion } from "@/components/ProductDetailsAccordion";
 import { ProductPurchase } from "@/components/ProductPurchase";
-import {
-  categoryLabels,
-  products as seedProducts,
-} from "@/data/products";
+import { categoryLabels } from "@/data/products";
 import { getStorefrontBySlug, type StorefrontVariant } from "@/lib/catalog";
 import type { ProductDetails } from "@/lib/product-details";
 import { siteConfig } from "@/lib/site-config";
@@ -19,13 +16,12 @@ export const dynamic = "force-dynamic";
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateStaticParams() {
-  return seedProducts.map((p) => ({ slug: p.slug }));
+  return [];
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const fromDb = await getStorefrontBySlug(slug);
-  const product = fromDb ?? seedProducts.find((p) => p.slug === slug);
+  const product = await getStorefrontBySlug(slug);
   if (!product) return { title: "Produto" };
   const title =
     ("seoTitle" in product && product.seoTitle) || product.name;
@@ -40,20 +36,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ProductDetailPage({ params }: Props) {
   const { slug } = await params;
   const fromDb = await getStorefrontBySlug(slug);
-  const seed = seedProducts.find((p) => p.slug === slug);
-  const product = fromDb
-    ? fromDb
-    : seed
-      ? {
-          ...seed,
-          gallery: [seed.image] as string[],
-          details: {} as ProductDetails,
-          variants: [] as StorefrontVariant[],
-          videoUrl: null as string | null,
-          seoTitle: null as string | null,
-          seoDescription: null as string | null,
-        }
-      : null;
+  const product = fromDb;
   if (!product) notFound();
 
   const details: ProductDetails =

@@ -138,9 +138,16 @@ export type CjParsedVariant = {
   label: string;
 };
 
-/** Estoque real da CJ atual: inventories[].totalInventory (não variantInventory). */
+/** Estoque: inventoryNum direto, variantInventory legado, ou inventories[]. */
 export function stockFromCjVariant(v: Record<string, unknown>): number {
-  const direct = Number(v.variantInventory ?? v.inventory ?? v.totalInventory ?? 0);
+  const direct = Number(
+    v.inventoryNum ??
+      v.variantInventory ??
+      v.inventory ??
+      v.totalInventory ??
+      v.totalInventoryNum ??
+      0,
+  );
   if (Number.isFinite(direct) && direct > 0) return direct;
 
   if (Array.isArray(v.inventories)) {
@@ -149,8 +156,15 @@ export function stockFromCjVariant(v: Record<string, unknown>): number {
       if (!row || typeof row !== "object") continue;
       const inv = row as Record<string, unknown>;
       total +=
-        Number(inv.totalInventory ?? inv.cjInventory ?? inv.factoryInventory ?? 0) ||
-        0;
+        Number(
+          inv.totalInventoryNum ??
+            inv.totalInventory ??
+            inv.cjInventory ??
+            inv.cjInventoryNum ??
+            inv.factoryInventory ??
+            inv.factoryInventoryNum ??
+            0,
+        ) || 0;
     }
     if (total > 0) return total;
   }

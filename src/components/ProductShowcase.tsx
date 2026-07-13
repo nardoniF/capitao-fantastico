@@ -1,18 +1,11 @@
 import Link from "next/link";
 import { ProductCard } from "@/components/ProductCard";
-import {
-  categoryLabels,
-  categoryOrder,
-  products as seedProducts,
-} from "@/data/products";
+import { categoryLabels, categoryOrder } from "@/data/products";
 import { listStorefrontProducts } from "@/lib/catalog";
 
 export async function ProductShowcase() {
   const fromDb = await listStorefrontProducts();
-  const products =
-    fromDb.length > 0
-      ? fromDb
-      : seedProducts.map((p) => ({ ...p, image: p.image }));
+  const products = fromDb;
 
   const novidades = products.filter((p) => p.isNew);
   const byCat = categoryOrder
@@ -21,6 +14,31 @@ export async function ProductShowcase() {
       items: products.filter((p) => p.category === cat),
     }))
     .filter((g) => g.items.length > 0);
+
+  if (products.length === 0) {
+    return (
+      <section id="novidades" className="bg-bg py-14 md:py-16">
+        <div className="mx-auto max-w-[1200px] px-5 text-center md:px-6">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-gold">
+            Vitrine
+          </p>
+          <h2 className="mt-2 font-[family-name:var(--font-syne)] text-2xl font-bold text-white md:text-3xl">
+            Repondo o que tem estoque
+          </h2>
+          <p className="mx-auto mt-3 max-w-lg text-[#888]">
+            Só entra produto com estoque real no fornecedor. Em breve a seleção
+            volta — com fotos, opções e preço certos.
+          </p>
+          <Link
+            href="/sugestoes"
+            className="mt-6 inline-block text-sm font-semibold text-gold hover:underline"
+          >
+            Sugerir um produto →
+          </Link>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <>
@@ -35,7 +53,7 @@ export async function ProductShowcase() {
           <p className="mt-2 text-[#888]">
             {fromDb.length > 0
               ? "Seleção curada — só entra o que o Capitão aprova."
-              : "Os que acabaram de ganhar o selo."}
+              : "Repondo com itens em estoque."}
           </p>
           <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {(novidades.length ? novidades : products.slice(0, 8)).map(

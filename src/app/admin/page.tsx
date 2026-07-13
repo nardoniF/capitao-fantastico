@@ -393,12 +393,12 @@ export default function AdminPage() {
 
   async function autoImportTop30() {
     const ok = window.confirm(
-      "Forçar uma rodada agora? (o cron já importa 1× por dia, só com estoque e margem)\n\nImporta só o que ainda não está ativo.",
+      "Forçar uma rodada agora?\n\nPega o top de listagens (vendas) da CJ, só com estoque, até 30 produtos.",
     );
     if (!ok) return;
     setAutoRunning(true);
     setError(null);
-    setAutoLog("Rodada forçada: buscando e importando novos…");
+    setAutoLog("Rodada forçada: top vendas COM estoque…");
     try {
       const res = await fetch("/api/admin/cj/auto-import", {
         method: "POST",
@@ -406,7 +406,7 @@ export default function AdminPage() {
           "Content-Type": "application/json",
           "x-admin-password": password,
         },
-        body: JSON.stringify({ limit: 10 }),
+        body: JSON.stringify({ limit: 30 }),
       });
       const data = (await res.json()) as {
         error?: string;

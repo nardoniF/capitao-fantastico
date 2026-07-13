@@ -1,9 +1,9 @@
 /**
  * Auto-import Capitão:
- * - Descobre sozinho (trending/virais primeiro)
- * - Publica direto
- * - Para no teto ~150 ativos
- * - Já existe → ignora
+ * - Top listagens / trending da CJ (proxy de vendas)
+ * - Só publica com estoque real (pula zerado e tenta o próximo)
+ * - Para no teto do catálogo (~150–200)
+ * - Já ativo → ignora
  */
 import type { ProductCategory } from "@/data/products";
 import { prisma } from "@/lib/db";
@@ -42,11 +42,11 @@ function isGoodCandidate(h: CjSearchHit, minUsd: number, maxUsd: number) {
   return true;
 }
 
-/** Score: virais + listagens + barato (mais margem potencial). */
+/** Score: listagens (vendas) + viral + preço com margem. */
 function candidateScore(h: CjSearchHit, viral: boolean, nicheBoost = 0) {
   const listed = h.listedNum || 0;
-  const cheapBoost = Math.round(120 / Math.max(h.priceUsd, 0.5));
-  return (viral ? 5000 : 100) + listed * 2 + cheapBoost + nicheBoost;
+  const cheapBoost = Math.round(80 / Math.max(h.priceUsd, 0.5));
+  return (viral ? 3000 : 0) + listed * 5 + cheapBoost + nicheBoost;
 }
 
 export type AutoImportResult = {
@@ -66,7 +66,7 @@ export type AutoImportResult = {
 };
 
 /**
- * Descobre virais/novos CJ e publica até preencher o teto do catálogo.
+ * Descobre top/trending CJ com estoque e publica até o lote ou o teto.
  */
 export async function autoImportTopCjProducts(opts?: {
   limit?: number;
@@ -80,8 +80,9 @@ export async function autoImportTopCjProducts(opts?: {
   const activeCount = await countActiveProducts();
   const slotsLeft = Math.max(0, cap - activeCount);
 
-  const batchAsk = Math.min(Math.max(opts?.limit ?? 5, 1), 15);
-  const limit = Math.min(batchAsk, slotsLeft || 0);
+  // Lote pedido (máx 30) limitado às vagas do teto
+  const batchAsk = Math.min(Math.max(opts?.limit ?? 30, 1), 30);
+  const targetImports = Math.min(batchAsk, slotsLeft || 0);
   const minUsd = opts?.minUsd ?? 1.5;
   const maxUsd = opts?.maxUsd ?? 35;
   const dryRun = opts?.dryRun === true;
@@ -107,7 +108,6 @@ export async function autoImportTopCjProducts(opts?: {
 
   const cj = getCJSupplier();
   // Só ignora PID que já está ATIVO na vitrine.
-  // Inativo / só no supplier → pode tentar de novo se a CJ voltar estoque.
   const existing = await prisma.supplierProduct.findMany({
     where: { supplier: { code: "cj" } },
     select: {
@@ -127,9 +127,9 @@ export async function autoImportTopCjProducts(opts?: {
     viral: boolean;
   };
   const byPid = new Map<string, Candidate>();
-  const pause = () => new Promise((r) => setTimeout(r, 1200));
+  const pause = (ms = 900) => new Promise((r) => setTimeout(r, ms));
 
-  // 1) VIRALS / trending primeiro (prioridade máxima)
+  // 1) VIRALS / trending primeiro
   try {
     const trending = await cj.searchProducts({
       searchType: 2,
@@ -139,6 +139,7 @@ export async function autoImportTopCjProducts(opts?: {
       pageSize: 50,
       minPrice: minUsd,
       maxPrice: maxUsd,
+      startInventory: 1,
     });
     for (const h of trending.list) {
       if (!isGoodCandidate(h, minUsd, maxUsd)) continue;
@@ -153,7 +154,7 @@ export async function autoImportTopCjProducts(opts?: {
 
   await pause();
 
-  // 2) Mais listados por nicho (novos / fortes)
+  // 2) Mais listados por nicho
   for (const niche of NICHES) {
     try {
       await pause();
@@ -165,17 +166,18 @@ export async function autoImportTopCjProducts(opts?: {
         pageSize: 40,
         minPrice: minUsd,
         maxPrice: maxUsd,
+        startInventory: 1,
       });
       let taken = 0;
       for (const h of list) {
-        if (taken >= niche.quota * 2) break;
+        if (taken >= niche.quota * 3) break;
         if (!isGoodCandidate(h, minUsd, maxUsd)) continue;
         if (already.has(h.pid)) continue;
         const catOk =
           niche.catMatch.test(h.categoryName || "") ||
           niche.catMatch.test(h.title);
         if (!catOk) continue;
-        const score = candidateScore(h, false, 50 - taken);
+        const score = candidateScore(h, false, 40 - taken);
         const prev = byPid.get(h.pid);
         if (!prev || score > prev.score) {
           byPid.set(h.pid, {
@@ -192,36 +194,18 @@ export async function autoImportTopCjProducts(opts?: {
     }
   }
 
-  // Virais primeiro, depois score
+  // Mais listados = mais vendas → primeiro
   const ranked = [...byPid.values()].sort((a, b) => {
     if (a.viral !== b.viral) return a.viral ? -1 : 1;
     return b.score - a.score;
   });
 
-  const perCat = new Map<string, number>();
-  const selected: Candidate[] = [];
-
-  for (const c of ranked) {
-    if (selected.length >= limit) break;
-    const n = perCat.get(c.storeCategory) || 0;
-    const niche = NICHES.find((x) => x.storeCategory === c.storeCategory);
-    const maxQuota = niche?.quota ?? 5;
-    if (!c.viral && n >= maxQuota && selected.length < limit - 2) continue;
-    perCat.set(c.storeCategory, n + 1);
-    selected.push(c);
-  }
-
-  if (selected.length < limit) {
-    const ids = new Set(selected.map((s) => s.pid));
-    for (const c of ranked) {
-      if (selected.length >= limit) break;
-      if (ids.has(c.pid)) continue;
-      selected.push(c);
-    }
-  }
+  // Pool grande: muitos top-vendas estão zerados; pulamos e seguimos
+  const poolSize = Math.min(ranked.length, Math.max(targetImports * 6, 60));
+  const pool = ranked.slice(0, poolSize);
 
   const result: AutoImportResult = {
-    selected: selected.length,
+    selected: pool.length,
     activeCount,
     catalogCap: cap,
     slotsLeft,
@@ -231,10 +215,10 @@ export async function autoImportTopCjProducts(opts?: {
   };
 
   if (dryRun) {
-    for (const c of selected) {
+    for (const c of pool.slice(0, targetImports)) {
       result.skipped.push({
         pid: c.pid,
-        reason: `dry-run · ${c.viral ? "viral" : "top"} · ${c.storeCategory}`,
+        reason: `dry-run · ${c.viral ? "viral" : "top"} · listed ${c.listedNum ?? 0} · ${c.storeCategory}`,
       });
     }
     return result;
@@ -243,61 +227,12 @@ export async function autoImportTopCjProducts(opts?: {
   await appendImportLog({
     source,
     status: "ok",
-    message: `Rodada: ${selected.length} candidatos · ativos ${activeCount}/${cap} · vagas ${slotsLeft}`,
+    message: `Rodada: alvo ${targetImports} com estoque · pool ${pool.length} · ativos ${activeCount}/${cap}`,
   });
 
-  // Corrige até 3 produtos antigos ainda em inglês OU com SEO fraco
-  try {
-    const stale = await prisma.product.findMany({
-      where: {
-        active: true,
-        supplierProduct: { isNot: null },
-      },
-      include: { supplierProduct: true },
-      orderBy: { updatedAt: "asc" },
-      take: 10,
-    });
-    let fixed = 0;
-    for (const p of stale) {
-      if (fixed >= 3) break;
-      const looksEn =
-        /\b(the|and|with|for|portable|wireless|hot|new)\b/i.test(p.name) &&
-        !/[áàâãéêíóôõúç]/i.test(p.name);
-      const weakSeo =
-        !p.seoTitle ||
-        !p.seoDescription ||
-        p.seoTitle.length < 20 ||
-        p.seoDescription.length < 40 ||
-        !/capitão|capitao/i.test(p.seoTitle);
-      if ((!looksEn && !weakSeo) || !p.supplierProduct?.externalId) continue;
-      try {
-        await new Promise((r) => setTimeout(r, 800));
-        await importCJProductFull({
-          cjProductId: p.supplierProduct.externalId,
-          category: p.category,
-          isNew: p.isNew,
-        });
-        fixed += 1;
-        await appendImportLog({
-          source,
-          status: "ok",
-          message: looksEn
-            ? `Relocalizado PT · ${p.slug}`
-            : `SEO atualizado · ${p.slug}`,
-          pid: p.supplierProduct.externalId,
-          productId: p.id,
-          slug: p.slug,
-          name: p.name,
-        });
-      } catch {
-        /* segue */
-      }
-    }
-  } catch (e) {
-    console.warn("relocalize skip", e);
-  }
+  for (const c of pool) {
+    if (result.imported.length >= targetImports) break;
 
-  for (const c of selected) {
     const currentActive = await countActiveProducts();
     if (currentActive >= cap) {
       await appendImportLog({
@@ -309,12 +244,12 @@ export async function autoImportTopCjProducts(opts?: {
     }
 
     if (already.has(c.pid)) {
-      result.skipped.push({ pid: c.pid, reason: "já importado" });
+      result.skipped.push({ pid: c.pid, reason: "já ativo na vitrine" });
       continue;
     }
 
     try {
-      await new Promise((r) => setTimeout(r, 1300));
+      await pause(1100);
       const r = await importCJProductFull({
         cjProductId: c.pid,
         category: c.storeCategory,
@@ -331,7 +266,7 @@ export async function autoImportTopCjProducts(opts?: {
       await appendImportLog({
         source,
         status: "ok",
-        message: `${c.viral ? "Viral" : "Novo"} · ${c.storeCategory} · R$ ${Number(r.product.salePrice).toFixed(2)}`,
+        message: `${c.viral ? "Viral" : "Top"} · listed ${c.listedNum ?? 0} · ${c.storeCategory} · R$ ${Number(r.product.salePrice).toFixed(2)}`,
         pid: c.pid,
         productId: r.product.id,
         slug: r.product.slug,
