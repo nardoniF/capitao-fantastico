@@ -119,6 +119,15 @@ function mapRow(p: {
       stock: v.stock,
     }));
 
+  // Preço vitrine = menor variante COM ESTOQUE (é a que a página seleciona
+  // por padrão). Evita card mostrando um preço e a página outro quando a
+  // variante âncora muda de preço ou esgota.
+  const cheapestVariant = variants.length
+    ? Math.min(...variants.map((v) => v.salePrice))
+    : null;
+  const price = cheapestVariant ?? num(p.salePrice);
+  const compareAtRaw = p.compareAt != null ? num(p.compareAt) : undefined;
+
   return {
     id: p.id,
     slug: p.slug,
@@ -126,9 +135,10 @@ function mapRow(p: {
     category: p.category as ProductCategory,
     blurb: p.blurb,
     description: p.description,
-    price: num(p.salePrice),
+    price,
     cost: num(p.supplierProduct?.supplierPrice),
-    compareAt: p.compareAt != null ? num(p.compareAt) : undefined,
+    compareAt:
+      compareAtRaw && compareAtRaw > price ? compareAtRaw : undefined,
     rating: p.rating,
     approved: p.approved,
     isNew: p.isNew,
