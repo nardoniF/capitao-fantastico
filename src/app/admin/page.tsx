@@ -170,6 +170,26 @@ export default function AdminPage() {
     byDestino: Record<string, number>;
   } | null>(null);
   const [clicksLoading, setClicksLoading] = useState(false);
+  const [loginHelpOpen, setLoginHelpOpen] = useState(false);
+  const [loginHint, setLoginHint] = useState<{
+    username: string;
+    passwordConfigured: boolean;
+  } | null>(null);
+
+  useEffect(() => {
+    void fetch("/api/admin/login-hint")
+      .then((r) => r.json())
+      .then((data: { username?: string; passwordConfigured?: boolean }) => {
+        if (data.username) {
+          setLoginHint({
+            username: data.username,
+            passwordConfigured: Boolean(data.passwordConfigured),
+          });
+          setUsername(data.username);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const loadClicks = useCallback(async () => {
     if (!token && !password) return;
@@ -596,14 +616,46 @@ export default function AdminPage() {
   if (!authed) {
     return (
       <div className="mx-auto max-w-md px-5 py-20">
-        <h1 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-white">
-          Admin · Capitão
-        </h1>
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="font-[family-name:var(--font-syne)] text-3xl font-bold text-white">
+            Admin · Capitão
+          </h1>
+          <button
+            type="button"
+            onClick={() => setLoginHelpOpen((v) => !v)}
+            className="rounded-md border border-line px-3 py-1.5 text-xs text-muted hover:border-gold hover:text-gold"
+            aria-expanded={loginHelpOpen}
+          >
+            Ajuda
+          </button>
+        </div>
         <p className="mt-2 text-sm text-muted">
-          Usuário e senha do Vercel (
-          <code className="text-gold">ADMIN_USERNAME</code> /{" "}
-          <code className="text-gold">ADMIN_PASSWORD</code>).
+          Igual Sensor Tattoo Fix: <strong className="text-white">usuário + senha</strong>{" "}
+          definidos no Vercel — não existe cadastro de admin no site.
         </p>
+        {loginHelpOpen ? (
+          <div className="mt-4 rounded-md border border-line bg-card p-4 text-sm text-muted">
+            <p>
+              <strong className="text-white">Usuário:</strong>{" "}
+              <code className="text-gold">{loginHint?.username || "admin"}</code>{" "}
+              (<code>ADMIN_USERNAME</code> no Vercel)
+            </p>
+            <p className="mt-2">
+              <strong className="text-white">Senha:</strong> valor de{" "}
+              <code className="text-gold">ADMIN_PASSWORD</code> no Vercel → Settings →
+              Environment Variables → Production.
+            </p>
+            <p className="mt-2">
+              Depois do login: aba <strong className="text-gold">Cliques</strong> → árvore
+              Ano → Mês → Dia → Visitante → Sessão (IP, cidade, origem).
+            </p>
+            {loginHint && !loginHint.passwordConfigured ? (
+              <p className="mt-2 text-red-400">
+                ADMIN_PASSWORD não está configurado em produção.
+              </p>
+            ) : null}
+          </div>
+        ) : null}
         <input
           type="text"
           value={username}
@@ -616,7 +668,10 @@ export default function AdminPage() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          placeholder="Senha"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") void doLogin();
+          }}
+          placeholder="Senha (ADMIN_PASSWORD do Vercel)"
           autoComplete="current-password"
           className="mt-3 w-full rounded-md border border-line bg-card px-3 py-2.5 text-white"
         />
@@ -629,7 +684,11 @@ export default function AdminPage() {
           Entrar
         </button>
         <p className="mt-6 text-xs text-muted">
-          Catálogo CJ:{" "}
+          URL:{" "}
+          <a href="/admin" className="text-gold hover:underline">
+            /admin
+          </a>
+          · Catálogo CJ:{" "}
           <a
             href="https://cjdropshipping.com"
             target="_blank"

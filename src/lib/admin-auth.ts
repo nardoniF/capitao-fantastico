@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/db";
 
 const SESSION_HOURS = 24;
@@ -8,6 +9,48 @@ export function adminUsername() {
 
 export function adminPasswordConfigured() {
   return Boolean(process.env.ADMIN_PASSWORD?.trim());
+}
+
+function sessionSecret() {
+  return (
+    process.env.ADMIN_PASSWORD?.trim() ||
+    process.env.CRON_SECRET?.trim() ||
+    "cf-admin-dev-only"
+  );
+}
+
+function createSignedAdminToken(username: string, expiresAt: Date) {
+  const payload = `${username}:${expiresAt.getTime()}`;
+  const sig = createHmac("sha256", sessionSecret())
+    .update(payload)
+    .digest("base64url");
+  return `cfs.${Buffer.from(payload, "utf8").toString("base64url")}.${sig}`;
+}
+
+function parseSignedAdminToken(token: string): { username: string } | null {
+  if (!token.startsWith("cfs.")) return null;
+  const rest = token.slice(4);
+  const dot = rest.lastIndexOf(".");
+  if (dot <= 0) return null;
+  const payloadB64 = rest.slice(0, dot);
+  const sig = rest.slice(dot + 1);
+  try {
+    const payload = Buffer.from(payloadB64, "base64url").toString("utf8");
+    const sep = payload.lastIndexOf(":");
+    if (sep <= 0) return null;
+    const username = payload.slice(0, sep);
+    const exp = Number(payload.slice(sep + 1));
+    if (!username || !Number.isFinite(exp) || exp < Date.now()) return null;
+    const expected = createHmac("sha256", sessionSecret())
+      .update(payload)
+      .digest("base64url");
+    const a = Buffer.from(sig);
+    const b = Buffer.from(expected);
+    if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+    return { username };
+  } catch {
+    return null;
+  }
 }
 
 export function bearerToken(request: Request): string | null {
@@ -23,17 +66,24 @@ export function legacyPassword(request: Request): string {
 export async function createAdminSession(username: string) {
   const expiresAt = new Date(Date.now() + SESSION_HOURS * 60 * 60 * 1000);
   if (process.env.DATABASE_URL) {
-    const row = await prisma.adminSession.create({
-      data: { username, expiresAt },
-    });
-    return { token: row.token, username, expiresAt: expiresAt.toISOString() };
+    try {
+      const row = await prisma.adminSession.create({
+        data: { username, expiresAt },
+      });
+      return { token: row.token, username, expiresAt: expiresAt.toISOString() };
+    } catch (e) {
+      console.warn("AdminSession indisponível — token assinado", e);
+    }
   }
-  const token = `local_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+  const token = createSignedAdminToken(username, expiresAt);
   return { token, username, expiresAt: expiresAt.toISOString() };
 }
 
 export async function validateAdminToken(token: string | null): Promise<boolean> {
   if (!token) return false;
+
+  if (parseSignedAdminToken(token)) return true;
+
   if (!process.env.DATABASE_URL) {
     return token.startsWith("local_");
   }
@@ -46,7 +96,7 @@ export async function validateAdminToken(token: string | null): Promise<boolean>
     }
     return true;
   } catch {
-    return false;
+    return Boolean(parseSignedAdminToken(token));
   }
 }
 
@@ -56,7 +106,9 @@ export async function validateAdminCredentials(
 ): Promise<boolean> {
   const expected = process.env.ADMIN_PASSWORD?.trim();
   if (!expected) return false;
-  return username === adminUsername() && password === expected;
+  const givenUser = (username || adminUsername()).trim().toLowerCase();
+  const wantUser = adminUsername().toLowerCase();
+  return givenUser === wantUser && password === expected;
 }
 
 /** Token Bearer ou header legado x-admin-password. */
@@ -76,11 +128,23 @@ export async function getAdminSessionUser(
   request: Request,
 ): Promise<string | null> {
   const token = bearerToken(request);
+  if (token) {
+    const signed = parseSignedAdminToken(token);
+    if (signed) return signed.username;
+  }
+
   if (!token || !process.env.DATABASE_URL) {
     if (await isAdminAuthorized(request)) return adminUsername();
     return null;
   }
-  const row = await prisma.adminSession.findUnique({ where: { token } });
-  if (!row || row.expiresAt < new Date()) return null;
-  return row.username;
+  try {
+    const row = await prisma.adminSession.findUnique({ where: { token } });
+    if (!row || row.expiresAt < new Date()) {
+      if (token) return parseSignedAdminToken(token)?.username ?? null;
+      return null;
+    }
+    return row.username;
+  } catch {
+    return token ? parseSignedAdminToken(token)?.username ?? null : null;
+  }
 }
