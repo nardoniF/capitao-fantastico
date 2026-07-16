@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { siteConfig } from "@/lib/site-config";
+import { AccountNav } from "@/components/AccountNav";
 import { useCart } from "@/components/CartProvider";
 
 export function SiteHeader({ variant = "solid" }: { variant?: "solid" | "hero" }) {
@@ -45,9 +46,6 @@ export function SiteHeader({ variant = "solid" }: { variant?: "solid" | "hero" }
           <Link href="/central" className="hidden transition hover:text-gold sm:inline">
             Central
           </Link>
-          <Link href="/minha-conta" className="hidden transition hover:text-gold sm:inline">
-            Minha conta
-          </Link>
           <Link href="/sobre" className="hidden transition hover:text-gold md:inline">
             Quem somos
           </Link>
@@ -60,6 +58,7 @@ export function SiteHeader({ variant = "solid" }: { variant?: "solid" | "hero" }
           <Link href="/sugestoes" className="hidden transition hover:text-gold xl:inline">
             Sugestões
           </Link>
+          <AccountNav />
           <Link
             href="/carrinho"
             data-evento="clique_carrinho"

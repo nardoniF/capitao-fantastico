@@ -2,29 +2,27 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-
-type User = { id: string; name: string; email: string; phone?: string | null };
-
-const TOKEN_KEY = "cf-customer-token";
+import {
+  clearCustomerSession,
+  refreshCustomerSession,
+  setCustomerSession,
+  type CustomerUser,
+} from "@/lib/customer-session-client";
 
 export default function MinhaContaPage() {
   const [tab, setTab] = useState<"login" | "register">("login");
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<CustomerUser | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const token = sessionStorage.getItem(TOKEN_KEY);
-    if (!token) return;
-    void fetch("/api/account/session", {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then(async (r) => {
-        if (!r.ok) throw new Error("sessão");
-        return r.json() as Promise<{ user: User }>;
-      })
-      .then((d) => setUser(d.user))
-      .catch(() => sessionStorage.removeItem(TOKEN_KEY));
+    void refreshCustomerSession().then(setUser);
+    const onChange = (e: Event) => {
+      const detail = (e as CustomEvent<{ user: CustomerUser | null }>).detail;
+      setUser(detail?.user ?? null);
+    };
+    window.addEventListener("cf-account-changed", onChange);
+    return () => window.removeEventListener("cf-account-changed", onChange);
   }, []);
 
   async function onLogin(e: React.FormEvent<HTMLFormElement>) {
@@ -41,11 +39,15 @@ export default function MinhaContaPage() {
           password: fd.get("password"),
         }),
       });
-      const data = (await res.json()) as { error?: string; token?: string; user?: User };
+      const data = (await res.json()) as {
+        error?: string;
+        token?: string;
+        user?: CustomerUser;
+      };
       if (!res.ok || !data.token || !data.user) {
         throw new Error(data.error || "Login falhou");
       }
-      sessionStorage.setItem(TOKEN_KEY, data.token);
+      setCustomerSession(data.token, data.user);
       setUser(data.user);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro");
@@ -70,11 +72,15 @@ export default function MinhaContaPage() {
           password: fd.get("password"),
         }),
       });
-      const data = (await res.json()) as { error?: string; token?: string; user?: User };
+      const data = (await res.json()) as {
+        error?: string;
+        token?: string;
+        user?: CustomerUser;
+      };
       if (!res.ok || !data.token || !data.user) {
         throw new Error(data.error || "Cadastro falhou");
       }
-      sessionStorage.setItem(TOKEN_KEY, data.token);
+      setCustomerSession(data.token, data.user);
       setUser(data.user);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro");
@@ -84,7 +90,7 @@ export default function MinhaContaPage() {
   }
 
   function logout() {
-    sessionStorage.removeItem(TOKEN_KEY);
+    clearCustomerSession();
     setUser(null);
   }
 
