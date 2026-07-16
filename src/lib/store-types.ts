@@ -124,14 +124,41 @@ export type Order = {
   updatedAt?: string;
 };
 
-export type ClickEvent = {
-  id: string;
-  createdAt: string;
+export type ClickEventInput = {
   tipo: string;
+  destino?: string;
+  destinoLabel?: string;
   rotulo?: string;
   pagina?: string;
+  tituloPagina?: string;
   href?: string;
   secao?: string;
+  secaoLabel?: string;
+  elemento?: string;
+  visitanteId?: string;
+  sessaoVisita?: string;
+  sequencia?: number;
+  pais?: string;
+  estado?: string;
+  cidade?: string;
+  ipPrefix?: string;
+  referrer?: string;
+  dispositivo?: string;
+  fuso?: string;
+  idioma?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  origemTrafego?: string;
+  origemTrafegoLabel?: string;
+  clientEventId?: string;
+  clientTs?: Date;
+};
+
+export type ClickEvent = Omit<ClickEventInput, "clientTs"> & {
+  id: string;
+  createdAt: string;
+  clientTs?: string;
 };
 
 export type StoreState = {

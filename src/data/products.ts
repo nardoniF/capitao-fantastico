@@ -42,6 +42,7 @@ export type Product = {
   isNew: boolean;
   image: string;
   accent: string;
+  deliveryDays?: number;
 };
 
 /** Bump para forçar refresh do catálogo no store */

@@ -40,6 +40,7 @@ export type StorefrontProduct = {
   seoDescription?: string | null;
   options?: Record<string, string[]>;
   variants: StorefrontVariant[];
+  deliveryDays?: number;
 };
 
 function num(v: unknown) {
@@ -68,6 +69,30 @@ function parseOptions(raw: unknown): Record<string, string[]> | undefined {
   return Object.keys(out).length ? out : undefined;
 }
 
+function deliveryDaysFromRow(p: {
+  blurb?: string;
+  details?: unknown;
+  supplierProduct?: { rawJson?: unknown } | null;
+}): number | undefined {
+  const details = parseProductDetails(p.details);
+  if (typeof details.deliveryDays === "number" && details.deliveryDays > 0) {
+    return details.deliveryDays;
+  }
+  const raw = p.supplierProduct?.rawJson;
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const d = (raw as Record<string, unknown>).capitaoDeliveryDays;
+    if (typeof d === "number" && d > 0) return d;
+  }
+  if (p.blurb) {
+    const m = p.blurb.match(/entrega estimada:\s*(\d+)\s*dia/i);
+    if (m) {
+      const n = Number(m[1]);
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+  }
+  return undefined;
+}
+
 function mapRow(p: {
   id: string;
   slug: string;
@@ -89,6 +114,7 @@ function mapRow(p: {
   seoDescription?: string | null;
   supplierProduct?: {
     supplierPrice: unknown;
+    rawJson?: unknown;
   } | null;
   variants?: {
     id: string;
@@ -151,6 +177,7 @@ function mapRow(p: {
     seoDescription: p.seoDescription,
     options: parseOptions(p.options),
     variants,
+    deliveryDays: deliveryDaysFromRow(p),
   };
 }
 

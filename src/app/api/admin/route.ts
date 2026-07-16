@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAdminAuthorized } from "@/lib/admin-auth";
 import {
   deleteNeonProduct,
   getAdminBundle,
@@ -11,15 +12,8 @@ function unauthorized() {
   return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
 }
 
-function checkAuth(request: Request) {
-  const expected = process.env.ADMIN_PASSWORD?.trim();
-  if (!expected) return false;
-  const header = request.headers.get("x-admin-password") || "";
-  return header === expected;
-}
-
 export async function GET(request: Request) {
-  if (!checkAuth(request)) return unauthorized();
+  if (!(await isAdminAuthorized(request))) return unauthorized();
   try {
     const data = await getAdminBundle();
     return NextResponse.json(data);
@@ -33,7 +27,7 @@ export async function GET(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  if (!checkAuth(request)) return unauthorized();
+  if (!(await isAdminAuthorized(request))) return unauthorized();
 
   try {
     const body = (await request.json()) as {

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ProductCard } from "@/components/ProductCard";
+import { siteConfig } from "@/lib/site-config";
 import { categoryLabels, categoryOrder } from "@/data/products";
 import { listStorefrontProducts } from "@/lib/catalog";
 
@@ -131,7 +132,7 @@ export async function ProductShowcase() {
               href="/produtos"
               className="inline-flex rounded-md border border-gold px-6 py-3 text-sm font-bold text-gold hover:bg-gold hover:text-black"
             >
-              Ver catálogo completo ({products.length})
+              Ver os {siteConfig.catalogTarget} aprovados
             </Link>
           </div>
         </div>

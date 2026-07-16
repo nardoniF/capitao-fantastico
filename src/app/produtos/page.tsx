@@ -8,11 +8,12 @@ import {
   type ProductCategory,
 } from "@/data/products";
 import { listStorefrontProducts } from "@/lib/catalog";
+import { siteConfig } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Produtos — Os 200 mais bem avaliados",
+  title: `Produtos — Os ${siteConfig.catalogTarget} mais bem avaliados`,
 };
 
 type Props = {
@@ -22,6 +23,7 @@ type Props = {
     preco?: string;
     ordem?: string;
     q?: string;
+    entrega?: string;
   }>;
 };
 
@@ -46,6 +48,8 @@ function buildQuery(params: Record<string, string | undefined>) {
   return s ? `/produtos?${s}` : "/produtos";
 }
 
+const FAST_DELIVERY_MAX = 15;
+
 const ORDER_OPTIONS = [
   { id: "nota", label: "Melhor nota" },
   { id: "preco-menor", label: "Menor preço" },
@@ -66,11 +70,18 @@ export default async function ProductsPage({ searchParams }: Props) {
   const preco = q.preco === "50" || q.preco === "100" ? q.preco : null;
   const ordem = ORDER_OPTIONS.some((o) => o.id === q.ordem) ? q.ordem : null;
   const busca = (q.q || "").trim().slice(0, 60);
+  const fastDelivery = q.entrega === "15";
 
   let filtered = products;
   if (onlyNew) filtered = filtered.filter((p) => p.isNew);
   if (cat) filtered = filtered.filter((p) => p.category === cat);
   if (preco) filtered = filtered.filter((p) => p.price <= Number(preco));
+  if (fastDelivery) {
+    filtered = filtered.filter(
+      (p) =>
+        p.deliveryDays != null && p.deliveryDays <= FAST_DELIVERY_MAX,
+    );
+  }
   if (busca) {
     const nq = normalize(busca);
     filtered = filtered.filter(
@@ -93,13 +104,15 @@ export default async function ProductsPage({ searchParams }: Props) {
 
   const title = busca
     ? `Busca: "${busca}"`
-    : onlyNew
-      ? "Novidades do Capitão"
-      : preco
-        ? `Achados até R$${preco}`
-        : cat
-          ? categoryLabels[cat]
-          : "Os 200 mais bem avaliados";
+    : fastDelivery
+      ? `Entrega rápida · até ${FAST_DELIVERY_MAX} dias`
+      : onlyNew
+        ? "Novidades do Capitão"
+        : preco
+          ? `Achados até R$${preco}`
+          : cat
+            ? categoryLabels[cat]
+            : `Os ${siteConfig.catalogTarget} mais bem avaliados`;
 
   // Estado atual (para os links de filtro manterem o resto da seleção)
   const current = {
@@ -108,6 +121,7 @@ export default async function ProductsPage({ searchParams }: Props) {
     preco: preco || undefined,
     ordem: ordem || undefined,
     q: busca || undefined,
+    entrega: fastDelivery ? "15" : undefined,
   };
 
   const pillActive = "bg-gold text-black";
@@ -121,15 +135,18 @@ export default async function ProductsPage({ searchParams }: Props) {
           {title}
         </h1>
         <p className="mt-2 text-[#888]">
-          {busca || cat || preco || onlyNew
+          {busca || cat || preco || onlyNew || fastDelivery
             ? `${filtered.length} ${filtered.length === 1 ? "produto" : "produtos"} · curadoria do Capitão`
-            : `O Capitão garimpou a internet inteira e selecionou os ${products.length} produtos mais bem avaliados — todos com estoque e rastreio no site.`}
+            : siteConfig.positioning}
         </p>
 
         <form action="/produtos" method="get" className="mt-6 flex max-w-xl gap-2">
           {cat ? <input type="hidden" name="cat" value={cat} /> : null}
           {preco ? <input type="hidden" name="preco" value={preco} /> : null}
           {ordem ? <input type="hidden" name="ordem" value={ordem} /> : null}
+          {fastDelivery ? (
+            <input type="hidden" name="entrega" value="15" />
+          ) : null}
           <input
             type="search"
             name="q"
@@ -149,7 +166,9 @@ export default async function ProductsPage({ searchParams }: Props) {
           <Link
             href="/produtos"
             className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-              !cat && !onlyNew && !preco && !busca ? pillActive : pillIdle
+              !cat && !onlyNew && !preco && !busca && !fastDelivery
+                ? pillActive
+                : pillIdle
             }`}
           >
             Todos
@@ -168,6 +187,17 @@ export default async function ProductsPage({ searchParams }: Props) {
               {p.label}
             </Link>
           ))}
+          <Link
+            href={buildQuery({
+              ...current,
+              entrega: fastDelivery ? undefined : "15",
+            })}
+            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+              fastDelivery ? pillActive : pillIdle
+            }`}
+          >
+            Entrega rápida
+          </Link>
           <Link
             href={buildQuery({
               ...current,
@@ -223,9 +253,11 @@ export default async function ProductsPage({ searchParams }: Props) {
 
         {filtered.length === 0 ? (
           <p className="mt-10 text-center text-muted">
-            {busca
-              ? `Nada encontrado para "${busca}". Tente outra palavra ou navegue pelas categorias acima.`
-              : "O Capitão está repondo a vitrine com itens que têm estoque agora. Volte em breve."}{" "}
+            {fastDelivery
+              ? "Nenhum produto com entrega estimada até 15 dias ainda. O Capitão está repovando a vitrine — volte em breve."
+              : busca
+                ? `Nada encontrado para "${busca}". Tente outra palavra ou navegue pelas categorias acima.`
+                : "O Capitão está repondo a vitrine com itens que têm estoque agora. Volte em breve."}{" "}
             <Link href="/sugestoes" className="text-gold hover:underline">
               Sugerir um produto
             </Link>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { AdminClicksTree } from "@/components/AdminClicksTree";
+import type { ClickTree } from "@/lib/clicks-tree";
 import { formatBRL } from "@/data/products";
 import { FEEDBACK_KINDS } from "@/components/SuggestionForm";
 import { whatsappUrl } from "@/lib/site-config";
@@ -78,6 +80,7 @@ type ImportLogRow = {
 
 type CatalogInfo = {
   activeCount: number;
+  activeDbCount?: number;
   cap: number;
   slotsLeft: number;
 };
@@ -122,8 +125,19 @@ type SearchHit = {
 const kindLabel = (kind: string) =>
   FEEDBACK_KINDS.find((k) => k.value === kind)?.label || kind;
 
+const ADMIN_TOKEN_KEY = "cf-admin-token";
+
+function adminHeaders(token: string, password: string): HeadersInit {
+  const h: Record<string, string> = {};
+  if (token) h.Authorization = `Bearer ${token}`;
+  else if (password) h["x-admin-password"] = password;
+  return h;
+}
+
 export default function AdminPage() {
+  const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("");
+  const [token, setToken] = useState("");
   const [authed, setAuthed] = useState(false);
   const [tab, setTab] = useState<Tab>("vendas");
   const [pricing, setPricing] = useState<Pricing | null>(null);
@@ -149,15 +163,49 @@ export default function AdminPage() {
   const [autoRunning, setAutoRunning] = useState(false);
   const [reenrichRunning, setReenrichRunning] = useState(false);
   const [autoLog, setAutoLog] = useState<string | null>(null);
+  const [clickTree, setClickTree] = useState<ClickTree | null>(null);
+  const [clicksMeta, setClicksMeta] = useState<{
+    total: number;
+    todayCount: number;
+    byDestino: Record<string, number>;
+  } | null>(null);
+  const [clicksLoading, setClicksLoading] = useState(false);
+
+  const loadClicks = useCallback(async () => {
+    if (!token && !password) return;
+    setClicksLoading(true);
+    try {
+      const res = await fetch("/api/admin/clicks?limit=400", {
+        headers: adminHeaders(token, password),
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        clicks: ClickRow[];
+        tree: ClickTree;
+        total: number;
+        todayCount: number;
+        byDestino: Record<string, number>;
+      };
+      setClicks(data.clicks);
+      setClickTree(data.tree);
+      setClicksMeta({
+        total: data.total,
+        todayCount: data.todayCount,
+        byDestino: data.byDestino,
+      });
+    } finally {
+      setClicksLoading(false);
+    }
+  }, [token, password]);
 
   const load = useCallback(async () => {
     setError(null);
     const res = await fetch("/api/admin", {
-      headers: { "x-admin-password": password },
+      headers: adminHeaders(token, password),
     });
     if (!res.ok) {
       setAuthed(false);
-      setError("Senha inválida ou ADMIN_PASSWORD não configurada");
+      setError("Login inválido ou ADMIN_PASSWORD não configurada");
       return;
     }
     const data = (await res.json()) as {
@@ -186,12 +234,108 @@ export default function AdminPage() {
     setFxDraft(String(data.pricing.fxBrl));
     setFeeDraft(String(Number((data.pricing.feePct * 100).toFixed(2))));
     setAuthed(true);
-  }, [password]);
+  }, [token, password]);
+
+  async function doLogin() {
+    setError(null);
+    const res = await fetch("/api/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = (await res.json()) as { error?: string; token?: string };
+    if (!res.ok || !data.token) {
+      setAuthed(false);
+      setError(data.error || "Login falhou");
+      return;
+    }
+    setToken(data.token);
+    sessionStorage.setItem(ADMIN_TOKEN_KEY, data.token);
+    const bundle = await fetch("/api/admin", {
+      headers: { Authorization: `Bearer ${data.token}` },
+    });
+    if (!bundle.ok) {
+      setError("Sessão ok, mas falha ao carregar painel");
+      return;
+    }
+    const payload = (await bundle.json()) as {
+      pricing: Pricing;
+      products: ProductRow[];
+      orders: OrderRow[];
+      clicks: ClickRow[];
+      feedback: FeedbackRow[];
+      api: ApiCheck[];
+      importLogs?: ImportLogRow[];
+      catalog?: CatalogInfo;
+      kpis?: Kpis;
+      importSummary?: ImportSummary;
+    };
+    setPricing(payload.pricing);
+    setProducts(payload.products);
+    setOrders(payload.orders);
+    setClicks(payload.clicks);
+    setFeedback(payload.feedback);
+    setApi(payload.api);
+    setImportLogs(payload.importLogs || []);
+    setCatalog(payload.catalog || null);
+    setImportSummary(payload.importSummary || null);
+    setKpis(payload.kpis || null);
+    setMarkupDraft(String(payload.pricing.markup));
+    setFxDraft(String(payload.pricing.fxBrl));
+    setFeeDraft(String(Number((payload.pricing.feePct * 100).toFixed(2))));
+    setAuthed(true);
+    setPassword("");
+  }
 
   useEffect(() => {
-    const saved = sessionStorage.getItem("cf-admin-pass");
-    if (saved) setPassword(saved);
+    const savedToken = sessionStorage.getItem(ADMIN_TOKEN_KEY);
+    if (!savedToken) return;
+    setToken(savedToken);
+    void (async () => {
+      const res = await fetch("/api/admin/session", {
+        headers: { Authorization: `Bearer ${savedToken}` },
+      });
+      if (!res.ok) {
+        sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+        setToken("");
+        return;
+      }
+      const bundle = await fetch("/api/admin", {
+        headers: { Authorization: `Bearer ${savedToken}` },
+      });
+      if (!bundle.ok) return;
+      const data = (await bundle.json()) as {
+        pricing: Pricing;
+        products: ProductRow[];
+        orders: OrderRow[];
+        clicks: ClickRow[];
+        feedback: FeedbackRow[];
+        api: ApiCheck[];
+        importLogs?: ImportLogRow[];
+        catalog?: CatalogInfo;
+        kpis?: Kpis;
+        importSummary?: ImportSummary;
+      };
+      setPricing(data.pricing);
+      setProducts(data.products);
+      setOrders(data.orders);
+      setClicks(data.clicks);
+      setFeedback(data.feedback);
+      setApi(data.api);
+      setImportLogs(data.importLogs || []);
+      setCatalog(data.catalog || null);
+      setImportSummary(data.importSummary || null);
+      setKpis(data.kpis || null);
+      setMarkupDraft(String(data.pricing.markup));
+      setFxDraft(String(data.pricing.fxBrl));
+      setFeeDraft(String(Number((data.pricing.feePct * 100).toFixed(2))));
+      setAuthed(true);
+    })();
   }, []);
+
+  useEffect(() => {
+    if (authed && tab === "cliques") void loadClicks();
+  }, [authed, tab, loadClicks]);
 
   useEffect(() => {
     if (!msg) return;
@@ -204,7 +348,7 @@ export default function AdminPage() {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        "x-admin-password": password,
+        ...adminHeaders(token, password),
       },
       body: JSON.stringify(body),
     });
@@ -273,7 +417,7 @@ export default function AdminPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-admin-password": password,
+          ...adminHeaders(token, password),
         },
         body: JSON.stringify({ keyword: searchQ.trim(), pageSize: 20 }),
       });
@@ -300,7 +444,7 @@ export default function AdminPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-admin-password": password,
+          ...adminHeaders(token, password),
         },
         body: JSON.stringify({ cjProductIds: pids.slice(0, 10) }),
       });
@@ -330,7 +474,7 @@ export default function AdminPage() {
   async function exportCsv(type: "orders" | "clicks" | "products") {
     try {
       const res = await fetch(`/api/admin/export?type=${type}`, {
-        headers: { "x-admin-password": password },
+        headers: adminHeaders(token, password),
       });
       if (!res.ok) throw new Error("Falha no export");
       const blob = await res.blob();
@@ -359,7 +503,7 @@ export default function AdminPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-admin-password": password,
+          ...adminHeaders(token, password),
         },
         body: JSON.stringify({ limit: 25, onlyThin: true }),
       });
@@ -404,7 +548,7 @@ export default function AdminPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-admin-password": password,
+          ...adminHeaders(token, password),
         },
         body: JSON.stringify({ limit: 30 }),
       });
@@ -422,7 +566,7 @@ export default function AdminPage() {
       const n = data.imported?.length || 0;
       const errs = data.errors?.length || 0;
       setMsg(
-        `Rodada: ${n} novos · ${errs} erros · ${data.activeCount ?? "?"}/${data.catalogCap ?? 150} ativos`,
+        `Rodada: ${n} novos · ${errs} erros · ${data.activeCount ?? "?"}/${data.catalogCap ?? 200} na vitrine`,
       );
       setAutoLog(
         (data.imported || [])
@@ -456,22 +600,30 @@ export default function AdminPage() {
           Admin · Capitão
         </h1>
         <p className="mt-2 text-sm text-muted">
-          Senha = <code className="text-gold">ADMIN_PASSWORD</code> no Vercel.
+          Usuário e senha do Vercel (
+          <code className="text-gold">ADMIN_USERNAME</code> /{" "}
+          <code className="text-gold">ADMIN_PASSWORD</code>).
         </p>
+        <input
+          type="text"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          placeholder="Usuário"
+          autoComplete="username"
+          className="mt-6 w-full rounded-md border border-line bg-card px-3 py-2.5 text-white"
+        />
         <input
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           placeholder="Senha"
-          className="mt-6 w-full rounded-md border border-line bg-card px-3 py-2.5 text-white"
+          autoComplete="current-password"
+          className="mt-3 w-full rounded-md border border-line bg-card px-3 py-2.5 text-white"
         />
         {error ? <p className="mt-2 text-sm text-red-400">{error}</p> : null}
         <button
           type="button"
-          onClick={() => {
-            sessionStorage.setItem("cf-admin-pass", password);
-            void load();
-          }}
+          onClick={() => void doLogin()}
           className="mt-4 w-full rounded-md bg-gold py-3 font-bold text-black"
         >
           Entrar
@@ -944,7 +1096,7 @@ export default function AdminPage() {
             <p className="mt-1 text-sm text-muted">
               Descobre sozinho → publica direto. Prioriza{" "}
               <strong className="text-white">virais/novos</strong>. Só com
-              estoque e margem. Para no teto de ~{catalog?.cap ?? 150} ativos.
+              estoque e margem. Meta fixa: {catalog?.cap ?? 200} na vitrine.
             </p>
             {importSummary ? (
               <div className="mt-4 rounded-md border border-[#333] bg-[#111] p-4 text-sm">
@@ -983,13 +1135,20 @@ export default function AdminPage() {
             ) : null}
             {catalog ? (
               <p className="mt-2 text-sm text-white">
-                Catálogo:{" "}
+                Vitrine:{" "}
                 <strong className="text-gold">
                   {catalog.activeCount}/{catalog.cap}
                 </strong>
                 {catalog.slotsLeft > 0
                   ? ` · ${catalog.slotsLeft} vagas`
-                  : " · teto cheio"}
+                  : " · meta cheia"}
+                {catalog.activeDbCount != null &&
+                catalog.activeDbCount > catalog.activeCount ? (
+                  <span className="ml-2 text-muted">
+                    · {catalog.activeDbCount - catalog.activeCount} ativos sem
+                    estoque (fora da vitrine)
+                  </span>
+                ) : null}
                 {catalog.activeCount === 0 ? (
                   <span className="ml-2 text-red-400">
                     · vitrine vazia (tudo sem estoque CJ)
@@ -998,7 +1157,7 @@ export default function AdminPage() {
               </p>
             ) : null}
             <p className="mt-2 text-xs text-muted">
-              Cron 1×/dia · lote ~{12} · botão só força agora
+              Cron 1×/dia · lote até 20 · botão só força agora
             </p>
             <button
               type="button"
@@ -1264,29 +1423,31 @@ export default function AdminPage() {
       ) : null}
 
       {tab === "cliques" ? (
-        <div className="mt-8 overflow-x-auto rounded-[14px] border border-[#333]">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b border-[#333] bg-[#141414] text-muted">
-              <tr>
-                <th className="px-3 py-3">Quando</th>
-                <th className="px-3 py-3">Tipo</th>
-                <th className="px-3 py-3">Rótulo</th>
-                <th className="px-3 py-3">Página</th>
-              </tr>
-            </thead>
-            <tbody>
-              {clicks.map((c) => (
-                <tr key={c.id} className="border-b border-[#2a2a2a] text-white">
-                  <td className="px-3 py-2 text-muted">
-                    {new Date(c.createdAt).toLocaleString("pt-BR")}
-                  </td>
-                  <td className="px-3 py-2">{c.tipo}</td>
-                  <td className="px-3 py-2">{c.rotulo || "—"}</td>
-                  <td className="px-3 py-2">{c.pagina || "—"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="mt-8">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm text-muted">
+              Árvore Ano → Mês → Dia → Visitante → Sessão · IP resumido ·
+              cidade/UF/país
+            </p>
+            <button
+              type="button"
+              disabled={clicksLoading}
+              onClick={() => void loadClicks()}
+              className="rounded-md border border-gold/40 px-4 py-2 text-sm font-semibold text-gold hover:bg-gold/10 disabled:opacity-50"
+            >
+              {clicksLoading ? "Atualizando…" : "Atualizar"}
+            </button>
+          </div>
+          {clickTree ? (
+            <AdminClicksTree
+              tree={clickTree}
+              total={clicksMeta?.total}
+              todayCount={clicksMeta?.todayCount}
+              byDestino={clicksMeta?.byDestino}
+            />
+          ) : (
+            <p className="text-muted">Carregando cliques…</p>
+          )}
         </div>
       ) : null}
 

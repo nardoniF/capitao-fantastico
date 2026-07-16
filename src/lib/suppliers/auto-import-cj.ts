@@ -2,7 +2,7 @@
  * Auto-import Capitão:
  * - Top listagens / trending da CJ (proxy de vendas)
  * - Só publica com estoque real (pula zerado e tenta o próximo)
- * - Para no teto do catálogo (~150–200)
+ * - Para no teto do catálogo (200 na vitrine com estoque)
  * - Já ativo → ignora
  */
 import type { ProductCategory } from "@/data/products";
@@ -11,7 +11,7 @@ import { mapCjCategoryToStore } from "@/lib/categories";
 import {
   appendImportLog,
   catalogCap,
-  countActiveProducts,
+  countStorefrontProducts,
 } from "@/lib/import-log";
 import { getCJSupplier } from "@/lib/suppliers/cj";
 import type { CjSearchHit } from "@/lib/suppliers/cj-types";
@@ -33,6 +33,28 @@ const NICHES: {
   { keyword: "Massage", storeCategory: "fit", catMatch: /Massage|Sport|Fitness|Outdoor|Camp/i, quota: 4 },
   { keyword: "USB", storeCategory: "gadgets", catMatch: /Phone|Computer|Digital|Electronics|USB|Gadget|Fan/i, quota: 5 },
   { keyword: "Baby", storeCategory: "kids", catMatch: /Baby|Kids|Child/i, quota: 3 },
+];
+
+/** Buscas amplas sem filtro de categoria — para encher vagas quando o pool curado esgota. */
+const BROAD_KEYWORDS = [
+  "organizer",
+  "holder",
+  "wireless",
+  "LED",
+  "storage",
+  "cleaning",
+  "portable",
+  "smart home",
+  "tool",
+  "kitchen gadget",
+  "car accessory",
+  "pet supply",
+  "phone stand",
+  "massager",
+  "fan",
+  "light",
+  "bag",
+  "bottle",
 ];
 
 function isGoodCandidate(h: CjSearchHit, minUsd: number, maxUsd: number) {
@@ -76,16 +98,22 @@ export async function autoImportTopCjProducts(opts?: {
   source?: "cron" | "manual" | "force";
   /** Quantas páginas da CJ varrer por busca (1–5). Mais páginas = pool maior. */
   pages?: number;
+  /** Força varredura ampla (mais keywords/páginas/pool) para encher o teto. */
+  deepFill?: boolean;
 }): Promise<AutoImportResult> {
   const source = opts?.source ?? "cron";
   const cap = catalogCap();
-  const activeCount = await countActiveProducts();
+  const activeCount = await countStorefrontProducts();
   const slotsLeft = Math.max(0, cap - activeCount);
 
   // Lote pedido (máx 30) limitado às vagas do teto
   const batchAsk = Math.min(Math.max(opts?.limit ?? 30, 1), 30);
   const targetImports = Math.min(batchAsk, slotsLeft || 0);
-  const pages = Math.min(Math.max(opts?.pages ?? 1, 1), 5);
+  const deepFill = opts?.deepFill === true || slotsLeft >= 5;
+  const pages = Math.min(
+    Math.max(opts?.pages ?? (deepFill ? 5 : 1), 1),
+    5,
+  );
   const minUsd = opts?.minUsd ?? 1.5;
   const maxUsd = opts?.maxUsd ?? 35;
   const dryRun = opts?.dryRun === true;
@@ -165,6 +193,7 @@ export async function autoImportTopCjProducts(opts?: {
   // 2) Mais listados por nicho
   for (const niche of NICHES) {
     let taken = 0;
+    const maxTaken = deepFill ? 9999 : niche.quota * 3 * pages;
     for (let pg = 1; pg <= pages; pg++) {
       try {
         await pause();
@@ -180,7 +209,7 @@ export async function autoImportTopCjProducts(opts?: {
         });
         if (!list.length) break;
         for (const h of list) {
-          if (taken >= niche.quota * 3 * pages) break;
+          if (taken >= maxTaken) break;
           if (!isGoodCandidate(h, minUsd, maxUsd)) continue;
           if (already.has(h.pid)) continue;
           const catOk =
@@ -199,10 +228,50 @@ export async function autoImportTopCjProducts(opts?: {
           }
           taken += 1;
         }
-        if (taken >= niche.quota * 3 * pages) break;
+        if (taken >= maxTaken) break;
       } catch (e) {
         console.warn(`niche ${niche.keyword} failed`, e);
         break;
+      }
+    }
+  }
+
+  // 3) Buscas amplas quando faltam vagas — CJ tem estoque, mas o pool curado esgota rápido
+  if (deepFill) {
+    for (const keyword of BROAD_KEYWORDS) {
+      for (let pg = 1; pg <= pages; pg++) {
+        try {
+          await pause();
+          const { list } = await cj.searchProducts({
+            keyword,
+            orderBy: "listedNum",
+            sort: "desc",
+            page: pg,
+            pageSize: 50,
+            minPrice: minUsd,
+            maxPrice: maxUsd,
+            startInventory: 1,
+          });
+          if (!list.length) break;
+          for (const h of list) {
+            if (!isGoodCandidate(h, minUsd, maxUsd)) continue;
+            if (already.has(h.pid)) continue;
+            const storeCategory = mapCjCategoryToStore(h.categoryName, h.title);
+            const score = candidateScore(h, false, 10);
+            const prev = byPid.get(h.pid);
+            if (!prev || score > prev.score) {
+              byPid.set(h.pid, {
+                ...h,
+                storeCategory,
+                score,
+                viral: prev?.viral ?? false,
+              });
+            }
+          }
+        } catch (e) {
+          console.warn(`broad ${keyword} failed`, e);
+          break;
+        }
       }
     }
   }
@@ -213,8 +282,13 @@ export async function autoImportTopCjProducts(opts?: {
     return b.score - a.score;
   });
 
-  // Pool grande: muitos top-vendas estão zerados; pulamos e seguimos
-  const poolSize = Math.min(ranked.length, Math.max(targetImports * 6, 60));
+  // Pool grande: busca CJ mente estoque (lista ≠ queryByVid); testamos muitos candidatos
+  const poolSize = Math.min(
+    ranked.length,
+    deepFill
+      ? Math.max(slotsLeft * 12, 250, targetImports * 10)
+      : Math.max(targetImports * 6, 60),
+  );
   const pool = ranked.slice(0, poolSize);
 
   const result: AutoImportResult = {
@@ -246,7 +320,7 @@ export async function autoImportTopCjProducts(opts?: {
   for (const c of pool) {
     if (result.imported.length >= targetImports) break;
 
-    const currentActive = await countActiveProducts();
+    const currentActive = await countStorefrontProducts();
     if (currentActive >= cap) {
       await appendImportLog({
         source,
@@ -309,7 +383,7 @@ export async function autoImportTopCjProducts(opts?: {
     }
   }
 
-  result.activeCount = await countActiveProducts();
+  result.activeCount = await countStorefrontProducts();
   result.slotsLeft = Math.max(0, cap - result.activeCount);
   return result;
 }

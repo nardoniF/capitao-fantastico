@@ -1,16 +1,10 @@
 import { NextResponse } from "next/server";
+import { isAdminAuthorized } from "@/lib/admin-auth";
 import {
   listAdminOrders,
   listAdminProducts,
 } from "@/lib/admin-data";
 import { listClicks } from "@/lib/store-db";
-
-function authorized(request: Request) {
-  const expected = process.env.ADMIN_PASSWORD?.trim();
-  if (!expected) return false;
-  const header = request.headers.get("x-admin-password");
-  return header === expected;
-}
 
 function csvEscape(v: unknown) {
   const s = v == null ? "" : String(v);
@@ -33,7 +27,7 @@ function toCsv(rows: Record<string, unknown>[]) {
  * Header: x-admin-password
  */
 export async function GET(request: Request) {
-  if (!authorized(request)) {
+  if (!(await isAdminAuthorized(request))) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -66,10 +60,16 @@ export async function GET(request: Request) {
         id: c.id,
         createdAt: c.createdAt,
         tipo: c.tipo,
+        destino: c.destino || "",
         rotulo: c.rotulo || "",
         pagina: c.pagina || "",
-        href: c.href || "",
         secao: c.secao || "",
+        visitanteId: c.visitanteId || "",
+        ipPrefix: c.ipPrefix || "",
+        cidade: c.cidade || "",
+        estado: c.estado || "",
+        pais: c.pais || "",
+        utmSource: c.utmSource || "",
       })),
     );
     filename = `cliques-${new Date().toISOString().slice(0, 10)}.csv`;

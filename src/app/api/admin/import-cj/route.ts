@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
+import { isAdminAuthorized } from "@/lib/admin-auth";
 import { importCJProductFull } from "@/lib/suppliers/import-cj";
-
-function checkAuth(request: Request) {
-  const expected = process.env.ADMIN_PASSWORD?.trim();
-  if (!expected) return false;
-  return request.headers.get("x-admin-password") === expected;
-}
 
 /**
  * POST /api/admin/import-cj (legado)
@@ -13,7 +8,7 @@ function checkAuth(request: Request) {
  * Body: { cjProductId, category?, blurb?, description?, isNew? }
  */
 export async function POST(request: Request) {
-  if (!checkAuth(request)) {
+  if (!(await isAdminAuthorized(request))) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 

@@ -100,12 +100,23 @@ export async function getImportSummary(): Promise<ImportSummary> {
   }
 }
 
-/** Teto de catálogo ativo (filosofia Capitão: 100–200). */
+/** Teto de catálogo na vitrine (meta fixa 200; override via CATALOG_CAP). */
 export function catalogCap() {
   return Math.min(
-    Math.max(Number(process.env.CATALOG_CAP || 150) || 150, 50),
+    Math.max(Number(process.env.CATALOG_CAP || 200) || 200, 50),
     200,
   );
+}
+
+/** Produtos visíveis na vitrine (com estoque vendável). */
+export async function countStorefrontProducts() {
+  if (!process.env.DATABASE_URL) return 0;
+  try {
+    const { listStorefrontProducts } = await import("@/lib/catalog");
+    return (await listStorefrontProducts()).length;
+  } catch {
+    return 0;
+  }
 }
 
 export async function countActiveProducts() {

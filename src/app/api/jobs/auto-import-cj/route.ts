@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import {
+  catalogCap,
+  countStorefrontProducts,
+} from "@/lib/import-log";
 import { autoImportTopCjProducts } from "@/lib/suppliers/auto-import-cj";
 
 export const maxDuration = 300;
@@ -12,29 +16,45 @@ function authorized(request: Request) {
 }
 
 /**
- * Cron autônomo: descobre top/trending CJ e publica o que ainda não existe.
- * Já importado → ignora. Novo bombando → entra. Sem clique no admin.
- *
- * GET/POST /api/jobs/auto-import-cj
- * Schedule: vercel.json (a cada 2h)
+ * Cron autônomo: enche a vitrine até CATALOG_CAP (200).
+ * Conta só produtos vendáveis com estoque (mesma regra da página /produtos).
  */
 async function run(request: Request) {
   if (!authorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const limit = Math.min(
-    Math.max(Number(process.env.AUTO_IMPORT_BATCH || 30) || 30, 1),
-    30,
-  );
+  const cap = catalogCap();
+  const vitrine = await countStorefrontProducts();
+  const slotsLeft = Math.max(0, cap - vitrine);
+  if (slotsLeft <= 0) {
+    return NextResponse.json({
+      ok: true,
+      mode: "catalog-full",
+      vitrine,
+      catalogCap: cap,
+      slotsLeft: 0,
+      imported: [],
+      skipped: [],
+      errors: [],
+    });
+  }
+
+  const batchDefault = Number(process.env.AUTO_IMPORT_BATCH || 20) || 20;
+  const limit = Math.min(30, slotsLeft, batchDefault);
 
   try {
     const started = Date.now();
-    const result = await autoImportTopCjProducts({ limit, source: "cron" });
+    const result = await autoImportTopCjProducts({
+      limit,
+      deepFill: slotsLeft >= 5,
+      source: "cron",
+    });
     return NextResponse.json({
       ok: true,
-      mode: "autonomous-cap150",
+      mode: "autonomous-fill-vitrine",
       batchLimit: limit,
+      vitrineBefore: vitrine,
       durationMs: Date.now() - started,
       ...result,
     });

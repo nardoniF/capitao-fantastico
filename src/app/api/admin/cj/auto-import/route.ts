@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
+import { isAdminAuthorized } from "@/lib/admin-auth";
 import { autoImportTopCjProducts } from "@/lib/suppliers/auto-import-cj";
-
-function checkAuth(request: Request) {
-  const expected = process.env.ADMIN_PASSWORD?.trim();
-  if (!expected) return false;
-  return request.headers.get("x-admin-password") === expected;
-}
 
 /**
  * POST /api/admin/cj/auto-import
@@ -14,7 +9,7 @@ function checkAuth(request: Request) {
  * Busca trending + mais listados por nicho e publica automaticamente.
  */
 export async function POST(request: Request) {
-  if (!checkAuth(request)) {
+  if (!(await isAdminAuthorized(request))) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 

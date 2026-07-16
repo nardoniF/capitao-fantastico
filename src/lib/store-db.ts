@@ -11,6 +11,7 @@ import {
   applySeedIfNeeded,
   createEmptyStore,
   type ClickEvent,
+  type ClickEventInput,
   type Order,
   type StoreProduct,
   type StoreState,
@@ -215,28 +216,117 @@ export async function listOrders() {
   return store.orders;
 }
 
-export async function logClick(input: Omit<ClickEvent, "id" | "createdAt">) {
+function mapClickRow(row: {
+  id: string;
+  createdAt: Date;
+  clientTs?: Date | null;
+  tipo: string;
+  destino?: string | null;
+  destinoLabel?: string | null;
+  rotulo?: string | null;
+  pagina?: string | null;
+  tituloPagina?: string | null;
+  href?: string | null;
+  secao?: string | null;
+  secaoLabel?: string | null;
+  elemento?: string | null;
+  visitanteId?: string | null;
+  sessaoVisita?: string | null;
+  sequencia?: number | null;
+  pais?: string | null;
+  estado?: string | null;
+  cidade?: string | null;
+  ipPrefix?: string | null;
+  referrer?: string | null;
+  dispositivo?: string | null;
+  fuso?: string | null;
+  idioma?: string | null;
+  utmSource?: string | null;
+  utmMedium?: string | null;
+  utmCampaign?: string | null;
+  origemTrafego?: string | null;
+  origemTrafegoLabel?: string | null;
+  clientEventId?: string | null;
+}): ClickEvent {
+  return {
+    id: row.id,
+    createdAt: row.createdAt.toISOString(),
+    clientTs: row.clientTs?.toISOString(),
+    tipo: row.tipo,
+    destino: row.destino || undefined,
+    destinoLabel: row.destinoLabel || undefined,
+    rotulo: row.rotulo || undefined,
+    pagina: row.pagina || undefined,
+    tituloPagina: row.tituloPagina || undefined,
+    href: row.href || undefined,
+    secao: row.secao || undefined,
+    secaoLabel: row.secaoLabel || undefined,
+    elemento: row.elemento || undefined,
+    visitanteId: row.visitanteId || undefined,
+    sessaoVisita: row.sessaoVisita || undefined,
+    sequencia: row.sequencia ?? undefined,
+    pais: row.pais || undefined,
+    estado: row.estado || undefined,
+    cidade: row.cidade || undefined,
+    ipPrefix: row.ipPrefix || undefined,
+    referrer: row.referrer || undefined,
+    dispositivo: row.dispositivo || undefined,
+    fuso: row.fuso || undefined,
+    idioma: row.idioma || undefined,
+    utmSource: row.utmSource || undefined,
+    utmMedium: row.utmMedium || undefined,
+    utmCampaign: row.utmCampaign || undefined,
+    origemTrafego: row.origemTrafego || undefined,
+    origemTrafegoLabel: row.origemTrafegoLabel || undefined,
+    clientEventId: row.clientEventId || undefined,
+  };
+}
+
+function clickCreateData(input: ClickEventInput) {
+  return {
+    tipo: input.tipo.slice(0, 64),
+    destino: input.destino?.slice(0, 48) || null,
+    destinoLabel: input.destinoLabel?.slice(0, 80) || null,
+    rotulo: input.rotulo?.slice(0, 120) || null,
+    pagina: input.pagina?.slice(0, 200) || null,
+    tituloPagina: input.tituloPagina?.slice(0, 120) || null,
+    href: input.href?.slice(0, 500) || null,
+    secao: input.secao?.slice(0, 60) || null,
+    secaoLabel: input.secaoLabel?.slice(0, 80) || null,
+    elemento: input.elemento?.slice(0, 24) || null,
+    visitanteId: input.visitanteId?.slice(0, 64) || null,
+    sessaoVisita: input.sessaoVisita?.slice(0, 64) || null,
+    sequencia: input.sequencia ?? null,
+    pais: input.pais?.slice(0, 12) || null,
+    estado: input.estado?.slice(0, 80) || null,
+    cidade: input.cidade?.slice(0, 80) || null,
+    ipPrefix: input.ipPrefix?.slice(0, 24) || null,
+    referrer: input.referrer?.slice(0, 200) || null,
+    dispositivo: input.dispositivo?.slice(0, 80) || null,
+    fuso: input.fuso?.slice(0, 60) || null,
+    idioma: input.idioma?.slice(0, 24) || null,
+    utmSource: input.utmSource?.slice(0, 48) || null,
+    utmMedium: input.utmMedium?.slice(0, 32) || null,
+    utmCampaign: input.utmCampaign?.slice(0, 64) || null,
+    origemTrafego: input.origemTrafego?.slice(0, 32) || null,
+    origemTrafegoLabel: input.origemTrafegoLabel?.slice(0, 80) || null,
+    clientEventId: input.clientEventId?.slice(0, 64) || null,
+    clientTs: input.clientTs || null,
+  };
+}
+
+export async function logClick(input: ClickEventInput) {
   // Neon = fonte de verdade (Vercel não persiste JSON em disco)
   if (process.env.DATABASE_URL) {
     try {
-      const row = await prisma.clickEvent.create({
-        data: {
-          tipo: input.tipo.slice(0, 64),
-          rotulo: input.rotulo?.slice(0, 200) || null,
-          pagina: input.pagina?.slice(0, 200) || null,
-          href: input.href?.slice(0, 500) || null,
-          secao: input.secao?.slice(0, 80) || null,
-        },
-      });
-      return {
-        id: row.id,
-        createdAt: row.createdAt.toISOString(),
-        tipo: row.tipo,
-        rotulo: row.rotulo || undefined,
-        pagina: row.pagina || undefined,
-        href: row.href || undefined,
-        secao: row.secao || undefined,
-      } satisfies ClickEvent;
+      if (input.clientEventId) {
+        const dup = await prisma.clickEvent.findFirst({
+          where: { clientEventId: input.clientEventId },
+        });
+        if (dup) return mapClickRow(dup);
+      }
+      const row = await prisma.clickEvent.create({ data: clickCreateData(input) });
+      return mapClickRow(row);
     } catch (e) {
       console.error("logClick prisma", e);
     }
@@ -247,6 +337,7 @@ export async function logClick(input: Omit<ClickEvent, "id" | "createdAt">) {
     ...input,
     id: `clk_${Date.now().toString(36)}`,
     createdAt: new Date().toISOString(),
+    clientTs: input.clientTs?.toISOString(),
   };
   store.clicks.unshift(click);
   store.clicks = store.clicks.slice(0, 2500);
@@ -254,28 +345,18 @@ export async function logClick(input: Omit<ClickEvent, "id" | "createdAt">) {
   return click;
 }
 
-export async function listClicks() {
+export async function listClicks(limit = 800) {
   if (process.env.DATABASE_URL) {
     try {
       const rows = await prisma.clickEvent.findMany({
         orderBy: { createdAt: "desc" },
-        take: 500,
+        take: limit,
       });
-      return rows.map(
-        (row): ClickEvent => ({
-          id: row.id,
-          createdAt: row.createdAt.toISOString(),
-          tipo: row.tipo,
-          rotulo: row.rotulo || undefined,
-          pagina: row.pagina || undefined,
-          href: row.href || undefined,
-          secao: row.secao || undefined,
-        }),
-      );
+      return rows.map(mapClickRow);
     } catch (e) {
       console.error("listClicks prisma", e);
     }
   }
   const store = await getStore();
-  return store.clicks;
+  return store.clicks.slice(0, limit);
 }

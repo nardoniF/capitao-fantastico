@@ -6,6 +6,7 @@ import { computeMissionIndex, type MissionIndex } from "@/lib/mission";
 import {
   catalogCap,
   countActiveProducts,
+  countStorefrontProducts,
   getImportSummary,
   listImportLogs,
 } from "@/lib/import-log";
@@ -325,7 +326,7 @@ export async function getAdminBundle() {
   const pricing = await getPricing();
   const rawOrders = await listOrders();
   const mission = computeMissionIndex(rawOrders);
-  const [products, orders, clicks, feedback, api, importLogs, activeCount, importSummary] =
+  const [products, orders, clicks, feedback, api, importLogs, vitrineCount, activeDbCount, importSummary] =
     await Promise.all([
       listAdminProducts(),
       listAdminOrders(),
@@ -333,12 +334,13 @@ export async function getAdminBundle() {
       process.env.DATABASE_URL ? listFeedback() : Promise.resolve([]),
       getAdminApiStatus(),
       listImportLogs(40),
+      countStorefrontProducts(),
       countActiveProducts(),
       getImportSummary(),
     ]);
 
   const cap = catalogCap();
-  const kpis = buildAdminKpis(orders, clicks, activeCount, cap, mission);
+  const kpis = buildAdminKpis(orders, clicks, vitrineCount, cap, mission);
 
   return {
     pricing,
@@ -360,9 +362,10 @@ export async function getAdminBundle() {
       createdAt: l.createdAt.toISOString(),
     })),
     catalog: {
-      activeCount,
+      activeCount: vitrineCount,
+      activeDbCount,
       cap,
-      slotsLeft: Math.max(0, cap - activeCount),
+      slotsLeft: Math.max(0, cap - vitrineCount),
     },
     updatedAt: new Date().toISOString(),
   };

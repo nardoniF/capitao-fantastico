@@ -30,6 +30,11 @@ export function ProductCard({ product }: { product: Product }) {
             Novo
           </span>
         ) : null}
+        {product.deliveryDays != null && product.deliveryDays <= 15 ? (
+          <span className="absolute bottom-2 left-2 rounded bg-emerald-600/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+            {product.deliveryDays}d
+          </span>
+        ) : null}
       </Link>
       <div className="flex flex-1 flex-col gap-2 p-4">
         <div className="flex items-center justify-between gap-2">

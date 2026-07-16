@@ -13,33 +13,34 @@ async function main() {
   const { autoImportTopCjProducts } = await import(
     "../src/lib/suppliers/auto-import-cj"
   );
-  const { catalogCap } = await import("../src/lib/import-log");
+  const { catalogCap, countStorefrontProducts } = await import(
+    "../src/lib/import-log"
+  );
 
   const cap = catalogCap();
-  console.log(`Teto do catálogo: ${cap}`);
+  console.log(`Teto da vitrine: ${cap}`);
 
   let round = 0;
   let stagnant = 0;
 
   while (true) {
     round += 1;
-    const activeBefore = await prisma.product.count({
-      where: { active: true },
-    });
-    if (activeBefore >= cap) {
-      console.log(`\n✔ Meta atingida: ${activeBefore}/${cap} ativos.`);
+    const vitrineBefore = await countStorefrontProducts();
+    if (vitrineBefore >= cap) {
+      console.log(`\n✔ Meta atingida: ${vitrineBefore}/${cap} na vitrine.`);
       break;
     }
 
     // Rodadas seguintes varrem mais páginas da CJ para renovar o pool
     const pages = Math.min(1 + round, 5);
     console.log(
-      `\n— Rodada ${round} · ativos ${activeBefore}/${cap} · páginas ${pages}`,
+      `\n— Rodada ${round} · vitrine ${vitrineBefore}/${cap} · páginas ${pages}`,
     );
 
     const r = await autoImportTopCjProducts({
       limit: 30,
       pages,
+      deepFill: true,
       source: "manual",
     });
 
@@ -71,8 +72,11 @@ async function main() {
     await new Promise((res) => setTimeout(res, 5000));
   }
 
+  const finalVitrine = await countStorefrontProducts();
   const finalActive = await prisma.product.count({ where: { active: true } });
-  console.log(`\nFINAL: ${finalActive} produtos ativos.`);
+  console.log(
+    `\nFINAL: ${finalVitrine} na vitrine · ${finalActive} ativos no banco.`,
+  );
   await prisma.$disconnect();
 }
 

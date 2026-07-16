@@ -24,6 +24,9 @@ export type ProductDetails = {
   longDescription?: string;
   /** Perguntas que o cliente faz antes de comprar */
   faqs?: ProductFaq[];
+  /** Prazo estimado de entrega (dias úteis) */
+  deliveryDays?: number;
+  freightOrigin?: string;
 };
 
 export function parseProductDetails(raw: unknown): ProductDetails {

@@ -1,17 +1,12 @@
 import { NextResponse } from "next/server";
+import { isAdminAuthorized } from "@/lib/admin-auth";
 import { importCJProductFull } from "@/lib/suppliers/import-cj";
 import {
   appendImportLog,
   catalogCap,
-  countActiveProducts,
+  countStorefrontProducts,
 } from "@/lib/import-log";
 import type { ProductCategory } from "@/data/products";
-
-function checkAuth(request: Request) {
-  const expected = process.env.ADMIN_PASSWORD?.trim();
-  if (!expected) return false;
-  return request.headers.get("x-admin-password") === expected;
-}
 
 /**
  * POST /api/admin/cj/import
@@ -19,7 +14,7 @@ function checkAuth(request: Request) {
  * Limite: 10 por request. Respeita teto do catálogo.
  */
 export async function POST(request: Request) {
-  if (!checkAuth(request)) {
+  if (!(await isAdminAuthorized(request))) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
@@ -110,7 +105,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: errors.length === 0,
       catalogCap: cap,
-      activeCount: await countActiveProducts(),
+      activeCount: await countStorefrontProducts(),
       imported,
       errors,
     });

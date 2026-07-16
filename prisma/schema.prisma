@@ -243,14 +243,58 @@ model Feedback {
 model ClickEvent {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
-  tipo      String
-  rotulo    String?
-  pagina    String?
-  href      String?
-  secao     String?
+  clientTs  DateTime?
+
+  tipo         String
+  destino      String?
+  destinoLabel String?
+  rotulo       String?
+  pagina       String?
+  tituloPagina String?
+  href         String?
+  secao        String?
+  secaoLabel   String?
+  elemento     String?
+
+  visitanteId  String?
+  sessaoVisita String?
+  sequencia    Int?
+
+  pais     String?
+  estado   String?
+  cidade   String?
+  ipPrefix String?
+
+  referrer    String?
+  dispositivo String?
+  fuso        String?
+  idioma      String?
+
+  utmSource          String?
+  utmMedium          String?
+  utmCampaign        String?
+  origemTrafego      String?
+  origemTrafegoLabel String?
+
+  clientEventId String?
 
   @@index([createdAt])
   @@index([tipo])
+  @@index([destino])
+  @@index([visitanteId])
+  @@index([pais])
+  @@index([clientEventId])
+}
+
+/// Sessão admin (Bearer token — estilo STF)
+model AdminSession {
+  id        String   @id @default(cuid())
+  token     String   @unique @default(cuid())
+  username  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
 }
 
 /// Log simplificado de imports CJ (cron / manual)
