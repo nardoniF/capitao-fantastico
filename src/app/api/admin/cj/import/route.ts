@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     }
 
     const cap = catalogCap();
-    let active = await countActiveProducts();
+    let active = await countStorefrontProducts();
     const imported = [];
     const errors: { pid: string; error: string }[] = [];
 
