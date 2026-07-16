@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   };
 
   const username = String(body.username || "").trim();
-  const password = String(body.password || "");
+  const password = String(body.password || "").trim();
 
   if (!(await validateAdminCredentials(username, password))) {
     return NextResponse.json(

@@ -141,15 +141,17 @@ model ProductVariant {
 }
 
 model Customer {
-  id        String   @id @default(cuid())
-  email     String
-  name      String
-  phone     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  orders    Order[]
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  phone        String?
+  passwordHash String
+  passwordSalt String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  orders       Order[]
 
-  @@index([email])
+  @@index([createdAt])
 }
 
 model Order {

@@ -1,20 +1,35 @@
 import { createHmac, timingSafeEqual } from "crypto";
-import { prisma } from "@/lib/db";
 
 const SESSION_HOURS = 24;
 
+/** Normaliza secret (Vercel às vezes grava com aspas ou espaço). */
+export function normalizeAdminSecret(value: string): string {
+  let v = value.trim();
+  if (
+    (v.startsWith('"') && v.endsWith('"')) ||
+    (v.startsWith("'") && v.endsWith("'"))
+  ) {
+    v = v.slice(1, -1).trim();
+  }
+  return v;
+}
+
 export function adminUsername() {
-  return (process.env.ADMIN_USERNAME || "admin").trim();
+  return normalizeAdminSecret(process.env.ADMIN_USERNAME || "admin");
 }
 
 export function adminPasswordConfigured() {
-  return Boolean(process.env.ADMIN_PASSWORD?.trim());
+  return Boolean(normalizeAdminSecret(process.env.ADMIN_PASSWORD || ""));
+}
+
+export function adminPasswordExpected() {
+  return normalizeAdminSecret(process.env.ADMIN_PASSWORD || "");
 }
 
 function sessionSecret() {
   return (
-    process.env.ADMIN_PASSWORD?.trim() ||
-    process.env.CRON_SECRET?.trim() ||
+    adminPasswordExpected() ||
+    normalizeAdminSecret(process.env.CRON_SECRET || "") ||
     "cf-admin-dev-only"
   );
 }
@@ -60,60 +75,39 @@ export function bearerToken(request: Request): string | null {
 }
 
 export function legacyPassword(request: Request): string {
-  return (request.headers.get("x-admin-password") || "").trim();
+  return normalizeAdminSecret(request.headers.get("x-admin-password") || "");
 }
 
+/** Sempre token assinado — não depende de tabela AdminSession no banco. */
 export async function createAdminSession(username: string) {
   const expiresAt = new Date(Date.now() + SESSION_HOURS * 60 * 60 * 1000);
-  if (process.env.DATABASE_URL) {
-    try {
-      const row = await prisma.adminSession.create({
-        data: { username, expiresAt },
-      });
-      return { token: row.token, username, expiresAt: expiresAt.toISOString() };
-    } catch (e) {
-      console.warn("AdminSession indisponível — token assinado", e);
-    }
-  }
   const token = createSignedAdminToken(username, expiresAt);
   return { token, username, expiresAt: expiresAt.toISOString() };
 }
 
 export async function validateAdminToken(token: string | null): Promise<boolean> {
   if (!token) return false;
-
-  if (parseSignedAdminToken(token)) return true;
-
-  if (!process.env.DATABASE_URL) {
-    return token.startsWith("local_");
-  }
-  try {
-    const row = await prisma.adminSession.findUnique({ where: { token } });
-    if (!row) return false;
-    if (row.expiresAt < new Date()) {
-      await prisma.adminSession.delete({ where: { id: row.id } }).catch(() => {});
-      return false;
-    }
-    return true;
-  } catch {
-    return Boolean(parseSignedAdminToken(token));
-  }
+  return Boolean(parseSignedAdminToken(token));
 }
 
+/** Igual STF: usuário exato + senha exata (com normalização de env). */
 export async function validateAdminCredentials(
   username: string,
   password: string,
 ): Promise<boolean> {
-  const expected = process.env.ADMIN_PASSWORD?.trim();
+  const expected = adminPasswordExpected();
   if (!expected) return false;
-  const givenUser = (username || adminUsername()).trim().toLowerCase();
-  const wantUser = adminUsername().toLowerCase();
-  return givenUser === wantUser && password === expected;
+
+  const givenPass = normalizeAdminSecret(password);
+  const wantUser = adminUsername();
+  const givenUser = normalizeAdminSecret(username || wantUser);
+
+  return givenUser === wantUser && givenPass === expected;
 }
 
 /** Token Bearer ou header legado x-admin-password. */
 export async function isAdminAuthorized(request: Request): Promise<boolean> {
-  const expected = process.env.ADMIN_PASSWORD?.trim();
+  const expected = adminPasswordExpected();
   if (!expected) return false;
 
   const token = bearerToken(request);
@@ -132,19 +126,6 @@ export async function getAdminSessionUser(
     const signed = parseSignedAdminToken(token);
     if (signed) return signed.username;
   }
-
-  if (!token || !process.env.DATABASE_URL) {
-    if (await isAdminAuthorized(request)) return adminUsername();
-    return null;
-  }
-  try {
-    const row = await prisma.adminSession.findUnique({ where: { token } });
-    if (!row || row.expiresAt < new Date()) {
-      if (token) return parseSignedAdminToken(token)?.username ?? null;
-      return null;
-    }
-    return row.username;
-  } catch {
-    return token ? parseSignedAdminToken(token)?.username ?? null : null;
-  }
+  if (await isAdminAuthorized(request)) return adminUsername();
+  return null;
 }

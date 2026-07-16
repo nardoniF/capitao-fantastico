@@ -45,6 +45,9 @@ export function SiteHeader({ variant = "solid" }: { variant?: "solid" | "hero" }
           <Link href="/central" className="hidden transition hover:text-gold sm:inline">
             Central
           </Link>
+          <Link href="/minha-conta" className="hidden transition hover:text-gold sm:inline">
+            Minha conta
+          </Link>
           <Link href="/sobre" className="hidden transition hover:text-gold md:inline">
             Quem somos
           </Link>

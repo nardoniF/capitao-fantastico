@@ -109,7 +109,16 @@ type Kpis = {
   missionHelp: number;
 };
 
-type Tab = "vendas" | "produtos" | "importar" | "markup" | "cliques" | "sugestoes" | "api";
+type Tab = "vendas" | "clientes" | "produtos" | "importar" | "markup" | "cliques" | "sugestoes" | "api";
+
+type CustomerRow = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  ordersCount: number;
+  createdAt: string;
+};
 
 type SearchHit = {
   pid: string;
@@ -170,6 +179,8 @@ export default function AdminPage() {
     byDestino: Record<string, number>;
   } | null>(null);
   const [clicksLoading, setClicksLoading] = useState(false);
+  const [customers, setCustomers] = useState<CustomerRow[]>([]);
+  const [customersLoading, setCustomersLoading] = useState(false);
   const [loginHelpOpen, setLoginHelpOpen] = useState(false);
   const [loginHint, setLoginHint] = useState<{
     username: string;
@@ -258,15 +269,22 @@ export default function AdminPage() {
 
   async function doLogin() {
     setError(null);
+    sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+    setToken("");
     const res = await fetch("/api/admin/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
+      body: JSON.stringify({ username: username.trim(), password: password.trim() }),
     });
     const data = (await res.json()) as { error?: string; token?: string };
     if (!res.ok || !data.token) {
       setAuthed(false);
-      setError(data.error || "Login falhou");
+      setError(
+        data.error ||
+          (res.status === 500
+            ? "Erro no servidor — confira ADMIN_PASSWORD no Vercel"
+            : `Login falhou (${res.status})`),
+      );
       return;
     }
     setToken(data.token);
@@ -275,7 +293,15 @@ export default function AdminPage() {
       headers: { Authorization: `Bearer ${data.token}` },
     });
     if (!bundle.ok) {
-      setError("Sessão ok, mas falha ao carregar painel");
+      sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+      setToken("");
+      const errBody = (await bundle.json().catch(() => ({}))) as {
+        error?: string;
+      };
+      setError(
+        errBody.error ||
+          `Senha aceita, mas painel retornou ${bundle.status}. Tente de novo.`,
+      );
       return;
     }
     const payload = (await bundle.json()) as {
@@ -353,9 +379,28 @@ export default function AdminPage() {
     })();
   }, []);
 
+  const loadCustomers = useCallback(async () => {
+    if (!token && !password) return;
+    setCustomersLoading(true);
+    try {
+      const res = await fetch("/api/admin/customers", {
+        headers: adminHeaders(token, password),
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as { customers: CustomerRow[] };
+      setCustomers(data.customers);
+    } finally {
+      setCustomersLoading(false);
+    }
+  }, [token, password]);
+
   useEffect(() => {
     if (authed && tab === "cliques") void loadClicks();
   }, [authed, tab, loadClicks]);
+
+  useEffect(() => {
+    if (authed && tab === "clientes") void loadCustomers();
+  }, [authed, tab, loadCustomers]);
 
   useEffect(() => {
     if (!msg) return;
@@ -704,6 +749,7 @@ export default function AdminPage() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "vendas", label: `Vendas (${orders.length})` },
+    { id: "clientes", label: `Clientes (${customers.length})` },
     { id: "produtos", label: `Produtos (${products.length})` },
     { id: "importar", label: "Importar CJ" },
     { id: "markup", label: "Markup" },
@@ -751,10 +797,14 @@ export default function AdminPage() {
           </a>
           <button
             type="button"
-            onClick={() => void load()}
-            className="rounded-md border border-line px-4 py-2 text-sm text-white hover:border-gold"
+            onClick={() => {
+              sessionStorage.removeItem(ADMIN_TOKEN_KEY);
+              setToken("");
+              setAuthed(false);
+            }}
+            className="rounded-md border border-line px-4 py-2 text-sm text-muted hover:border-gold hover:text-gold"
           >
-            Atualizar
+            Sair
           </button>
         </div>
       </div>
@@ -1059,6 +1109,57 @@ export default function AdminPage() {
             {pricing ? `${(pricing.feePct * 100).toFixed(0)}%` : "5%"}). Frete CJ
             ainda pode estar zerado em alguns itens.
           </p>
+        </div>
+      ) : null}
+
+      {tab === "clientes" ? (
+        <div className="mt-8">
+          <p className="mb-4 text-sm text-muted">
+            Contas criadas em{" "}
+            <a href="/minha-conta" className="text-gold hover:underline">
+              /minha-conta
+            </a>{" "}
+            — igual STF.
+          </p>
+          {customersLoading ? (
+            <p className="text-muted">Carregando…</p>
+          ) : customers.length === 0 ? (
+            <p className="text-muted">Nenhum cliente cadastrado ainda.</p>
+          ) : (
+            <div className="overflow-x-auto rounded-[14px] border border-[#333]">
+              <table className="min-w-full text-left text-sm">
+                <thead className="border-b border-[#333] bg-[#141414] text-muted">
+                  <tr>
+                    <th className="px-3 py-3">Nome</th>
+                    <th className="px-3 py-3">E-mail</th>
+                    <th className="px-3 py-3">WhatsApp</th>
+                    <th className="px-3 py-3">Pedidos</th>
+                    <th className="px-3 py-3">Cadastro</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customers.map((c) => (
+                    <tr key={c.id} className="border-b border-[#333]">
+                      <td className="px-3 py-3 text-white">{c.name}</td>
+                      <td className="px-3 py-3">
+                        <a
+                          href={`mailto:${c.email}`}
+                          className="text-gold hover:underline"
+                        >
+                          {c.email}
+                        </a>
+                      </td>
+                      <td className="px-3 py-3 text-muted">{c.phone || "—"}</td>
+                      <td className="px-3 py-3">{c.ordersCount}</td>
+                      <td className="px-3 py-3 text-muted">
+                        {new Date(c.createdAt).toLocaleString("pt-BR")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       ) : null}
 
