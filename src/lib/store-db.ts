@@ -216,6 +216,12 @@ export async function listOrders() {
   return store.orders;
 }
 
+export async function listOrdersByEmail(email: string) {
+  const norm = email.trim().toLowerCase();
+  const store = await getStore();
+  return store.orders.filter((o) => o.email.trim().toLowerCase() === norm);
+}
+
 function mapClickRow(row: {
   id: string;
   createdAt: Date;

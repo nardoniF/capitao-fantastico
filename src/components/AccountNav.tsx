@@ -85,7 +85,7 @@ export function AccountNav() {
             Minha conta
           </Link>
           <Link
-            href="/central"
+            href="/minha-conta?aba=pedidos"
             role="menuitem"
             className="block px-3 py-2 text-sm text-white hover:bg-[#222] hover:text-gold"
             onClick={() => setOpen(false)}
