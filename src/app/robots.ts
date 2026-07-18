@@ -1,18 +1,25 @@
 import type { MetadataRoute } from "next";
-
-const base =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-  "https://www.capitaofantastico.com.br";
+import { siteUrl } from "@/lib/seo";
 
 export default function robots(): MetadataRoute.Robots {
+  const base = siteUrl();
   return {
     rules: [
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/admin", "/api/", "/carrinho", "/checkout", "/pedido/"],
+        disallow: [
+          "/admin",
+          "/api/",
+          "/carrinho",
+          "/checkout",
+          "/pedido/",
+          "/minha-conta",
+          "/missao",
+        ],
       },
     ],
     sitemap: `${base}/sitemap.xml`,
+    host: base,
   };
 }

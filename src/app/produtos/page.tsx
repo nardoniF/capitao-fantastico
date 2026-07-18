@@ -8,13 +8,16 @@ import {
   type ProductCategory,
 } from "@/data/products";
 import { listStorefrontProducts } from "@/lib/catalog";
+import { buildPageMetadata } from "@/lib/seo";
 import { siteConfig } from "@/lib/site-config";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: `Produtos — Os ${siteConfig.catalogTarget} mais bem avaliados`,
-};
+export const metadata: Metadata = buildPageMetadata({
+  title: `Produtos — Os ${siteConfig.catalogTarget} mais bem avaliados da internet`,
+  description: `${siteConfig.positioning} Filtre por categoria, preço e entrega rápida. Compre com Pix ou cartão.`,
+  path: "/produtos",
+});
 
 type Props = {
   searchParams: Promise<{

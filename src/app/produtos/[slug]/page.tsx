@@ -1,11 +1,13 @@
 import { ApprovedSeal } from "@/components/ApprovedSeal";
 import { medalsForProduct } from "@/components/CaptainMedals";
+import { JsonLdProduct } from "@/components/JsonLd";
 import { ProductDetailsAccordion } from "@/components/ProductDetailsAccordion";
 import { ProductPurchase } from "@/components/ProductPurchase";
 import { captainScoreFor } from "@/data/captain";
 import { categoryLabels } from "@/data/products";
 import { getStorefrontBySlug, type StorefrontVariant } from "@/lib/catalog";
 import type { ProductDetails } from "@/lib/product-details";
+import { buildPageMetadata } from "@/lib/seo";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -23,13 +25,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const product = await getStorefrontBySlug(slug);
   if (!product) return { title: "Produto" };
   const title =
-    ("seoTitle" in product && product.seoTitle) || product.name;
+    (product.seoTitle && String(product.seoTitle)) || product.name;
   const description =
-    ("seoDescription" in product && product.seoDescription) || product.blurb;
-  return {
+    (product.seoDescription && String(product.seoDescription)) ||
+    product.blurb;
+  return buildPageMetadata({
     title: String(title),
     description: String(description),
-  };
+    path: `/produtos/${slug}`,
+    image: product.image,
+  });
 }
 
 export default async function ProductDetailPage({ params }: Props) {
@@ -60,9 +65,20 @@ export default async function ProductDetailPage({ params }: Props) {
   const blurbIsSpecBlob = /^(cores|tamanhos)\s*:|sku\s*:/i.test(
     product.blurb.trim(),
   );
+  const inStock = variants.some((v) => v.stock > 0);
 
   return (
-    <div className="bg-bg py-10 md:py-14">
+    <>
+      <JsonLdProduct
+        name={product.name}
+        description={product.description || product.blurb}
+        image={product.image}
+        price={product.price}
+        slug={product.slug}
+        inStock={inStock}
+        category={categoryLabels[product.category]}
+      />
+      <div className="bg-bg py-10 md:py-14">
       <div className="mx-auto max-w-[1100px] px-6 md:px-10 lg:px-12">
         <p className="mb-6 text-sm text-muted">
           <Link href="/produtos" className="hover:text-gold">
@@ -134,5 +150,6 @@ export default async function ProductDetailPage({ params }: Props) {
         />
       </div>
     </div>
+    </>
   );
 }
