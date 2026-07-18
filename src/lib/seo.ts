@@ -3,10 +3,14 @@ import { siteConfig } from "@/lib/site-config";
 
 /** URL canônica do site (sem barra final). */
 export function siteUrl() {
-  return (
+  const raw =
     process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ||
-    "https://www.capitaofantastico.com.br"
-  );
+    "https://www.capitaofantastico.com.br";
+  // Domínio de produção redireciona non-www → www; canonical/sitemap devem usar www.
+  if (raw === "https://capitaofantastico.com.br") {
+    return "https://www.capitaofantastico.com.br";
+  }
+  return raw;
 }
 
 export function absoluteUrl(path = "/") {
