@@ -6,15 +6,15 @@
     },
     {
       "path": "/api/jobs/auto-import-cj",
-      "schedule": "0 5 * * *"
+      "schedule": "0 5 * * 1"
     },
     {
       "path": "/api/jobs/sync-tracking",
-      "schedule": "*/30 * * * *"
+      "schedule": "0 9,18 * * *"
     },
     {
       "path": "/api/jobs/fulfill-orders",
-      "schedule": "5,35 * * * *"
+      "schedule": "15 6,18 * * *"
     }
   ]
 }

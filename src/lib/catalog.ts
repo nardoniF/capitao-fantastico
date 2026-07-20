@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { readCatalogCache, writeCatalogCache } from "@/lib/catalog-cache";
 import { normalizeImageUrl } from "@/lib/media";
 import {
   parseGallery,
@@ -203,18 +204,26 @@ export async function listStorefrontProducts(): Promise<StorefrontProduct[]> {
       },
       orderBy: [{ isNew: "desc" }, { updatedAt: "desc" }],
     });
-    return rows
+    const products = rows
       .map((row) => ({ row, product: mapRow(row) }))
       .filter(({ row, product }) => {
-        // Tem variantes cadastradas mas nenhuma com estoque → some da vitrine
         if (row.variants.length > 0 && product.variants.length === 0) {
           return false;
         }
         return true;
       })
       .map(({ product }) => product);
+    await writeCatalogCache(products);
+    return products;
   } catch (e) {
     console.error("listStorefrontProducts", e);
+    const cached = await readCatalogCache();
+    if (cached?.length) {
+      console.warn(
+        `listStorefrontProducts: servindo ${cached.length} produtos do cache Redis`,
+      );
+      return cached;
+    }
     return [];
   }
 }
@@ -226,10 +235,12 @@ export async function getStorefrontBySlug(slug: string) {
       where: { slug, active: true },
       include: includeVariants,
     });
-    return row ? mapRow(row) : null;
-  } catch {
-    return null;
+    if (row) return mapRow(row);
+  } catch (e) {
+    console.error("getStorefrontBySlug", e);
   }
+  const cached = await readCatalogCache();
+  return cached?.find((p) => p.slug === slug) ?? null;
 }
 
 export async function getStorefrontById(id: string) {
@@ -239,10 +250,12 @@ export async function getStorefrontById(id: string) {
       where: { id, active: true },
       include: includeVariants,
     });
-    return row ? mapRow(row) : null;
-  } catch {
-    return null;
+    if (row) return mapRow(row);
+  } catch (e) {
+    console.error("getStorefrontById", e);
   }
+  const cached = await readCatalogCache();
+  return cached?.find((p) => p.id === id) ?? null;
 }
 
 /** Upsells por categoria quando o produto vem do banco (sem complementaryIds do seed). */

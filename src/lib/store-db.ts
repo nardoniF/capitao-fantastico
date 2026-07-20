@@ -22,6 +22,7 @@ import {
   redisSetStoreJson,
 } from "@/lib/redis-store";
 import { generateOrderId } from "@/lib/order-id";
+import { mustUseDatabaseCatalog } from "@/lib/runtime-env";
 
 function toStoreProduct(p: StorefrontProduct): StoreProduct {
   return {
@@ -82,10 +83,17 @@ async function loadState(): Promise<{ state: StoreState; reseeding: boolean }> {
   if (!state && globalThis.__cfStore) state = globalThis.__cfStore;
   if (!state) {
     const disk = await readFromDisk();
-    state = disk ?? createEmptyStore();
+    if (disk) state = disk;
+    else if (mustUseDatabaseCatalog()) {
+      state = { ...createEmptyStore(), products: [], orders: [], clicks: [] };
+    } else {
+      state = createEmptyStore();
+    }
   }
 
-  const next = applySeedIfNeeded(state);
+  const next = mustUseDatabaseCatalog()
+    ? { ...state, products: state.products ?? [] }
+    : applySeedIfNeeded(state);
   return { state: next, reseeding: next !== state };
 }
 
@@ -122,6 +130,8 @@ export async function listActiveProducts(): Promise<StoreProduct[]> {
   const fromDb = await listStorefrontProducts();
   if (fromDb.length > 0) return fromDb.map(toStoreProduct);
 
+  if (mustUseDatabaseCatalog()) return [];
+
   const store = await getStore();
   return store.products.filter((p) => p.active);
 }
@@ -129,6 +139,8 @@ export async function listActiveProducts(): Promise<StoreProduct[]> {
 export async function getProductById(id: string) {
   const fromDb = await getStorefrontById(id);
   if (fromDb) return toStoreProduct(fromDb);
+
+  if (mustUseDatabaseCatalog()) return undefined;
 
   if ((await dbCatalogCount()) > 0) return undefined;
 
@@ -139,6 +151,8 @@ export async function getProductById(id: string) {
 export async function getProductBySlug(slug: string) {
   const fromDb = await getStorefrontBySlug(slug);
   if (fromDb) return toStoreProduct(fromDb);
+
+  if (mustUseDatabaseCatalog()) return undefined;
 
   if ((await dbCatalogCount()) > 0) return undefined;
 
